@@ -35,7 +35,7 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
           .get();
       setState(() => _openTasks = (snap.count ?? 0)); // snap.count is int?
     } catch (_) {
-      setState(() => _openTasks = 0); // safe fallback
+      setState(() => _openTasks = 0);
     }
   }
 
@@ -48,6 +48,18 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
   }
 
   // ---------- Helpers: add sheets ----------
+
+  // Task Section Additionals
+  Color _taskStatusColor(String status, BuildContext context) {
+    switch (status) {
+      case 'In-Progress':
+        return Colors.orange;
+      case 'Done':
+        return Colors.green;
+      default:
+        return Theme.of(context).colorScheme.outline; // Pending (gray)
+    }
+  }
 
   Future<void> _editNotesDialog(
     DocumentReference<Map<String, dynamic>> ref,
@@ -180,7 +192,7 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
                                     : Timestamp.fromDate(due!),
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
-                              // if you have _refreshOpenTasks() for the KPI, call it:
+                              _refreshOpenTasks();
                               if (mounted) {
                                 final state = this;
                                 // ignore: invalid_use_of_protected_member
@@ -224,6 +236,39 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
       },
     );
   }
+  // Task Section Additionals
+
+  // Overview Section Additionals
+  Color _statusColorSmall(String status, BuildContext context) {
+    switch (status) {
+      case 'In-Progress':
+        return Colors.orange;
+      case 'Done':
+        return Colors.green;
+      default:
+        return Theme.of(context).colorScheme.outline; // Pending = gray
+    }
+  }
+
+  Widget _statusPillSmall(String status, BuildContext context) {
+    final c = _statusColorSmall(status, context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: c.withOpacity(0.6)),
+      ),
+      child: Text(
+        status,
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: c, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  // Overview Section Additionals
 
   Future<void> _addObservationSheet() async {
     String type = 'anthracnose';
@@ -467,6 +512,194 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
 
   // ---------- Widgets ----------
 
+  Widget _openTasksPreviewCard() {
+    return InkWell(
+      onTap: () => _tab.index = 1, // 👈 go to "Tasks" tab
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: farmRef
+                .collection('tasks')
+                .where('isDone', isEqualTo: false) // only open tasks
+                .orderBy('dueDate', descending: false) // soonest first
+                .orderBy('createdAt', descending: true) // tie-breaker
+                .limit(20) // pull a few, we’ll pick 3
+                .snapshots(),
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return const Text('Open Tasks');
+              }
+              if (snap.connectionState == ConnectionState.waiting) {
+                return Row(
+                  children: const [
+                    Expanded(child: Text('Open Tasks')),
+                    SizedBox(width: 8),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ],
+                );
+              }
+
+              final docs = snap.data?.docs ?? [];
+              // Group by due date
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+
+              final overdue = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final todayList = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final upcoming = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final noDue = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+              for (final d in docs) {
+                final t = d.data();
+                final dueTs = t['dueDate'] as Timestamp?;
+                if (dueTs == null) {
+                  noDue.add(d);
+                  continue;
+                }
+                final dt = dueTs.toDate();
+                final dueOnly = DateTime(dt.year, dt.month, dt.day);
+                if (dueOnly.isBefore(today)) {
+                  overdue.add(d);
+                } else if (dueOnly.isAtSameMomentAs(today)) {
+                  todayList.add(d);
+                } else {
+                  upcoming.add(d);
+                }
+              }
+
+              // Pick up to 3 tasks: Overdue → Today → Upcoming → No Due
+              final picked = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              void take(List<QueryDocumentSnapshot<Map<String, dynamic>>> src) {
+                for (final x in src) {
+                  if (picked.length < 3) picked.add(x);
+                }
+              }
+
+              take(overdue);
+              take(todayList);
+              take(upcoming);
+              take(noDue);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      const Icon(Icons.checklist, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Open Tasks',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => _tab.index = 1,
+                        child: const Text('See all'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (picked.isEmpty) ...[
+                    const Text('All caught up 👏'),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _addTaskSheet,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Task'),
+                    ),
+                  ] else
+                    ...picked.map((doc) {
+                      final t = doc.data();
+                      final title = (t['title'] ?? '') as String;
+                      final status = (t['status'] as String?) ?? 'Pending';
+                      final dueTs = t['dueDate'] as Timestamp?;
+                      final dueStr = dueTs == null
+                          ? 'No due date'
+                          : dueTs
+                                .toDate()
+                                .toLocal()
+                                .toString()
+                                .split(' ')
+                                .first;
+
+                      // Overdue marker (red) if not done and due date is in the past
+                      bool isOverdue = false;
+                      if (dueTs != null && status != 'Done') {
+                        final d = dueTs.toDate();
+                        final dd = DateTime(d.year, d.month, d.day);
+                        isOverdue = dd.isBefore(today);
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title + due
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      if (isOverdue)
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 16,
+                                          color: Colors.red,
+                                        ),
+                                      if (isOverdue) const SizedBox(width: 4),
+                                      Text(
+                                        dueStr,
+                                        style: isOverdue
+                                            ? const TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.w600,
+                                              )
+                                            : Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Colored status
+                            _statusPillSmall(status, context),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _overviewTab() {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: farmRef.snapshots(),
@@ -486,8 +719,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
         final lastObs = dp['lastObserved'] as Timestamp?;
         final anth = dp['anthracnose'] == true;
         final pm = dp['powderyMildew'] == true;
-
-        // _refreshOpenTasks();
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -525,16 +756,13 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
             ),
             const SizedBox(height: 12),
             // KPIs
+            // 🔹 Open Tasks preview (clickable → goes to Tasks tab)
+            _openTasksPreviewCard(),
+            const SizedBox(height: 12),
+
+            // Keep the other KPIs
             Row(
               children: [
-                Expanded(
-                  child: _kpiCard(
-                    context,
-                    'Open Tasks',
-                    _openTasks == null ? '…' : '${_openTasks!}',
-                  ),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: _kpiCard(
                     context,
@@ -554,6 +782,7 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
             Card(
               shape: RoundedRectangleBorder(
@@ -654,6 +883,292 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     );
   }
 
+  // Task Section Widgets
+  Widget _statusPill(String status, BuildContext context) {
+    final c = _taskStatusColor(status, context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: c.withOpacity(0.6)),
+      ),
+      child: Text(
+        status,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: c,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget buildTaskCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final ref = doc.reference;
+    final t = doc.data();
+    final title = (t['title'] ?? '') as String;
+    final notes = (t['notes'] ?? '') as String;
+    final isDone = (t['isDone'] ?? false) as bool;
+
+    final dueTs = t['dueDate'] as Timestamp?;
+    final dueStr = dueTs == null
+        ? null
+        : dueTs.toDate().toLocal().toString().split(' ').first;
+
+    final status = (t['status'] as String?) ?? (isDone ? 'Done' : 'Pending');
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          leading: Checkbox(
+            value: isDone,
+            onChanged: (val) async {
+              await ref.update({
+                'isDone': val == true,
+                'status': (val == true) ? 'Done' : 'Pending',
+                'completedAt': (val == true)
+                    ? FieldValue.serverTimestamp()
+                    : FieldValue.delete(),
+              });
+              if (mounted) _refreshOpenTasks();
+            },
+          ),
+          title: Text(
+            title,
+            style: isDone
+                ? Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: Colors.grey,
+                  )
+                : Theme.of(context).textTheme.bodyLarge,
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Due: ${dueStr ?? '—'}'),
+              const SizedBox(height: 4),
+              _statusPill(
+                status,
+                context,
+              ), // 👈 colored status under the due date
+            ],
+          ),
+          trailing: PopupMenuButton<String>(
+            onSelected: (val) async {
+              if (val == 'to_pending') {
+                await ref.update({'status': 'Pending', 'isDone': false});
+              } else if (val == 'to_progress') {
+                await ref.update({'status': 'In-Progress', 'isDone': false});
+              } else if (val == 'to_done') {
+                await ref.update({
+                  'status': 'Done',
+                  'isDone': true,
+                  'completedAt': FieldValue.serverTimestamp(),
+                });
+                if (mounted) _refreshOpenTasks();
+              } else if (val == 'delete') {
+                await ref.delete();
+                if (mounted) _refreshOpenTasks();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'to_pending', child: Text('Mark Pending')),
+              PopupMenuItem(
+                value: 'to_progress',
+                child: Text('Mark In-Progress'),
+              ),
+              PopupMenuItem(value: 'to_done', child: Text('Mark Done')),
+              PopupMenuItem(value: 'delete', child: Text('Delete')),
+            ],
+          ),
+          children: [
+            if (notes.trim().isEmpty)
+              Text('No notes', style: Theme.of(context).textTheme.bodySmall)
+            else
+              Text(notes),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget taskTile(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final ref = doc.reference;
+    final t = doc.data();
+    final title = (t['title'] ?? '') as String;
+    final notes = (t['notes'] ?? '') as String;
+    final isDone = (t['isDone'] ?? false) as bool;
+
+    final dueTs = t['dueDate'] as Timestamp?;
+    final dueStr = dueTs?.toDate().toLocal().toString().split(' ').first;
+
+    final status = (t['status'] as String?) ?? (isDone ? 'Done' : 'Pending');
+
+    // Overdue = due date in the past AND not Done
+    bool isOverdue = false;
+    if (dueTs != null && status != 'Done') {
+      final d = dueTs.toDate();
+      final dd = DateTime(d.year, d.month, d.day);
+      isOverdue = dd.isBefore(today);
+    }
+
+    Color statusColor() {
+      switch (status) {
+        case 'In-Progress':
+          return Colors.orange;
+        case 'Done':
+          return Colors.green;
+        default:
+          return Theme.of(context).colorScheme.outline; // Pending = gray
+      }
+    }
+
+    Widget statusPill() {
+      final c = statusColor();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: c.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: c.withOpacity(0.6)),
+        ),
+        child: Text(
+          status,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: c,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          leading: Checkbox(
+            value: isDone,
+            onChanged: (val) async {
+              await ref.update({
+                'isDone': val == true,
+                'status': (val == true) ? 'Done' : 'Pending',
+                'completedAt': (val == true)
+                    ? FieldValue.serverTimestamp()
+                    : FieldValue.delete(),
+              });
+              if (mounted) _refreshOpenTasks();
+            },
+          ),
+          title: Text(
+            title,
+            style: isDone
+                ? Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: Colors.grey,
+                  )
+                : Theme.of(context).textTheme.bodyLarge,
+          ),
+          // Due date + status pill + overdue warning (red)
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Due: ${dueStr ?? '—'}',
+                style: isOverdue
+                    ? const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : null,
+              ),
+              if (isOverdue) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: const [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Overdue',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 4),
+              statusPill(),
+            ],
+          ),
+          trailing: PopupMenuButton<String>(
+            onSelected: (val) async {
+              if (val == 'edit_notes') {
+                await _editNotesDialog(ref, notes);
+              } else if (val == 'to_pending') {
+                await ref.update({'status': 'Pending', 'isDone': false});
+                if (mounted) _refreshOpenTasks();
+              } else if (val == 'to_progress') {
+                await ref.update({'status': 'In-Progress', 'isDone': false});
+              } else if (val == 'to_done') {
+                await ref.update({
+                  'status': 'Done',
+                  'isDone': true,
+                  'completedAt': FieldValue.serverTimestamp(),
+                });
+                if (mounted) _refreshOpenTasks();
+              } else if (val == 'delete') {
+                await ref.delete();
+                if (mounted) _refreshOpenTasks();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit_notes', child: Text('Edit notes')),
+              PopupMenuItem(value: 'to_pending', child: Text('Mark Pending')),
+              PopupMenuItem(
+                value: 'to_progress',
+                child: Text('Mark In-Progress'),
+              ),
+              PopupMenuItem(value: 'to_done', child: Text('Mark Done')),
+              PopupMenuItem(value: 'delete', child: Text('Delete')),
+            ],
+          ),
+          children: [
+            if (notes.trim().isEmpty)
+              Text('No notes', style: Theme.of(context).textTheme.bodySmall)
+            else
+              Text(notes),
+          ],
+        ),
+      ),
+    );
+  }
+  // Task Section Widgets
+
+  // Task Checklist Section
   Widget _tasksChecklistTab() {
     return Column(
       children: [
@@ -661,128 +1176,170 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: farmRef
                 .collection('tasks')
-                .orderBy('isDone') // not done first
+                .orderBy('dueDate', descending: false)
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
             builder: (context, snap) {
-              if (snap.hasError)
+              if (snap.hasError) {
                 return Center(child: Text('Error: ${snap.error}'));
+              }
               if (snap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
               final docs = snap.data?.docs ?? [];
-              if (docs.isEmpty)
+              if (docs.isEmpty) {
                 return const Center(child: Text('No tasks yet. Add one.'));
+              }
 
-              return ListView.separated(
+              // return ListView.separated(
+              //   padding: const EdgeInsets.all(16),
+              //   separatorBuilder: (_, __) => const SizedBox(height: 8),
+              //   itemCount: docs.length,
+              //   itemBuilder: (_, i) {
+              //     final ref = docs[i].reference;
+              //     final t = docs[i].data();
+              //     final title = (t['title'] ?? '') as String;
+              //     final notes = (t['notes'] ?? '') as String;
+              //     final isDone = (t['isDone'] ?? false) as bool;
+              //     final dueTs = t['dueDate'] as Timestamp?;
+              //     final dueStr = dueTs == null
+              //         ? null
+              //         : dueTs.toDate().toLocal().toString().split(' ').first;
+              //     final status =
+              //         (t['status'] as String?) ??
+              //         ((isDone == true) ? 'Done' : 'Pending');
+              //     return Card(
+              //       shape: RoundedRectangleBorder(
+              //         borderRadius: BorderRadius.circular(12),
+              //       ),
+              //       child: Theme(
+              //         // make expansion tile denser
+              //         data: Theme.of(
+              //           context,
+              //         ).copyWith(dividerColor: Colors.transparent),
+              //         child: ExpansionTile(
+              //           tilePadding: const EdgeInsets.only(left: 8, right: 8),
+              //           childrenPadding: const EdgeInsets.fromLTRB(
+              //             16,
+              //             0,
+              //             16,
+              //             12,
+              //           ),
+              //           leading: Checkbox(
+              //             value: isDone,
+              //             onChanged: (val) async {
+              //               await ref.update({
+              //                 'isDone': val == true,
+              //                 'status': (val == true) ? 'Done' : 'Pending',
+              //                 'completedAt': (val == true)
+              //                     ? FieldValue.serverTimestamp()
+              //                     : FieldValue.delete(),
+              //               });
+              //               // refresh KPI if you use manual refresh method
+              //               if (mounted) {
+              //                 _refreshOpenTasks();
+              //               }
+              //             },
+              //           ),
+              //           title: Text(
+              //             title,
+              //             style: isDone
+              //                 ? Theme.of(context).textTheme.bodyLarge?.copyWith(
+              //                     decoration: TextDecoration.lineThrough,
+              //                     color: Colors.grey,
+              //                   )
+              //                 : Theme.of(context).textTheme.bodyLarge,
+              //           ),
+              //           // subtitle: dueStr == null ? null : Text('Due: $dueStr'),
+              //           subtitle: Column(
+              //             crossAxisAlignment: CrossAxisAlignment.start,
+              //             children: [
+              //               if (dueStr != null) Text('Due: $dueStr'),
+              //               const SizedBox(height: 4),
+              //               _statusPill(status, context),
+              //             ],
+              //           ),
+              //           trailing: PopupMenuButton<String>(
+              //             onSelected: (val) async {
+              //               if (val == 'edit_notes') {
+              //                 await _editNotesDialog(ref, notes);
+              //               } else if (val == 'delete') {
+              //                 await ref.delete();
+              //                 if (mounted) {
+              //                   _refreshOpenTasks();
+              //                 }
+              //               }
+              //             },
+              //             itemBuilder: (_) => const [
+              //               PopupMenuItem(
+              //                 value: 'edit_notes',
+              //                 child: Text('Edit notes'),
+              //               ),
+              //               PopupMenuItem(
+              //                 value: 'delete',
+              //                 child: Text('Delete'),
+              //               ),
+              //             ],
+              //           ),
+              //           children: [
+              //             if (notes.trim().isEmpty)
+              //               Text(
+              //                 'No notes',
+              //                 style: Theme.of(context).textTheme.bodySmall,
+              //               )
+              //             else
+              //               Text(notes),
+              //           ],
+              //         ),
+              //       ),
+              //     );
+              //   },
+              // );
+
+              // ---- Group by due date ----
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+
+              final past = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final current = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final upcoming = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final noDue = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+              for (final d in docs) {
+                final t = d.data();
+                final dueTs = t['dueDate'] as Timestamp?;
+                if (dueTs == null) {
+                  noDue.add(d);
+                  continue;
+                }
+                final dt = dueTs.toDate();
+                final dueOnly = DateTime(dt.year, dt.month, dt.day);
+                if (dueOnly.isBefore(today)) {
+                  past.add(d);
+                } else if (dueOnly.isAtSameMomentAs(today)) {
+                  current.add(d);
+                } else {
+                  upcoming.add(d);
+                }
+              }
+              // ---- Build grouped list ----
+              return ListView(
                 padding: const EdgeInsets.all(16),
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemCount: docs.length,
-                itemBuilder: (_, i) {
-                  final ref = docs[i].reference;
-                  final t = docs[i].data();
-                  final title = (t['title'] ?? '') as String;
-                  final notes = (t['notes'] ?? '') as String;
-                  final isDone = (t['isDone'] ?? false) as bool;
-                  final dueTs = t['dueDate'] as Timestamp?;
-                  final dueStr = dueTs == null
-                      ? null
-                      : dueTs.toDate().toLocal().toString().split(' ').first;
+                children: [
+                  if (current.isNotEmpty) sectionHeader('Current (Today)'),
+                  ...current.map(taskTile),
 
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Theme(
-                      // make expansion tile denser
-                      data: Theme.of(
-                        context,
-                      ).copyWith(dividerColor: Colors.transparent),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.only(left: 8, right: 8),
-                        childrenPadding: const EdgeInsets.fromLTRB(
-                          16,
-                          0,
-                          16,
-                          12,
-                        ),
-                        leading: Checkbox(
-                          value: isDone,
-                          onChanged: (val) async {
-                            await ref.update({
-                              'isDone': val == true,
-                              'status': (val == true) ? 'Done' : 'Pending',
-                              'completedAt': (val == true)
-                                  ? FieldValue.serverTimestamp()
-                                  : FieldValue.delete(),
-                            });
-                            // refresh KPI if you use manual refresh method
-                            if (mounted) {
-                              final state = this;
-                              // ignore: invalid_use_of_protected_member
-                              if (state is dynamic &&
-                                  (state as dynamic)._refreshOpenTasks !=
-                                      null) {
-                                try {
-                                  (state as dynamic)._refreshOpenTasks();
-                                } catch (_) {}
-                              }
-                            }
-                          },
-                        ),
-                        title: Text(
-                          title,
-                          style: isDone
-                              ? Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  decoration: TextDecoration.lineThrough,
-                                  color: Colors.grey,
-                                )
-                              : Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        subtitle: dueStr == null ? null : Text('Due: $dueStr'),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (val) async {
-                            if (val == 'edit_notes') {
-                              await _editNotesDialog(ref, notes);
-                            } else if (val == 'delete') {
-                              await ref.delete();
-                              if (mounted) {
-                                final state = this;
-                                // ignore: invalid_use_of_protected_member
-                                if (state is dynamic &&
-                                    (state as dynamic)._refreshOpenTasks !=
-                                        null) {
-                                  try {
-                                    (state as dynamic)._refreshOpenTasks();
-                                  } catch (_) {}
-                                }
-                              }
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'edit_notes',
-                              child: Text('Edit notes'),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
-                        children: [
-                          if (notes.trim().isEmpty)
-                            Text(
-                              'No notes',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            )
-                          else
-                            Text(notes),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                  if (upcoming.isNotEmpty) sectionHeader('Upcoming'),
+                  ...upcoming.map(taskTile),
+
+                  if (past.isNotEmpty) sectionHeader('Past (Overdue)'),
+                  ...past.map(taskTile),
+
+                  if (noDue.isNotEmpty) sectionHeader('No Due Date'),
+                  ...noDue.map(taskTile),
+
+                  const SizedBox(height: 80),
+                ],
               );
             },
           ),
