@@ -36,8 +36,6 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = _user;
-
     final curruser = FirebaseAuth.instance.currentUser;
 
     if (curruser == null) {
@@ -62,7 +60,7 @@ class SettingsPage extends StatelessWidget {
         }
 
         final data = snap.data!.data()!;
-        // final photoUrl = (data['photo_url'] ?? data['profilePath'])?.toString();
+        final photoUrl = (data['photo_url'] ?? data['profilePath'])?.toString();
         final firstName = data['first_name'] ?? '—';
         final lastName = data['last_name'] ?? '—';
 
@@ -73,18 +71,25 @@ class SettingsPage extends StatelessWidget {
             children: [
               Center(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        radius: 44,
-                        backgroundColor: Colors.grey.shade300,
+                    // Profile with border
+                    Container(
+                      padding: const EdgeInsets.all(4), // border thickness
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.blue, // border color
+                          width: 3,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 48,
                         backgroundImage:
-                            (user?.photoURL != null &&
-                                user!.photoURL!.isNotEmpty)
-                            ? NetworkImage(user.photoURL!)
+                            (photoUrl != null && photoUrl.isNotEmpty)
+                            ? NetworkImage(photoUrl)
                             : null,
-                        child:
-                            (user?.photoURL == null || user!.photoURL!.isEmpty)
+                        child: (photoUrl == null || photoUrl.isEmpty)
                             ? const Icon(
                                 Icons.person,
                                 size: 48,
@@ -92,17 +97,28 @@ class SettingsPage extends StatelessWidget {
                               )
                             : null,
                       ),
-                      title: Text('$firstName $lastName'),
-                      subtitle: Text(
-                        FirebaseAuth.instance.currentUser?.email ?? '',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Name
+                    Text(
+                      '$firstName $lastName',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+
+                    // Email
+                    Text(
+                      FirebaseAuth.instance.currentUser?.email ?? '',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
 
-              // Header with anonymous avatar
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               Text('Account'),
               const SizedBox(height: 8),

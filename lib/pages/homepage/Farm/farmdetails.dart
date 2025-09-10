@@ -683,6 +683,7 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     final delta = waterLiters - oldLiters;
     final dOnly = DateTime(date.year, date.month, date.day);
 
+    // 1) Do writes only (no reads) in the transaction
     await FirebaseFirestore.instance.runTransaction((tx) async {
       tx.update(doc.reference, {
         'date': Timestamp.fromDate(dOnly),
@@ -696,21 +697,22 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
       tx.update(farmRef, {
         'irrigation.seasonWaterLiters': FieldValue.increment(delta),
       });
-
-      // Optionally bump lastIrrigatedAt if this edit is newer
-      final farmSnap = await tx.get(farmRef);
-      final currentLastTs =
-          (farmSnap.data()?['irrigation']?['lastIrrigatedAt'] as Timestamp?);
-      final currentLast = currentLastTs?.toDate();
-      if (currentLast == null ||
-          dOnly.isAfter(
-            DateTime(currentLast.year, currentLast.month, currentLast.day),
-          )) {
-        tx.update(farmRef, {
-          'irrigation.lastIrrigatedAt': Timestamp.fromDate(dOnly),
-        });
-      }
     });
+
+    // 2) Outside the transaction, recompute latest date and update farm summary
+    final latest = await farmRef
+        .collection('irrigations')
+        .orderBy('date', descending: true)
+        .limit(1)
+        .get();
+
+    if (latest.docs.isEmpty) {
+      await farmRef.update({'irrigation.lastIrrigatedAt': FieldValue.delete()});
+    } else {
+      await farmRef.update({
+        'irrigation.lastIrrigatedAt': latest.docs.first['date'],
+      });
+    }
   }
 
   /// Delete a log and decrease season total. Also refresh lastIrrigatedAt if needed.
