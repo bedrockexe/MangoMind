@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart'; // for FilteringTextInputFormatter
+import 'package:insights/pages/homepage/Farm/yield.dart';
 
 // Opening Class
 class FarmDetailsPage extends StatefulWidget {
@@ -1825,22 +1825,79 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
   }
 
   Widget _recordsTab() {
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          const TabBar(
-            tabs: [
-              Tab(text: 'Observations'),
-              Tab(text: 'Irrigations'),
-              Tab(text: 'Yields'),
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              InkWell(
+                onTap: () {
+                  // Navigate or show Observations
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => _listObs()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "Observations",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  // Navigate or show Irrigations
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => _listIrr()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "Irrigations",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => YieldsSimplePage(farmRef: farmRef),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "Yields",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             ],
           ),
-          Expanded(
-            child: TabBarView(children: [_listObs(), _listIrr(), _listYield()]),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -2009,6 +2066,7 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     }
 
     return Scaffold(
+      appBar: AppBar(title: const Text('Observations')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: farmRef
             .collection('observations')
@@ -2230,156 +2288,169 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
   }
 
   Widget _listIrr() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: farmRef
-          .collection('irrigations')
-          .orderBy('date', descending: true)
-          .orderBy('createdAt', descending: true) // tie-breaker
-          .snapshots(),
-      builder: (context, snap) {
-        if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snap.data?.docs ?? [];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Irrigations')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: farmRef
+            .collection('irrigations')
+            .orderBy('date', descending: true)
+            .orderBy('createdAt', descending: true) // tie-breaker
+            .snapshots(),
+        builder: (context, snap) {
+          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snap.data?.docs ?? [];
 
-        if (docs.isEmpty) {
+          if (docs.isEmpty) {
+            return Scaffold(
+              body: Center(child: Text('No irrigation logs yet.')),
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: _addIrrigationSheet,
+                icon: const Icon(Icons.water_drop),
+                label: const Text('Add Irrigation'),
+              ),
+            );
+          }
+
+          // Group by YYYY-MM
+          final groups =
+              <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+
+          for (final d in docs) {
+            final ts = d.data()['date'] as Timestamp?;
+            final dt = (ts?.toDate()) ?? DateTime.now();
+            final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
+            groups.putIfAbsent(key, () => []).add(d);
+          }
+
+          String labelOf(String ym) {
+            final p = ym.split('-');
+            final y = p[0];
+            final m = int.parse(p[1]);
+            const months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
+            return '${months[m - 1]} $y';
+          }
+
           return Scaffold(
-            body: Center(child: Text('No irrigation logs yet.')),
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: groups.entries.map((entry) {
+                final label = labelOf(entry.key);
+                final items = entry.value;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    ...items.map((doc) {
+                      final m = doc.data();
+                      final date = (m['date'] as Timestamp?)?.toDate();
+                      final method = (m['method'] ?? '').toString();
+                      final duration = (m['durationMin'] ?? 0) as int;
+                      final liters = (m['waterLiters'] ?? 0) as int;
+                      final zone = (m['zone'] ?? '').toString();
+                      final notes = (m['notes'] ?? '').toString();
+
+                      final dateStr = date == null
+                          ? '—'
+                          : DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                            ).toLocal().toString().split(' ').first;
+
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ExpansionTile(
+                          leading: const Icon(Icons.water_drop),
+                          title: Text(
+                            '$dateStr • ${method.toUpperCase()}${zone.isEmpty ? '' : ' • $zone'}',
+                          ),
+                          subtitle: Text(
+                            'Duration: ${duration}m • Water: ${liters} L',
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (val) async {
+                              if (val == 'edit') {
+                                await _editIrrigationSheet(doc);
+                              } else if (val == 'delete') {
+                                await _deleteIrrigation(doc);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
+                            ],
+                          ),
+                          children: [
+                            if (notes.trim().isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  12,
+                                ),
+                                child: Text(
+                                  'No notes',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  12,
+                                ),
+                                child: Text(notes),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              }).toList(),
+            ),
             floatingActionButton: FloatingActionButton.extended(
               onPressed: _addIrrigationSheet,
               icon: const Icon(Icons.water_drop),
               label: const Text('Add Irrigation'),
             ),
           );
-        }
-
-        // Group by YYYY-MM
-        final groups =
-            <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
-
-        for (final d in docs) {
-          final ts = d.data()['date'] as Timestamp?;
-          final dt = (ts?.toDate()) ?? DateTime.now();
-          final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
-          groups.putIfAbsent(key, () => []).add(d);
-        }
-
-        String labelOf(String ym) {
-          final p = ym.split('-');
-          final y = p[0];
-          final m = int.parse(p[1]);
-          const months = [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec',
-          ];
-          return '${months[m - 1]} $y';
-        }
-
-        return Scaffold(
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: groups.entries.map((entry) {
-              final label = labelOf(entry.key);
-              final items = entry.value;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  ...items.map((doc) {
-                    final m = doc.data();
-                    final date = (m['date'] as Timestamp?)?.toDate();
-                    final method = (m['method'] ?? '').toString();
-                    final duration = (m['durationMin'] ?? 0) as int;
-                    final liters = (m['waterLiters'] ?? 0) as int;
-                    final zone = (m['zone'] ?? '').toString();
-                    final notes = (m['notes'] ?? '').toString();
-
-                    final dateStr = date == null
-                        ? '—'
-                        : DateTime(
-                            date.year,
-                            date.month,
-                            date.day,
-                          ).toLocal().toString().split(' ').first;
-
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ExpansionTile(
-                        leading: const Icon(Icons.water_drop),
-                        title: Text(
-                          '$dateStr • ${method.toUpperCase()}${zone.isEmpty ? '' : ' • $zone'}',
-                        ),
-                        subtitle: Text(
-                          'Duration: ${duration}m • Water: ${liters} L',
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (val) async {
-                            if (val == 'edit') {
-                              await _editIrrigationSheet(doc);
-                            } else if (val == 'delete') {
-                              await _deleteIrrigation(doc);
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
-                        children: [
-                          if (notes.trim().isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Text(
-                                'No notes',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            )
-                          else
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Text(notes),
-                            ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              );
-            }).toList(),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: _addIrrigationSheet,
-            icon: const Icon(Icons.water_drop),
-            label: const Text('Add Irrigation'),
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 

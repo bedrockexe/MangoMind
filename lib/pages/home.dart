@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 // pages
 import 'package:insights/pages/homepage/settings.dart';
 import 'package:insights/pages/homepage/Home/weather.dart';
@@ -85,7 +86,7 @@ class _Home extends State<HomePage> {
             child: const Text('No'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () => SystemNavigator.pop(),
             child: const Text('Yes'),
           ),
         ],
@@ -113,12 +114,12 @@ class _Home extends State<HomePage> {
           backgroundColor: Colors.green,
           title: Row(
             children: [
-              Icon(Icons.eco, color: Colors.white), // leaf-like eco icon
-              const SizedBox(width: 8), // space between icon and text
+              Icon(Icons.eco, color: Colors.white),
+              const SizedBox(width: 8),
               Text(
                 "Sweet Insights",
                 style: const TextStyle(
-                  color: Colors.white, // text color
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -129,10 +130,7 @@ class _Home extends State<HomePage> {
           index: _index,
           children: [
             _TabNavigator(navigatorKey: _navkeys[0], root: _HomeRoot()),
-            _TabNavigator(
-              navigatorKey: _navkeys[1],
-              root: const FarmListPage(),
-            ),
+            _TabNavigator(navigatorKey: _navkeys[1], root: const FarmList()),
             _TabNavigator(navigatorKey: _navkeys[2], root: const ReportRoot()),
             _TabNavigator(navigatorKey: _navkeys[3], root: SettingsPage()),
           ],
@@ -193,6 +191,11 @@ class _HomeRoot extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Text(
+          "Home",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+        ),
+        SizedBox(height: 16),
         WeatherPanel(),
         Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
