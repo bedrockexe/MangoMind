@@ -6,7 +6,7 @@ class MangoPrice {
   final double? price;
   final String unit;
   final String asOf;
-  final DateTime fetchedAt; // when we fetched this
+  final DateTime fetchedAt;
 
   MangoPrice({
     required this.market,

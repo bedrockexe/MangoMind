@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:insights/pages/homepage/Farm/yield.dart';
+import 'package:intl/intl.dart';
 
 // Opening Class
 class FarmDetailsPage extends StatefulWidget {
@@ -17,6 +18,27 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
   // Initial Variables
   late final DocumentReference<Map<String, dynamic>> farmRef;
   late final TabController _tab;
+
+  static const _mangoTypes = <String>[
+    'Carabao',
+    'Pico',
+    'Apple',
+    'Katchamita',
+    'Others',
+  ];
+
+  String _seasonFromDate(DateTime d) {
+    // PH: Wet = May–Oct; Dry = Nov–Apr
+    return (d.month >= 5 && d.month <= 10) ? 'Wet' : 'Dry';
+  }
+
+  int _seasonYearFromDate(DateTime d) {
+    // Label “season year” so Dry spans Nov–Apr under the *next* year label.
+    // e.g., Nov 2025 -> Dry 2026; Jan 2026 -> Dry 2026; Jun 2026 -> Wet 2026
+    final isWet = d.month >= 5 && d.month <= 10;
+    if (!isWet && d.month >= 11) return d.year + 1; // Nov–Dec -> next year
+    return d.year; // Jan–Apr Dry -> same calendar year; Wet -> same year
+  }
 
   // Initialization
   @override
@@ -321,24 +343,12 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
                                 'title': title.text.trim(),
                                 'notes': notes.text.trim(),
                                 'isDone': false,
-                                'status': 'Pending', // keep for compatibility
+                                'status': 'Pending',
                                 'dueDate': due == null
                                     ? null
                                     : Timestamp.fromDate(due!),
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
-                              // if (mounted) {
-                              //   final state = this;
-                              //   // ignore: invalid_use_of_protected_member
-                              //   if (state is dynamic &&
-                              //       (state as dynamic)._refreshOpenTasks !=
-                              //           null) {
-                              //     // safely try to call
-                              //     try {
-                              //       (state as dynamic)._refreshOpenTasks();
-                              //     } catch (_) {}
-                              //   }
-                              // }
                               if (context.mounted) Navigator.pop(context);
                             } catch (e) {
                               if (context.mounted) {
@@ -371,270 +381,231 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     );
   }
 
-  // Future<void> _addIrrigationSheet() async {
-  //   final duration = TextEditingController();
-  //   final notes = TextEditingController();
-  //   DateTime date = DateTime.now();
-  //   await showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     builder: (_) => Padding(
-  //       padding: EdgeInsets.only(
-  //         left: 16,
-  //         right: 16,
-  //         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-  //         top: 16,
-  //       ),
-  //       child: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         children: [
-  //           Text(
-  //             'Log Irrigation',
-  //             style: Theme.of(context).textTheme.titleMedium,
-  //           ),
-  //           const SizedBox(height: 12),
-  //           OutlinedButton.icon(
-  //             icon: const Icon(Icons.event),
-  //             label: Text(
-  //               'Date: ${date.toLocal().toString().split(' ').first}',
-  //             ),
-  //             onPressed: () async {
-  //               final picked = await showDatePicker(
-  //                 context: context,
-  //                 initialDate: date,
-  //                 firstDate: DateTime(date.year - 5),
-  //                 lastDate: DateTime(date.year + 5),
-  //               );
-  //               if (picked != null) {
-  //                 setState(() => date = picked);
-  //               }
-  //             },
-  //           ),
-  //           const SizedBox(height: 8),
-  //           TextField(
-  //             controller: duration,
-  //             keyboardType: TextInputType.number,
-  //             decoration: const InputDecoration(
-  //               labelText: 'Duration (minutes)',
-  //             ),
-  //           ),
-  //           TextField(
-  //             controller: notes,
-  //             decoration: const InputDecoration(labelText: 'Notes'),
-  //           ),
-  //           const SizedBox(height: 12),
-  //           SizedBox(
-  //             width: double.infinity,
-  //             child: FilledButton(
-  //               onPressed: () async {
-  //                 final dur = int.tryParse(duration.text.trim());
-  //                 await farmRef.collection('irrigations').add({
-  //                   'date': Timestamp.fromDate(date),
-  //                   'durationMin': dur,
-  //                   'notes': notes.text.trim(),
-  //                   'createdAt': FieldValue.serverTimestamp(),
-  //                 });
-  //                 if (context.mounted) Navigator.pop(context);
-  //               },
-  //               child: const Text('Save Irrigation'),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  Future<void> _addIrrigationSheet1() async {
-    final durationCtrl = TextEditingController();
-    final litersCtrl = TextEditingController();
+  Future<void> _addYieldSheet() async {
+    final formKey = GlobalKey<FormState>();
+    final dateVN = ValueNotifier<DateTime>(DateTime.now());
+    final kgCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-    String method = 'drip';
+
+    // Local state for season (auto from date but user can override)
+    String type = _mangoTypes.first;
+    String season = _seasonFromDate(dateVN.value);
+    int seasonYear = _seasonYearFromDate(dateVN.value);
     bool saving = false;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: AbsorbPointer(
-            absorbing: saving,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Log Irrigation',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
+      showDragHandle: true,
+      builder: (ctx) {
+        final inset = MediaQuery.of(ctx).viewInsets.bottom;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, inset + 16),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Add yield',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
 
-                DropdownButtonFormField<String>(
-                  value: method,
-                  decoration: const InputDecoration(labelText: 'Method'),
-                  items: const [
-                    DropdownMenuItem(value: 'drip', child: Text('Drip')),
-                    DropdownMenuItem(
-                      value: 'sprinkler',
-                      child: Text('Sprinkler'),
+                  // Kilograms
+                  TextFormField(
+                    controller: kgCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Kilograms (kg)',
+                      prefixIcon: Icon(Icons.monitor_weight_outlined),
                     ),
-                    DropdownMenuItem(value: 'furrow', child: Text('Furrow')),
-                  ],
-                  onChanged: (v) => setLocal(() => method = v ?? 'drip'),
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: durationCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Duration (minutes)',
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        setLocal(() => saving = false);
+                        return 'Enter kilograms';
+                      }
+                      final x = double.tryParse(v);
+                      if (x == null || x <= 0) {
+                        setLocal(() => saving = false);
+                        return 'Enter a valid number > 0';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 10),
 
-                TextField(
-                  controller: litersCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Water (Liters)',
+                  // Mango type
+                  DropdownButtonFormField<String>(
+                    initialValue: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Mango type',
+                      prefixIcon: Icon(Icons.local_florist_outlined),
+                    ),
+                    items: _mangoTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (v) => type = v ?? _mangoTypes.first,
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 10),
 
-                TextField(
-                  controller: notesCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
+                  // Date picker (auto-updates season + year)
+                  ValueListenableBuilder<DateTime>(
+                    valueListenable: dateVN,
+                    builder: (context, date, _) {
+                      final label = DateFormat('MMMM d, yyyy').format(date);
+                      return InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: date,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            dateVN.value = picked;
+                            setLocal(() {
+                              season = _seasonFromDate(picked);
+                              seasonYear = _seasonYearFromDate(picked);
+                            });
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            prefixIcon: Icon(Icons.event_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(label),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            setLocal(() => saving = true);
-                            try {
-                              await farmRef.collection('irrigations').add({
-                                'date': FieldValue.serverTimestamp(),
-                                'method': method,
-                                'durationMin':
-                                    int.tryParse(durationCtrl.text) ?? 0,
-                                'waterLiters':
-                                    int.tryParse(litersCtrl.text) ?? 0,
+                  // Season row (dropdown + year chip)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: season,
+                          decoration: const InputDecoration(
+                            labelText: 'Season',
+                            prefixIcon: Icon(Icons.thermostat_auto_outlined),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Wet', child: Text('Wet')),
+                            DropdownMenuItem(value: 'Dry', child: Text('Dry')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setLocal(() {
+                              season = v;
+                              // Recompute seasonYear if user flips season manually:
+                              final d = dateVN.value;
+                              // If Wet selected -> same calendar year
+                              // If Dry selected -> Nov–Dec dry should map to next year label,
+                              // Jan–Apr dry stays same year.
+                              if (v == 'Wet') {
+                                seasonYear = d.year;
+                              } else {
+                                seasonYear = (d.month >= 11)
+                                    ? d.year + 1
+                                    : d.year;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      InputChip(
+                        label: Text('$seasonYear'),
+                        avatar: const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 18,
+                        ),
+                        onPressed: null, // display only
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Notes
+                  TextFormField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Save
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: const Text('Save'),
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              setLocal(() => saving = true);
+                              if (!formKey.currentState!.validate()) return;
+
+                              final kg =
+                                  double.tryParse(kgCtrl.text.trim()) ?? 0;
+                              final dOnly = DateTime(
+                                dateVN.value.year,
+                                dateVN.value.month,
+                                dateVN.value.day,
+                              );
+
+                              final isWet = (season == 'Wet');
+                              final seasonKey = '$seasonYear-$season';
+
+                              await farmRef.collection('yields').add({
+                                'date': Timestamp.fromDate(dOnly),
+                                'weightKg': kg,
+                                'type': type,
                                 'notes': notesCtrl.text.trim(),
+                                // NEW fields for season reporting:
+                                'season': season, // 'Wet' | 'Dry'
+                                'isWet': isWet, // boolean
+                                'seasonYear': seasonYear, // e.g., 2026
+                                'seasonKey': seasonKey, // e.g., '2026-Dry'
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
-                              if (context.mounted) Navigator.pop(ctx);
-                            } finally {
-                              setLocal(() => saving = false);
-                            }
-                          },
-                    icon: saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(saving ? 'Saving…' : 'Save'),
+
+                              if (context.mounted) Navigator.pop(context);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Yield Recorded'),
+                                  ),
+                                );
+                              }
+                            },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-
-  Future<void> _addYieldSheet() async {
-    final season = TextEditingController();
-    final totalKg = TextEditingController();
-    final avgKgTree = TextEditingController();
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          top: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Add Yield Entry',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: season,
-              decoration: const InputDecoration(
-                labelText: 'Season (e.g., 2025 Wet)',
-              ),
-            ),
-            TextField(
-              controller: totalKg,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Total (kg)'),
-            ),
-            TextField(
-              controller: avgKgTree,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Avg kg per tree (optional)',
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final total = num.tryParse(totalKg.text.trim());
-                  final avg = num.tryParse(avgKgTree.text.trim());
-                  await farmRef.collection('yields').add({
-                    'season': season.text.trim().isEmpty
-                        ? null
-                        : season.text.trim(),
-                    'totalKg': total,
-                    'avgKgPerTree': avg,
-                    'recordedAt': FieldValue.serverTimestamp(),
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-                  // Update summary in farm doc
-                  await farmRef
-                      .update({
-                        'yield.lastSeasonKg': total,
-                        'yield.avgKgPerTree': avg,
-                      })
-                      .catchError((_) {});
-                  if (context.mounted) Navigator.pop(context);
-                },
-                child: const Text('Save Yield'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- 1A) Create / Update helpers -------------------------------------------
 
   Future<void> _saveIrrigation({
     required DateTime date,
@@ -668,7 +639,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     });
   }
 
-  /// Update an existing log AND keep the season total correct (delta update).
   Future<void> _updateIrrigation({
     required DocumentSnapshot<Map<String, dynamic>> doc,
     required DateTime date,
@@ -715,7 +685,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     }
   }
 
-  /// Delete a log and decrease season total. Also refresh lastIrrigatedAt if needed.
   Future<void> _deleteIrrigation(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) async {
@@ -750,8 +719,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
       }
     }
   }
-
-  // --- 2A) Reusable form sheet for Add or Edit -------------------------------
 
   Future<void> _showIrrigationSheet({
     DocumentSnapshot<Map<String, dynamic>>?
@@ -962,11 +929,15 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     );
   }
 
-  // Convenience wrappers
-  Future<void> _addIrrigationSheet() => _showIrrigationSheet();
+  Future<void> _addIrrigationSheet() {
+    return _showIrrigationSheet();
+  }
+
   Future<void> _editIrrigationSheet(
     DocumentSnapshot<Map<String, dynamic>> doc,
-  ) => _showIrrigationSheet(editingDoc: doc);
+  ) {
+    return _showIrrigationSheet(editingDoc: doc);
+  }
 
   // Futures
 
@@ -1193,11 +1164,30 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
         final name = data['name'] ?? 'Farm';
         final address = data['address'] ?? '';
         final areaHa = data['areaHa'];
-        final lastSeasonKg = (data['yield'] ?? {})['lastSeasonKg'];
         final dp = Map<String, dynamic>.from(data['diseasePest'] ?? {});
         final lastObs = dp['lastObserved'] as Timestamp?;
         final anth = dp['anthracnose'] == true;
         final pm = dp['powderyMildew'] == true;
+
+        final DateTime? _lastDiseaseDt = lastObs?.toDate();
+        final String _lastDiseaseValue = _lastDiseaseDt == null
+            ? '—'
+            : DateFormat('yyyy-MM-dd').format(_lastDiseaseDt);
+
+        // Color logic: orange if in last 14 days, green otherwise
+        final bool _recent =
+            _lastDiseaseDt != null &&
+            DateTime.now().difference(_lastDiseaseDt).inDays <= 14;
+
+        final Color _accent = _recent
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF22C55E);
+        final IconData _icon = _recent
+            ? Icons.warning_amber_rounded
+            : Icons.verified_rounded;
+        final String? _caption = _recent
+            ? 'Recent issue—monitor closely'
+            : 'No recent disease flags';
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -1236,28 +1226,118 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
             const SizedBox(height: 12),
             _openTasksPreviewCard(),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _kpiCard(
-                    context,
-                    'Last Disease',
-                    lastObs == null
-                        ? '—'
-                        : lastObs.toDate().toString().split(' ').first,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _kpiCard(
-                    context,
-                    'Last Season (kg)',
-                    lastSeasonKg == null ? '—' : '$lastSeasonKg',
-                  ),
-                ),
-              ],
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: farmRef
+                  .collection('yields')
+                  .orderBy('date', descending: true)
+                  .limit(500)
+                  .snapshots(),
+              builder: (context, ysnap) {
+                String lastSeasonTotal = '—';
+
+                if (ysnap.hasData) {
+                  final docs = ysnap.data!.docs;
+
+                  // Sum weights per seasonKey "YYYY-Season"
+                  final Map<String, double> totals = {};
+                  for (final d in docs) {
+                    final m = d.data();
+                    final season =
+                        (m['season'] ?? '') as String; // 'Wet' | 'Dry'
+                    final seasonYear =
+                        (m['seasonYear'] ?? 0) as int; // e.g., 2026
+                    final w = (m['weightKg'] is int)
+                        ? (m['weightKg'] as int).toDouble()
+                        : (m['weightKg'] as num?)?.toDouble() ?? 0.0;
+
+                    if ((season == 'Wet' || season == 'Dry') &&
+                        seasonYear > 0) {
+                      final key = '$seasonYear-$season';
+                      totals[key] = (totals[key] ?? 0) + w;
+                    }
+                  }
+
+                  // Pick the latest season: higher seasonYear wins; for same year Wet > Dry
+                  String? bestKey;
+                  int? bestYear;
+                  String? bestSeason;
+
+                  for (final key in totals.keys) {
+                    final parts = key.split('-'); // [year, season]
+                    if (parts.length != 2) continue;
+                    final yr = int.tryParse(parts[0]) ?? 0;
+                    final ssn = parts[1]; // 'Wet' or 'Dry'
+
+                    bool isBetter = false;
+                    if (bestYear == null) {
+                      isBetter = true;
+                    } else if (yr > bestYear!) {
+                      isBetter = true;
+                    } else if (yr == bestYear!) {
+                      // Within same seasonYear, Wet is later than Dry
+                      final currentRank = (ssn == 'Wet') ? 2 : 1;
+                      final bestRank = (bestSeason == 'Wet') ? 2 : 1;
+                      if (currentRank > bestRank) isBetter = true;
+                    }
+
+                    if (isBetter) {
+                      bestKey = key;
+                      bestYear = yr;
+                      bestSeason = ssn;
+                    }
+                  }
+
+                  if (bestKey != null) {
+                    final sum = totals[bestKey!] ?? 0;
+                    lastSeasonTotal = sum.toStringAsFixed(sum % 1 == 0 ? 0 : 1);
+                  }
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: KpiCard(
+                        title: 'Last Disease',
+                        value: _lastDiseaseValue,
+                        caption: _caption,
+                        color: _accent,
+                        icon: _icon,
+                      ),
+                    ),
+                    // const SizedBox(width: 8),
+                    // Expanded(
+                    //   child: _kpiCard(
+                    //     context,
+                    //     'Last Season (kg)',
+                    //     lastSeasonTotal,
+                    //   ),
+                    // ),
+                  ],
+                );
+              },
             ),
 
+            // Row(
+            //   children: [
+            //     Expanded(
+            //       child: _kpiCard(
+            //         context,
+            //         'Last Disease',
+            //         lastObs == null
+            //             ? '—'
+            //             : lastObs.toDate().toString().split(' ').first,
+            //       ),
+            //     ),
+            //     const SizedBox(width: 8),
+            //     Expanded(
+            //       child: _kpiCard(
+            //         context,
+            //         'Last Season (kg)',
+            //         lastSeasonKg == null ? '—' : '$lastSeasonKg',
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: 12),
             Card(
               shape: RoundedRectangleBorder(
@@ -1653,112 +1733,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
               if (docs.isEmpty) {
                 return const Center(child: Text('No tasks yet. Add one.'));
               }
-
-              // return ListView.separated(
-              //   padding: const EdgeInsets.all(16),
-              //   separatorBuilder: (_, __) => const SizedBox(height: 8),
-              //   itemCount: docs.length,
-              //   itemBuilder: (_, i) {
-              //     final ref = docs[i].reference;
-              //     final t = docs[i].data();
-              //     final title = (t['title'] ?? '') as String;
-              //     final notes = (t['notes'] ?? '') as String;
-              //     final isDone = (t['isDone'] ?? false) as bool;
-              //     final dueTs = t['dueDate'] as Timestamp?;
-              //     final dueStr = dueTs == null
-              //         ? null
-              //         : dueTs.toDate().toLocal().toString().split(' ').first;
-              //     final status =
-              //         (t['status'] as String?) ??
-              //         ((isDone == true) ? 'Done' : 'Pending');
-              //     return Card(
-              //       shape: RoundedRectangleBorder(
-              //         borderRadius: BorderRadius.circular(12),
-              //       ),
-              //       child: Theme(
-              //         // make expansion tile denser
-              //         data: Theme.of(
-              //           context,
-              //         ).copyWith(dividerColor: Colors.transparent),
-              //         child: ExpansionTile(
-              //           tilePadding: const EdgeInsets.only(left: 8, right: 8),
-              //           childrenPadding: const EdgeInsets.fromLTRB(
-              //             16,
-              //             0,
-              //             16,
-              //             12,
-              //           ),
-              //           leading: Checkbox(
-              //             value: isDone,
-              //             onChanged: (val) async {
-              //               await ref.update({
-              //                 'isDone': val == true,
-              //                 'status': (val == true) ? 'Done' : 'Pending',
-              //                 'completedAt': (val == true)
-              //                     ? FieldValue.serverTimestamp()
-              //                     : FieldValue.delete(),
-              //               });
-              //               // refresh KPI if you use manual refresh method
-              //               if (mounted) {
-              //                 _refreshOpenTasks();
-              //               }
-              //             },
-              //           ),
-              //           title: Text(
-              //             title,
-              //             style: isDone
-              //                 ? Theme.of(context).textTheme.bodyLarge?.copyWith(
-              //                     decoration: TextDecoration.lineThrough,
-              //                     color: Colors.grey,
-              //                   )
-              //                 : Theme.of(context).textTheme.bodyLarge,
-              //           ),
-              //           // subtitle: dueStr == null ? null : Text('Due: $dueStr'),
-              //           subtitle: Column(
-              //             crossAxisAlignment: CrossAxisAlignment.start,
-              //             children: [
-              //               if (dueStr != null) Text('Due: $dueStr'),
-              //               const SizedBox(height: 4),
-              //               _statusPill(status, context),
-              //             ],
-              //           ),
-              //           trailing: PopupMenuButton<String>(
-              //             onSelected: (val) async {
-              //               if (val == 'edit_notes') {
-              //                 await _editNotesDialog(ref, notes);
-              //               } else if (val == 'delete') {
-              //                 await ref.delete();
-              //                 if (mounted) {
-              //                   _refreshOpenTasks();
-              //                 }
-              //               }
-              //             },
-              //             itemBuilder: (_) => const [
-              //               PopupMenuItem(
-              //                 value: 'edit_notes',
-              //                 child: Text('Edit notes'),
-              //               ),
-              //               PopupMenuItem(
-              //                 value: 'delete',
-              //                 child: Text('Delete'),
-              //               ),
-              //             ],
-              //           ),
-              //           children: [
-              //             if (notes.trim().isEmpty)
-              //               Text(
-              //                 'No notes',
-              //                 style: Theme.of(context).textTheme.bodySmall,
-              //               )
-              //             else
-              //               Text(notes),
-              //           ],
-              //         ),
-              //       ),
-              //     );
-              //   },
-              // );
-
               // ---- Group by due date ----
               final now = DateTime.now();
               final today = DateTime(now.year, now.month, now.day);
@@ -1831,69 +1805,101 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              InkWell(
-                onTap: () {
-                  // Navigate or show Observations
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => _listObs()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "Observations",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              const SizedBox(height: 12),
+              _BigButton(
+                icon: Icons.water_drop_outlined,
+                label: 'Irrigations',
+                color: Colors.teal.shade700,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => _listIrr()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _BigButton(
+                icon: Icons.visibility_outlined,
+                label: 'Observations',
+                color: Colors.amber.shade700,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => _listObs()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _BigButton(
+                icon: Icons.scale_outlined,
+                label: 'Yields',
+                color: Colors.green.shade700,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => YieldsHomePage(farmRef: farmRef),
                   ),
                 ),
               ),
-              InkWell(
-                onTap: () {
-                  // Navigate or show Irrigations
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => _listIrr()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "Irrigations",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => YieldsSimplePage(farmRef: farmRef),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "Yields",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
+
+              // InkWell(
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(builder: (context) => _listIrr()),
+              //     );
+              //   },
+              //   child: Container(
+              //     padding: const EdgeInsets.all(20),
+              //     margin: const EdgeInsets.only(bottom: 12),
+              //     decoration: BoxDecoration(
+              //       color: Colors.blue[100],
+              //       borderRadius: BorderRadius.circular(12),
+              //     ),
+              //     child: const Text(
+              //       "Irrigations",
+              //       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              //     ),
+              //   ),
+              // ),
+              // InkWell(
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => YieldsHomePage(farmRef: farmRef),
+              //       ),
+              //     );
+              //   },
+              //   child: Container(
+              //     padding: const EdgeInsets.all(20),
+              //     decoration: BoxDecoration(
+              //       color: Colors.orange[100],
+              //       borderRadius: BorderRadius.circular(12),
+              //     ),
+              //     child: const Text(
+              //       "Yields",
+              //       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              //     ),
+              //   ),
+              // ),
+              // InkWell(
+              //   onTap: () {
+              //     // Navigate or show Observations
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(builder: (context) => _listObs()),
+              //     );
+              //   },
+              //   child: Container(
+              //     padding: const EdgeInsets.all(20),
+              //     margin: const EdgeInsets.only(bottom: 12),
+              //     decoration: BoxDecoration(
+              //       color: Colors.green[100],
+              //       borderRadius: BorderRadius.circular(12),
+              //     ),
+              //     child: const Text(
+              //       "Observations",
+              //       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -2140,150 +2146,11 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addObservationSheet, // 👈 opens your existing add sheet
+        onPressed: _addObservationSheet,
         icon: const Icon(Icons.coronavirus),
         label: const Text('Add Observation'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  // Widget _listIrr() {
-  //   return Scaffold(
-  //     body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-  //       stream: farmRef
-  //           .collection('irrigations')
-  //           .orderBy('createdAt', descending: true)
-  //           .snapshots(),
-  //       builder: (context, snap) {
-  //         if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-  //         if (snap.connectionState == ConnectionState.waiting) {
-  //           return const Center(child: CircularProgressIndicator());
-  //         }
-  //         final docs = snap.data?.docs ?? [];
-  //         if (docs.isEmpty) {
-  //           return const Center(child: Text('No irrigation logs yet.'));
-  //         }
-  //         return ListView.separated(
-  //           padding: const EdgeInsets.all(16),
-  //           itemCount: docs.length,
-  //           separatorBuilder: (_, __) => const SizedBox(height: 8),
-  //           itemBuilder: (_, i) {
-  //             final d = docs[i].data();
-  //             final date = (d['date'] as Timestamp?)?.toDate();
-  //             final dur = d['durationMin'];
-  //             final notes = d['notes'];
-  //             return Card(
-  //               child: ListTile(
-  //                 leading: const Icon(Icons.water_drop),
-  //                 title: Text(
-  //                   date == null
-  //                       ? '—'
-  //                       : date.toLocal().toString().split(' ').first,
-  //                 ),
-  //                 subtitle: Text(
-  //                   'Duration: ${dur ?? '—'} min\n${(notes ?? '').toString()}',
-  //                 ),
-  //               ),
-  //             );
-  //           },
-  //         );
-  //       },
-  //     ),
-  //     floatingActionButton: FloatingActionButton.extended(
-  //       onPressed: _addIrrigationSheet, // 👈 opens add irrigation bottom sheet
-  //       icon: const Icon(Icons.water_drop),
-  //       label: const Text('Add Irrigation'),
-  //     ),
-  //     floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-  //   );
-  // }
-
-  Widget _listIrr1() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: farmRef
-          .collection('irrigations')
-          .orderBy('date', descending: true)
-          .snapshots(),
-      builder: (context, snap) {
-        if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snap.data?.docs ?? [];
-
-        if (docs.isEmpty) {
-          return Scaffold(
-            body: Center(child: Text('No irrigation logs yet.')),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: _addIrrigationSheet,
-              icon: const Icon(Icons.water_drop),
-              label: const Text('Add Irrigation'),
-            ),
-          );
-        }
-
-        return Scaffold(
-          body: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemCount: docs.length,
-            itemBuilder: (_, i) {
-              final d = docs[i].data();
-              final date = (d['date'] as Timestamp?)?.toDate();
-              final method = (d['method'] ?? '').toString();
-              final duration = d['durationMin'] ?? 0;
-              final liters = d['waterLiters'] ?? 0;
-              final notes = (d['notes'] ?? '').toString();
-
-              return Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ExpansionTile(
-                  leading: const Icon(Icons.water_drop),
-                  title: Text(
-                    '${date != null ? date.toLocal().toString().split(' ').first : '—'} • ${method.toUpperCase()}',
-                  ),
-                  subtitle: Text('Duration: ${duration}m • Water: ${liters} L'),
-                  children: [
-                    if (notes.trim().isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: Text(
-                          'No notes',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: Text(notes),
-                      ),
-                    ButtonBar(
-                      children: [
-                        TextButton.icon(
-                          onPressed: () async {
-                            await docs[i].reference.delete();
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: _addIrrigationSheet,
-            icon: const Icon(Icons.water_drop),
-            label: const Text('Add Irrigation'),
-          ),
-        );
-      },
     );
   }
 
@@ -2454,47 +2321,6 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
     );
   }
 
-  Widget _listYield() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: farmRef
-          .collection('yields')
-          .orderBy('recordedAt', descending: true)
-          .snapshots(),
-      builder: (context, snap) {
-        if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('No yield records yet.'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final d = docs[i].data();
-            final season = d['season'] ?? '—';
-            final total = d['totalKg'] ?? '—';
-            final avg = d['avgKgPerTree'];
-            final recAt = (d['recordedAt'] as Timestamp?)?.toDate();
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.local_florist),
-                title: Text('$season • $total kg'),
-                subtitle: Text(
-                  'Avg kg/tree: ${avg ?? '—'}\n'
-                  'Recorded: ${recAt == null ? '—' : recAt.toLocal().toString().split(' ').first}',
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   // ===== Widgets ======
 
   // Main Section
@@ -2522,6 +2348,148 @@ class _FarmDetailsPageState extends State<FarmDetailsPage>
       body: TabBarView(
         controller: _tab,
         children: [_overviewTab(), _tasksChecklistTab(), _recordsTab()],
+      ),
+    );
+  }
+}
+
+class _BigButton extends StatelessWidget {
+  const _BigButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.white24,
+              child: Icon(icon, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class KpiCard extends StatelessWidget {
+  const KpiCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.color,
+    required this.icon,
+    this.caption,
+  });
+
+  final String title;
+  final String value;
+  final Color color;
+  final IconData icon;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.surface;
+    final onBg = Theme.of(context).colorScheme.onSurface;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [bg.withOpacity(0.96), bg.withOpacity(0.86)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: onBg.withOpacity(0.06)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Icon pill
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          // Texts
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: onBg.withOpacity(0.75),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: onBg,
+                  ),
+                ),
+                if (caption != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    caption!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: onBg.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

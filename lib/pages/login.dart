@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:insights/pages/services/session.dart';
+import 'package:insights/pages/landing.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -97,7 +98,10 @@ class _LoginState extends State<Login> {
                           color: Colors.green,
                         ),
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => Landing()),
+                          );
                         },
                       ),
                     ),

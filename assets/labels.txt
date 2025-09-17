@@ -1,0 +1,4 @@
+Anthracnose
+Powdery_Mildew
+Healthy_Mango
+Not_Mango

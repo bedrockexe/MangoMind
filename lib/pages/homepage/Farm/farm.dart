@@ -1,6 +1,9 @@
+// Flutter packages
 import 'package:flutter/material.dart';
+
+// Pages
 import 'package:insights/pages/homepage/Farm/mangowidget.dart';
-import 'package:insights/pages/homepage/Farm/farming.dart';
+import 'package:insights/pages/homepage/Farm/farmlist.dart';
 
 class FarmList extends StatefulWidget {
   const FarmList({super.key});
@@ -16,6 +19,7 @@ class _FarmListState extends State<FarmList> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // View and Manage Farms
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
@@ -30,7 +34,7 @@ class _FarmListState extends State<FarmList> {
                   height: 100,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5), // opaque white
+                    color: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
                 InkWell(
@@ -69,7 +73,9 @@ class _FarmListState extends State<FarmList> {
               ],
             ),
           ),
+
           SizedBox(height: 16),
+          // View Mango Market Price
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(

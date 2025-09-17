@@ -1,145 +1,260 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
-/// DROP-IN: Simple, list-first yields page designed for tech-illiterate users.
-/// - Big "Record yield" button
-/// - Month dropdown filter
-/// - At-a-glance summary chips (month/season/year)
-/// - Simple list; long-press to delete with Undo
-/// - Optional mini trend (bars) placed last
-///
-/// Firestore document shape under farmRef.collection('yields'):
-/// { date: Timestamp, kg: num, notes: String? }
-
-class YieldsSimplePage extends StatefulWidget {
-  const YieldsSimplePage({super.key, required this.farmRef});
+class YieldsHomePage extends StatefulWidget {
+  const YieldsHomePage({super.key, required this.farmRef, this.yearsBack = 2});
   final DocumentReference<Map<String, dynamic>> farmRef;
+  final int yearsBack; // how many past years to show besides current
 
   @override
-  State<YieldsSimplePage> createState() => _YieldsSimplePageState();
+  State<YieldsHomePage> createState() => _YieldsHomePageState();
 }
 
-class _YieldsSimplePageState extends State<YieldsSimplePage> {
-  CollectionReference<Map<String, dynamic>> get yieldsCol =>
+class _YieldsHomePageState extends State<YieldsHomePage> {
+  static const _mangoTypes = <String>[
+    'Carabao',
+    'Pico',
+    'Apple',
+    'Katchamita',
+    'Others',
+  ];
+
+  CollectionReference<Map<String, dynamic>> get _yields =>
       widget.farmRef.collection('yields');
 
-  // ------ Month filter ------
-  late int _selYear;
-  late int _selMonth; // 1-12
+  late final int _currentYear;
+  late final List<int> _years; // e.g., [2025, 2024, 2023]
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selYear = now.year;
-    _selMonth = now.month;
+    _currentYear = DateTime.now().year;
+    _years = List.generate(widget.yearsBack + 1, (i) => _currentYear - i);
   }
 
-  DateTime _monthStart(int year, int month) => DateTime(year, month, 1);
-  DateTime _monthEnd(int year, int month) => DateTime(year, month + 1, 1);
+  @override
+  Widget build(BuildContext context) {
+    // Load from Jan 1 of the oldest year to end of current year
+    final oldest = DateTime(_years.last, 1, 1);
+    final oldestTs = Timestamp.fromDate(oldest);
 
-  // Season in PH context: Dry (Nov–Apr), Wet (May–Oct)
-  bool _isDryMonth(int m) => (m == 11 || m == 12 || m <= 4);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Yields')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _yields
+            .orderBy('date')
+            .where('date', isGreaterThanOrEqualTo: oldestTs)
+            .snapshots(),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
 
-  // --------- ADD: Bottom sheet (simple) ----------
-  Future<void> _openAddSheet() async {
+          // Aggregate firestore docs -> by month
+          final Map<_MonthKey, _MonthAgg> byMonth = {};
+          for (final d in (snap.data?.docs ?? [])) {
+            final data = d.data();
+            final ts = data['date'];
+            if (ts is! Timestamp) continue;
+            final dt = ts.toDate();
+            final kg = _asNum(data['weightKg']);
+            final key = _MonthKey(dt.year, dt.month);
+            byMonth.putIfAbsent(key, () => _MonthAgg()).add(kg);
+          }
+
+          // Build list: years (desc), each with 12 months (Jan..Dec)
+          return ListView.builder(
+            itemCount: _years.length,
+            itemBuilder: (context, yi) {
+              final year = _years[yi];
+
+              return Card(
+                margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ExpansionTile(
+                  initiallyExpanded: yi == 0, // expand current year by default
+                  title: Text(
+                    '$year',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  childrenPadding: const EdgeInsets.only(bottom: 8),
+                  children: [
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 12,
+                      separatorBuilder: (_, __) => const Divider(height: 0),
+                      itemBuilder: (context, mi) {
+                        final month = mi + 1; // 1..12
+                        final label = DateFormat(
+                          'MMMM',
+                        ).format(DateTime(year, month));
+                        final agg =
+                            byMonth[_MonthKey(year, month)] ?? _MonthAgg();
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            child: Text(
+                              DateFormat(
+                                'MMM',
+                              ).format(DateTime(year, month)).toUpperCase(),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          title: Text('$label $year'),
+                          subtitle: Text(
+                            '${_fmtKg(agg.total)} total • ${agg.count} record(s)',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MonthYieldsPage(
+                                  farmRef: widget.farmRef,
+                                  year: year,
+                                  month: month,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+
+      // Add yield from main page
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text('Add yield'),
+        onPressed: () => _openAddSheet(context),
+      ),
+    );
+  }
+
+  Future<void> _openAddSheet(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
+    final dateVN = ValueNotifier<DateTime>(DateTime.now());
     final kgCtrl = TextEditingController();
-    DateTime date = DateTime.now();
-    String notes = '';
+    final notesCtrl = TextEditingController();
+    String type = _mangoTypes.first;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        final insets = MediaQuery.of(ctx).viewInsets.bottom;
+        final inset = MediaQuery.of(ctx).viewInsets.bottom;
         return Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, insets + 16),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, inset + 16),
           child: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Record yield',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-
-                // Date (Today by default)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date'),
-                  subtitle: Text(
-                    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-                  ),
-                  trailing: FilledButton(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: date,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() => date = picked);
-                      }
-                    },
-                    child: const Text('Pick'),
-                  ),
+                  'Add yield',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-
-                // KG (number keypad, big)
                 TextFormField(
                   controller: kgCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
                   decoration: const InputDecoration(
-                    labelText: 'Weight (kg)',
-                    hintText: 'e.g. 25',
+                    labelText: 'Kilograms (kg)',
+                    prefixIcon: Icon(Icons.monitor_weight_outlined),
                   ),
+                  keyboardType: TextInputType.number,
                   validator: (v) {
-                    final x = double.tryParse((v ?? '').trim());
-                    if (x == null || x <= 0) return 'Enter a valid number';
+                    if (v == null || v.trim().isEmpty) return 'Enter kilograms';
+                    final x = double.tryParse(v);
+                    if (x == null || x <= 0) return 'Enter a valid number > 0';
                     return null;
                   },
                 ),
-                const SizedBox(height: 8),
-
-                // Notes (optional, smaller)
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  decoration: const InputDecoration(
+                    labelText: 'Mango type',
+                    prefixIcon: Icon(Icons.local_florist_outlined),
+                  ),
+                  items: _mangoTypes
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) => type = v ?? _mangoTypes.first,
+                ),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<DateTime>(
+                  valueListenable: dateVN,
+                  builder: (context, date, _) {
+                    final label = DateFormat('MMMM d, yyyy').format(date);
+                    return InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: date,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) dateVN.value = picked;
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Date',
+                          prefixIcon: Icon(Icons.event_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(label),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
                 TextFormField(
+                  controller: notesCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Notes (optional)',
+                    prefixIcon: Icon(Icons.notes_outlined),
                   ),
-                  onChanged: (v) => notes = v.trim(),
-                  maxLines: 2,
+                  maxLines: 3,
                 ),
-                const SizedBox(height: 16),
-
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    icon: const Icon(Icons.save),
+                    icon: const Icon(Icons.check),
                     label: const Text('Save'),
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
-                      await yieldsCol.add({
+                      final kg = double.tryParse(kgCtrl.text.trim()) ?? 0;
+                      await _yields.add({
                         'date': Timestamp.fromDate(
-                          DateTime(date.year, date.month, date.day),
+                          DateTime(
+                            dateVN.value.year,
+                            dateVN.value.month,
+                            dateVN.value.day,
+                          ),
                         ),
-                        'kg': double.parse(kgCtrl.text.trim()),
-                        'notes': notes,
+                        'weightKg': kg,
+                        'type': type,
+                        'notes': notesCtrl.text.trim(),
+                        'createdAt': FieldValue.serverTimestamp(),
                       });
-                      if (mounted) Navigator.pop(context);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Yield recorded')),
-                      );
+                      if (context.mounted) Navigator.pop(context);
                     },
                   ),
                 ),
@@ -150,265 +265,353 @@ class _YieldsSimplePageState extends State<YieldsSimplePage> {
       },
     );
   }
+}
 
-  // ------ Streams for the selected month ------
-  Stream<QuerySnapshot<Map<String, dynamic>>> _monthStream() {
-    final from = _monthStart(_selYear, _selMonth);
-    final to = _monthEnd(_selYear, _selMonth);
-    return yieldsCol
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(from))
-        .where('date', isLessThan: Timestamp.fromDate(to))
-        .orderBy('date')
-        .snapshots();
+class MonthYieldsPage extends StatefulWidget {
+  const MonthYieldsPage({
+    super.key,
+    required this.farmRef,
+    required this.year,
+    required this.month,
+  });
+
+  final DocumentReference<Map<String, dynamic>> farmRef;
+  final int year;
+  final int month;
+
+  @override
+  State<MonthYieldsPage> createState() => _MonthYieldsPageState();
+}
+
+class _MonthYieldsPageState extends State<MonthYieldsPage> {
+  CollectionReference<Map<String, dynamic>> get _yields =>
+      widget.farmRef.collection('yields');
+
+  late final DateTime _firstDay;
+  late final DateTime _lastDay;
+
+  // 👉 This drives UI changes without rebuilding the StreamBuilder.
+  late final ValueNotifier<DateTime> _selectedDayVN;
+
+  @override
+  void initState() {
+    super.initState();
+    _firstDay = DateTime(widget.year, widget.month, 1);
+    _lastDay = DateTime(widget.year, widget.month + 1, 0);
+    _selectedDayVN = ValueNotifier<DateTime>(_firstDay);
   }
 
-  // Whole-year stream for summaries/trend
-  Stream<QuerySnapshot<Map<String, dynamic>>> _yearStream(int year) {
-    final from = DateTime(year, 1, 1);
-    final to = DateTime(year + 1, 1, 1);
-    return yieldsCol
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(from))
-        .where('date', isLessThan: Timestamp.fromDate(to))
-        .orderBy('date')
-        .snapshots();
+  @override
+  void dispose() {
+    _selectedDayVN.dispose();
+    super.dispose();
   }
 
-  // ------- Helpers to compute totals -------
-  double _sumKg(Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
-    double t = 0;
-    for (final d in docs) {
-      t += (d['kg'] as num).toDouble();
-    }
-    return t;
-  }
-
-  double _sumMonth(
-    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-    int m,
-  ) {
-    double t = 0;
-    for (final d in docs) {
-      final dt = (d['date'] as Timestamp).toDate();
-      if (dt.month == m) t += (d['kg'] as num).toDouble();
-    }
-    return t;
-  }
-
-  Map<int, double> _monthlyBuckets(
-    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    final map = <int, double>{for (var i = 1; i <= 12; i++) i: 0};
-    for (final d in docs) {
-      final dt = (d['date'] as Timestamp).toDate();
-      final kg = (d['kg'] as num).toDouble();
-      map[dt.month] = (map[dt.month] ?? 0) + kg;
-    }
-    return map;
-  }
-
-  double _seasonTotal(
-    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-    bool dry,
-  ) {
-    double t = 0;
-    for (final d in docs) {
-      final m = (d['date'] as Timestamp).toDate().month;
-      final isDry = _isDryMonth(m);
-      if (dry ? isDry : !isDry) t += (d['kg'] as num).toDouble();
-    }
-    return t;
-  }
-
-  // --------- UI ---------
   @override
   Widget build(BuildContext context) {
-    final monthsShort = const [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    final startTs = Timestamp.fromDate(_firstDay);
+    final endTs = Timestamp.fromDate(
+      DateTime(widget.year, widget.month + 1, 1),
+    );
+    final monthName = DateFormat('MMMM').format(_firstDay);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Yields')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddSheet,
-        icon: const Icon(Icons.add),
-        label: const Text('Record yield'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Row: Month dropdown + Add button (big)
-            Row(
-              children: [
-                Expanded(
-                  child: _MonthPicker(
-                    year: _selYear,
-                    month: _selMonth,
-                    onChanged: (y, m) => setState(() {
-                      _selYear = y;
-                      _selMonth = m;
-                    }),
+      appBar: AppBar(title: Text('Yields in $monthName')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _yields
+            .orderBy('date')
+            .where('date', isGreaterThanOrEqualTo: startTs)
+            .where('date', isLessThan: endTs)
+            .snapshots(),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('Error: ${snap.error}'));
+          }
+
+          // ---- Transform snapshot → events map (day -> records)
+          final Map<DateTime, List<_YieldRecord>> events = {};
+          final Map<String, Map<String, dynamic>> originalById = {};
+
+          for (final doc in (snap.data?.docs ?? [])) {
+            final data = doc.data();
+            final ts = data['date'];
+            if (ts is! Timestamp) continue;
+            final dt = ts.toDate();
+            final day = DateTime(dt.year, dt.month, dt.day);
+
+            originalById[doc.id] = Map<String, dynamic>.from(data);
+            (events[day] ??= <_YieldRecord>[]).add(
+              _YieldRecord(
+                id: doc.id,
+                date: dt,
+                kg: _asNum(data['weightKg']),
+                type: (data['type'] ?? '').toString(),
+                notes: (data['notes'] ?? '').toString(),
+              ),
+            );
+          }
+
+          // 👉 Optional: auto-select the latest day that has records
+          if ((events.isNotEmpty) &&
+              (_selectedDayVN.value.isBefore(_firstDay) ||
+                  _selectedDayVN.value.isAfter(_lastDay) ||
+                  (events[_dayOnly(_selectedDayVN.value)] == null))) {
+            final latestDay =
+                (events.keys.toList()..sort((a, b) => b.compareTo(a))).first;
+            _selectedDayVN.value = latestDay;
+          }
+
+          return Column(
+            children: [
+              // ---------------- Calendar (locked to month) ----------------
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                    child: ValueListenableBuilder<DateTime>(
+                      valueListenable: _selectedDayVN,
+                      builder: (context, selectedDay, _) {
+                        return TableCalendar<_YieldRecord>(
+                          firstDay: _firstDay,
+                          lastDay: _lastDay,
+                          focusedDay:
+                              selectedDay.isBefore(_firstDay) ||
+                                  selectedDay.isAfter(_lastDay)
+                              ? _firstDay
+                              : selectedDay,
+                          calendarFormat: CalendarFormat.month,
+                          availableCalendarFormats: const {
+                            CalendarFormat.month: 'Month',
+                          },
+                          availableGestures: AvailableGestures.none, // lock nav
+                          headerStyle: const HeaderStyle(
+                            formatButtonVisible: false,
+                            titleCentered: true,
+                            leftChevronVisible: false,
+                            rightChevronVisible: false,
+                          ),
+                          startingDayOfWeek: StartingDayOfWeek.monday,
+                          selectedDayPredicate: (day) =>
+                              _isSameDay(day, selectedDay),
+                          eventLoader: (day) =>
+                              events[_dayOnly(day)] ?? const [],
+                          onDaySelected: (day, _) {
+                            // 🔒 No setState here → no StreamBuilder rebuild.
+                            if (!mounted) return;
+                            _selectedDayVN.value = _dayOnly(day);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _openAddSheet,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Record'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+              ),
 
-            // Summaries (chip style)
-            StreamBuilder(
-              stream: _yearStream(_selYear),
-              builder:
-                  (
-                    context,
-                    AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snap,
-                  ) {
-                    final docs = snap.data?.docs ?? const [];
-                    final totalYear = _sumKg(docs);
-                    final totalMonth = _sumMonth(docs, _selMonth);
-                    final totalDry = _seasonTotal(docs, true);
-                    final totalWet = _seasonTotal(docs, false);
+              const Divider(height: 0),
 
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+              // ---------------- Selected day’s records pane ----------------
+              Expanded(
+                child: ValueListenableBuilder<DateTime>(
+                  valueListenable: _selectedDayVN,
+                  builder: (context, selectedDay, _) {
+                    final dayKey = _dayOnly(selectedDay);
+                    final recs = (events[dayKey] ?? <_YieldRecord>[])
+                      ..sort((a, b) => b.date.compareTo(a.date));
+
+                    final selLabel = DateFormat('EEE, MMM d').format(dayKey);
+                    final selTotal = recs.fold<double>(0, (s, e) => s + e.kg);
+
+                    return ListView(
+                      key: const PageStorageKey(
+                        'day-records',
+                      ), // smoother scrolling
+                      padding: const EdgeInsets.only(bottom: 12),
                       children: [
-                        _SumChip(
-                          icon: Icons.calendar_month,
-                          label: 'This month',
-                          value: '${totalMonth.toStringAsFixed(1)} kg',
+                        ListTile(
+                          title: Text(
+                            selLabel,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text('${_fmtKg(selTotal)} total'),
                         ),
-                        _SumChip(
-                          icon: Icons.wb_sunny,
-                          label: 'Dry (Nov–Apr)',
-                          value: '${totalDry.toStringAsFixed(1)} kg',
-                        ),
-                        _SumChip(
-                          icon: Icons.water_drop,
-                          label: 'Wet (May–Oct)',
-                          value: '${totalWet.toStringAsFixed(1)} kg',
-                        ),
-                        _SumChip(
-                          icon: Icons.event,
-                          label: 'This year',
-                          value: '${totalYear.toStringAsFixed(1)} kg',
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SizeTransition(
+                              sizeFactor: anim,
+                              child: child,
+                            ),
+                          ),
+                          child: recs.isEmpty
+                              ? const Padding(
+                                  key: ValueKey('empty'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: _EmptyState(
+                                    message: 'No yields on this day.',
+                                  ),
+                                )
+                              : Card(
+                                  key: ValueKey(
+                                    '${dayKey.toIso8601String()}-${recs.length}',
+                                  ),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      for (final r in recs) ...[
+                                        ListTile(
+                                          dense: true,
+                                          leading: const Icon(
+                                            Icons.local_mall_outlined,
+                                          ),
+                                          title: Text(_fmtKg(r.kg)),
+                                          subtitle: Text(
+                                            [
+                                              if (r.type.isNotEmpty)
+                                                'Type: ${r.type}',
+                                              if (r.notes.isNotEmpty) r.notes,
+                                              if (r.type.isEmpty &&
+                                                  r.notes.isEmpty)
+                                                'No notes',
+                                            ].join(' • '),
+                                          ),
+                                          trailing: Wrap(
+                                            spacing: 0,
+                                            children: [
+                                              IconButton(
+                                                tooltip: 'Edit notes',
+                                                icon: const Icon(
+                                                  Icons.edit_note_outlined,
+                                                ),
+                                                onPressed: () =>
+                                                    _editNotesDialog(
+                                                      context,
+                                                      r.id,
+                                                      r.notes,
+                                                    ),
+                                              ),
+                                              IconButton(
+                                                tooltip: 'Delete',
+                                                icon: const Icon(
+                                                  Icons.delete_outline,
+                                                ),
+                                                onPressed: () => _deleteWithUndo(
+                                                  context,
+                                                  r.id,
+                                                  // safe copy for undo; may be empty if not needed
+                                                  {
+                                                    'date': Timestamp.fromDate(
+                                                      r.date,
+                                                    ),
+                                                    'weightKg': r.kg,
+                                                    'type': r.type,
+                                                    'notes': r.notes,
+                                                    'createdAt':
+                                                        FieldValue.serverTimestamp(),
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onLongPress: () => _editNotesDialog(
+                                            context,
+                                            r.id,
+                                            r.notes,
+                                          ),
+                                        ),
+                                        if (r != recs.last)
+                                          const Divider(height: 0),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                         ),
                       ],
                     );
                   },
-            ),
-            const SizedBox(height: 12),
-
-            // List for selected month
-            Expanded(
-              child: StreamBuilder(
-                stream: _monthStream(),
-                builder:
-                    (
-                      context,
-                      AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snap,
-                    ) {
-                      if (snap.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final docs = snap.data?.docs ?? [];
-                      if (docs.isEmpty) {
-                        return const _EmptyState();
-                      }
-
-                      return ListView.separated(
-                        itemCount: docs.length + 1,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, i) {
-                          if (i == 0) {
-                            // Month header total
-                            final total = _sumKg(docs);
-                            return ListTile(
-                              title: Text(
-                                '${monthsShort[_selMonth - 1]} $_selYear',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              trailing: Text(
-                                '${total.toStringAsFixed(1)} kg',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            );
-                          }
-                          final d = docs[i - 1];
-                          final dt = (d['date'] as Timestamp).toDate();
-                          final kg = (d['kg'] as num).toDouble();
-                          final notes =
-                              (d.data().containsKey('notes')
-                                      ? (d['notes'] ?? '')
-                                      : '')
-                                  as String;
-
-                          return InkWell(
-                            onLongPress: () => _confirmDelete(d),
-                            child: ListTile(
-                              leading: const Icon(Icons.inventory_2_outlined),
-                              title: Text(
-                                '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
-                              ),
-                              subtitle: notes.isEmpty
-                                  ? null
-                                  : Text(
-                                      notes,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                              trailing: Text(
-                                '${kg.toStringAsFixed(1)} kg',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                ),
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ---------------- Edit notes (dialog) ----------------
+  Future<void> _editNotesDialog(
+    BuildContext context,
+    String id,
+    String currentNotes,
+  ) async {
+    final ctrl = TextEditingController(text: currentNotes);
+    bool saving = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setLocal) => AlertDialog(
+          title: const Text('Edit notes'),
+          content: TextField(
+            controller: ctrl,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Add details about this harvest…',
+              border: OutlineInputBorder(),
             ),
-
-            // Small, optional trend (end of page so it never confuses)
-            StreamBuilder(
-              stream: _yearStream(_selYear),
-              builder:
-                  (
-                    context,
-                    AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snap,
-                  ) {
-                    final docs = snap.data?.docs ?? const [];
-                    final buckets = _monthlyBuckets(docs);
-                    final maxVal =
-                        (buckets.values.isEmpty
-                                ? 10.0
-                                : buckets.values.reduce(math.max))
-                            .clamp(10, double.infinity);
-
-                    return _MiniBars(
-                      label: 'Monthly trend $_selYear',
-                      data: [for (var i = 1; i <= 12; i++) buckets[i] ?? 0],
-                      maxY: maxVal * 1.2,
-                    );
-                  },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              icon: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: const Text('Save'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setLocal(() => saving = true);
+                      try {
+                        await _yields.doc(id).update({
+                          'notes': ctrl.text.trim(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (mounted) Navigator.pop(dialogContext);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Notes updated')),
+                          );
+                        }
+                      } finally {
+                        if (mounted) setLocal(() => saving = false);
+                      }
+                    },
             ),
           ],
         ),
@@ -416,244 +619,128 @@ class _YieldsSimplePageState extends State<YieldsSimplePage> {
     );
   }
 
-  Future<void> _confirmDelete(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  // ---------------- Delete with confirm + Undo ----------------
+  Future<void> _deleteWithUndo(
+    BuildContext context,
+    String id,
+    Map<String, dynamic> prevData,
   ) async {
-    final kg = (doc['kg'] as num).toDouble();
-    final dt = (doc['date'] as Timestamp).toDate();
-
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete record?'),
-        content: Text(
-          'Delete ${kg.toStringAsFixed(1)} kg on '
-          '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}?',
-        ),
+        content: const Text('This harvest record will be removed.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
-
     if (ok != true) return;
 
-    // Delete with undo
-    await doc.reference.delete();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Deleted'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () async {
-            // Restore (best-effort if we still have data)
-            await doc.reference.set(doc.data());
-          },
-        ),
-      ),
-    );
-  }
-}
-
-/// Month & year dropdown with big tap targets.
-class _MonthPicker extends StatelessWidget {
-  const _MonthPicker({
-    required this.year,
-    required this.month,
-    required this.onChanged,
-  });
-
-  final int year;
-  final int month;
-  final void Function(int year, int month) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    // Allow +/- 3 years for simplicity
-    final years = [for (var y = now.year - 3; y <= now.year + 3; y++) y];
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            isExpanded: true,
-            value: month,
-            decoration: const InputDecoration(labelText: 'Month'),
-            items: List.generate(12, (i) {
-              return DropdownMenuItem(value: i + 1, child: Text(months[i]));
-            }),
-            onChanged: (m) => onChanged(year, m ?? month),
+    try {
+      await _yields.doc(id).delete();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Record deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              await _yields.add({
+                ...prevData,
+                'restoredAt': FieldValue.serverTimestamp(),
+              });
+            },
           ),
         ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 120,
-          child: DropdownButtonFormField<int>(
-            isExpanded: true,
-            value: year,
-            decoration: const InputDecoration(labelText: 'Year'),
-            items: years
-                .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
-                .toList(),
-            onChanged: (y) => onChanged(y ?? year, month),
-          ),
-        ),
-      ],
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
   }
 }
 
-/// Summary chip widget
-class _SumChip extends StatelessWidget {
-  const _SumChip({
-    required this.icon,
-    required this.label,
-    required this.value,
+class _YieldRecord {
+  final String id;
+  final DateTime date;
+  final double kg;
+  final String type;
+  final String notes;
+  _YieldRecord({
+    required this.id,
+    required this.date,
+    required this.kg,
+    required this.type,
+    required this.notes,
   });
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text('$label: $value'),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    );
-  }
 }
 
-/// Minimal bars (no external chart lib) to keep things simple & responsive.
-class _MiniBars extends StatelessWidget {
-  const _MiniBars({
-    required this.label,
-    required this.data,
-    required this.maxY,
-  });
-
-  final String label;
-  final List<double> data; // 12 values for months
-  final double maxY;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Card(
-      margin: const EdgeInsets.only(top: 12),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(label, style: textTheme.titleMedium),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, c) {
-                final barWidth = (c.maxWidth - 11 * 6) / 12; // spacing ~6
-                final height = math.max(120.0, c.maxWidth * 0.25);
-
-                return SizedBox(
-                  height: height,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(12, (i) {
-                      final v = data[i];
-                      final h = (maxY <= 0) ? 0 : (v / maxY) * (height - 20);
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Container(
-                              width: math.max(10, barWidth),
-                              // height: h.clamp(0, height - 20),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              [
-                                'J',
-                                'F',
-                                'M',
-                                'A',
-                                'M',
-                                'J',
-                                'J',
-                                'A',
-                                'S',
-                                'O',
-                                'N',
-                                'D',
-                              ][i],
-                              style: textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+bool _isSameDay(DateTime? a, DateTime? b) {
+  if (a == null || b == null) return false;
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// Friendly empty-state
+DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+double _asNum(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is int) return v.toDouble();
+  if (v is double) return v;
+  if (v is String) return double.tryParse(v) ?? 0.0;
+  return 0.0;
+}
+
+String _fmtKg(double v) {
+  final isInt = v % 1 == 0;
+  return isInt ? '${v.toInt()} kg' : '${v.toStringAsFixed(1)} kg';
+}
+
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
+  const _EmptyState({this.message = 'No data yet'});
+  final String message;
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          const Icon(Icons.inventory_2_outlined, size: 64),
-          const SizedBox(height: 8),
-          const Text('No yields yet for this month'),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Tap the “Record yield” button to add one.'),
-              ),
-            ),
-            icon: const Icon(Icons.info_outline),
-            label: const Text('How?'),
-          ),
+          const Icon(Icons.inventory_2_outlined, size: 48),
+          Text(message, style: Theme.of(context).textTheme.titleMedium),
         ],
       ),
     );
+  }
+}
+
+/// =============================== Helpers ===================================
+class _MonthKey {
+  final int year;
+  final int month;
+  const _MonthKey(this.year, this.month);
+  @override
+  bool operator ==(Object other) =>
+      other is _MonthKey && year == other.year && month == other.month;
+  @override
+  int get hashCode => Object.hash(year, month);
+}
+
+class _MonthAgg {
+  double total = 0;
+  int count = 0;
+  void add(double kg) {
+    total += kg;
+    count++;
   }
 }

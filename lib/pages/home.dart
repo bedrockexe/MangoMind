@@ -8,7 +8,7 @@ import 'package:insights/pages/homepage/settings.dart';
 import 'package:insights/pages/homepage/Home/weather.dart';
 import 'package:insights/pages/homepage/Home/widget.dart';
 import 'package:insights/pages/homepage/Farm/farm.dart';
-import 'package:insights/pages/homepage/Farm/test.dart';
+import 'package:insights/pages/homepage/Records/records.dart';
 
 // Main Class
 class HomePage extends StatefulWidget {
@@ -131,7 +131,7 @@ class _Home extends State<HomePage> {
           children: [
             _TabNavigator(navigatorKey: _navkeys[0], root: _HomeRoot()),
             _TabNavigator(navigatorKey: _navkeys[1], root: const FarmList()),
-            _TabNavigator(navigatorKey: _navkeys[2], root: const ReportRoot()),
+            _TabNavigator(navigatorKey: _navkeys[2], root: ReportsPage()),
             _TabNavigator(navigatorKey: _navkeys[3], root: SettingsPage()),
           ],
         ),
@@ -183,25 +183,39 @@ class _TabNavigator extends StatelessWidget {
   }
 }
 
-class _HomeRoot extends StatelessWidget {
+class _HomeRoot extends StatefulWidget {
   const _HomeRoot();
+  @override
+  State<_HomeRoot> createState() => _HomeRootState();
+}
+
+class _HomeRootState extends State<_HomeRoot> {
+  int _refreshToken = 0;
+
+  Future<void> _onRefresh() async {
+    setState(() => _refreshToken++);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          "Home",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-        ),
-        SizedBox(height: 16),
-        WeatherPanel(),
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 10),
-          child: MangoDetectorTile(),
-        ),
-      ],
+    return RefreshIndicator.adaptive(
+      onRefresh: _onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            "Home",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 16),
+          WeatherPanel(key: ValueKey(_refreshToken)),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: MangoDetectorTile(),
+          ),
+        ],
+      ),
     );
   }
 }

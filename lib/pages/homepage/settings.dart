@@ -11,8 +11,6 @@ import 'package:insights/theme_controller.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  User? get _user => FirebaseAuth.instance.currentUser;
-
   Future<void> _signOut(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
 
@@ -187,7 +185,7 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
+              ), //
 
               const SizedBox(height: 24),
 

@@ -1,9 +1,8 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-
-import 'package:insights/pages/homepage/Home/helper.dart';
 
 class MangoDiseaseDetectorPage extends StatefulWidget {
   const MangoDiseaseDetectorPage({super.key});
@@ -17,13 +16,11 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
   final _picker = ImagePicker();
   File? _imageFile;
   bool _analyzing = false;
+  _MockResult? _result;
 
-  Result? _result;
-
-  // Image Picker
   Future<void> _pick(ImageSource source) async {
     setState(() {
-      _result = null;
+      _result = null; // clear old result when picking a new image
     });
     final xfile = await _picker.pickImage(
       source: source,
@@ -34,51 +31,20 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
     setState(() => _imageFile = File(xfile.path));
   }
 
-  // Image Analyzer
   Future<void> _analyze() async {
     if (_imageFile == null) return;
     setState(() {
       _analyzing = true;
       _result = null;
     });
-
-    try {
-      await MangoClassifier.load();
-      final r = await MangoClassifier.classifyFile(_imageFile!);
-
-      final prettyLabel = _prettyLabel(r.label);
-
-      setState(() {
-        _result = Result(
-          label: prettyLabel,
-          confidence: r.confidence,
-          probs: r.probs,
-        );
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Analysis failed: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _analyzing = false);
-      }
-    }
-  }
-
-  // Label Formatter
-  String _prettyLabel(String raw) {
-    switch (raw) {
-      case 'Powdery_Mildew':
-        return 'Powdery Mildew';
-      case 'Healthy_Mango':
-        return 'Healthy';
-      case 'Not_Mango':
-        return 'Not Mango';
-      default:
-        return raw;
-    }
+    // Simulate model latency
+    await Future.delayed(const Duration(milliseconds: 900));
+    // Mock classifier (deterministic per file content/length)
+    final res = await _MockClassifier.classify(_imageFile!);
+    setState(() {
+      _result = res;
+      _analyzing = false;
+    });
   }
 
   void _reset() {
@@ -102,8 +68,6 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
           return Colors.orange;
         case 'Powdery Mildew':
           return Colors.purple;
-        case 'Not Mango':
-          return Colors.red;
         default:
           return theme.colorScheme.primary;
       }
@@ -128,19 +92,17 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                'Scan a mango leaf',
+                'Scan a mango leaf or fruit',
                 style: textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                'Detect Anthracnose, Powdery Mildew, Healthy, or Not Mango.\n'
+                'Detect Anthracnose, Powdery Mildew, or a Healthy sample.\n'
                 'Take a photo or upload from gallery.',
                 style: textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withValues(
-                    alpha: 0.8,
-                  ),
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
                 ),
               ),
               const SizedBox(height: 16),
@@ -173,12 +135,11 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
                 aspectRatio: 1,
                 child: Ink(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.4,
-                    ),
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withOpacity(0.4),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: theme.dividerColor.withValues(alpha: 0.4),
+                      color: theme.dividerColor.withOpacity(0.4),
                       width: 1.5,
                     ),
                   ),
@@ -212,7 +173,7 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
 
               const SizedBox(height: 16),
 
-              // Results (no severity)
+              // Results
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: _result == null
@@ -220,6 +181,7 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
                     : _ResultPanel(
                         label: _result!.label,
                         confidence: _result!.confidence,
+                        severity: _result!.severity,
                         color: labelColor(_result!.label),
                       ),
                 crossFadeState: _result != null
@@ -245,7 +207,7 @@ class _EmptyPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final subdued = textTheme.bodyMedium?.copyWith(
-      color: textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+      color: textTheme.bodyMedium?.color?.withOpacity(0.8),
     );
     return Center(
       child: Column(
@@ -270,46 +232,31 @@ class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
     required this.label,
     required this.confidence,
+    required this.severity,
     required this.color,
   });
 
   final String label;
-  final double confidence;
+  final double confidence; // 0..1
+  final String severity;
   final Color color;
-
-  String _descriptionFor(String label) {
-    switch (label) {
-      case 'Healthy':
-        return 'No visible signs of disease detected.';
-      case 'Anthracnose':
-        return 'Dark, sunken spots that may expand; common on leaves and fruit.';
-      case 'Powdery Mildew':
-        return 'White powdery growth on young leaves and fruit; may cause distortion.';
-      case 'Not Mango':
-        return 'This image likely isn’t a mango leaf or fruit. Please retake a clearer photo of a mango sample.';
-      default:
-        return '—';
-    }
-  }
-
-  String _actionFor(String label) {
-    switch (label) {
-      case 'Anthracnose':
-        return 'Prune infected parts; avoid overhead irrigation; consider copper-based fungicide per local guidance.';
-      case 'Powdery Mildew':
-        return 'Improve airflow; remove heavily infected leaves; consider sulfur-based fungicide if allowed.';
-      case 'Healthy':
-        return 'Maintain good sanitation and monitor regularly.';
-      case 'Not Mango':
-        return 'Retake the photo focusing on a mango leaf or fruit. Fill the frame and use good lighting.';
-      default:
-        return 'Follow local best practices for orchard hygiene.';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+
+    String description() {
+      switch (label) {
+        case 'Healthy':
+          return 'No visible signs of disease detected.';
+        case 'Anthracnose':
+          return 'Dark, sunken spots that may expand; common on leaves and fruit.';
+        case 'Powdery Mildew':
+          return 'White powdery growth on young leaves and fruit; may cause distortion.';
+        default:
+          return '—';
+      }
+    }
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -318,7 +265,7 @@ class _ResultPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title + chip
+            // Title row
             Row(
               children: [
                 Container(
@@ -327,9 +274,9 @@ class _ResultPanel extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: color.withValues(alpha: 0.35)),
+                    border: Border.all(color: color.withOpacity(0.35)),
                   ),
                   child: Row(
                     children: [
@@ -346,20 +293,53 @@ class _ResultPanel extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                _ConfidencePill(confidence: confidence),
+                IconButton.filledTonal(
+                  onPressed: () {
+                    Navigator.of(context).maybePop(); // optional action
+                  },
+                  icon: const Icon(Icons.info_outline_rounded),
+                  tooltip: 'What is this?',
+                ),
               ],
             ),
 
             const SizedBox(height: 12),
-            Text(_descriptionFor(label), style: text.bodyMedium),
+            Text(description(), style: text.bodyMedium),
 
             const SizedBox(height: 12),
             const Divider(height: 1),
 
             const SizedBox(height: 12),
+            // Stats row
+            Row(
+              children: [
+                _StatChip(
+                  icon: Icons.fact_check_rounded,
+                  label: 'Confidence',
+                  value: '${(confidence * 100).toStringAsFixed(0)}%',
+                ),
+                const SizedBox(width: 10),
+                _StatChip(
+                  icon: Icons.bubble_chart_rounded,
+                  label: 'Severity',
+                  value: severity,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
             Text('Suggested actions', style: text.titleMedium),
             const SizedBox(height: 6),
-            _Bullet(text: _actionFor(label)),
+            _Bullet(
+              text: switch (label) {
+                'Anthracnose' =>
+                  'Prune infected parts; avoid overhead irrigation; consider copper-based fungicide per local guidance.',
+                'Powdery Mildew' =>
+                  'Improve airflow; remove heavily infected leaves; consider sulfur-based fungicide if allowed.',
+                'Healthy' => 'Maintain good sanitation and monitor regularly.',
+                _ => 'Follow local best practices for orchard hygiene.',
+              },
+            ),
             const _Bullet(
               text: 'Ensure clear, well-lit photos for best results.',
             ),
@@ -370,30 +350,48 @@ class _ResultPanel extends StatelessWidget {
   }
 }
 
-// Confidence
-class _ConfidencePill extends StatelessWidget {
-  const _ConfidencePill({required this.confidence});
-  final double confidence;
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final theme = Theme.of(context);
+    final text = Theme.of(context).textTheme;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.25)),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fact_check_rounded, size: 18),
+          Icon(icon, size: 18),
           const SizedBox(width: 8),
-          Text(
-            '${(confidence * 100).toStringAsFixed(0)}%',
-            style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: text.labelSmall?.copyWith(
+                  color: text.bodySmall?.color?.withOpacity(0.7),
+                ),
+              ),
+              Text(
+                value,
+                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ],
       ),
@@ -401,7 +399,6 @@ class _ConfidencePill extends StatelessWidget {
   }
 }
 
-// Photo Tips
 class _TipsCard extends StatelessWidget {
   const _TipsCard();
 
@@ -427,7 +424,6 @@ class _TipsCard extends StatelessWidget {
   }
 }
 
-// Bullet Widget
 class _Bullet extends StatelessWidget {
   const _Bullet({required this.text});
   final String text;
@@ -442,4 +438,54 @@ class _Bullet extends StatelessWidget {
       ],
     );
   }
+}
+
+/// ------------------------------
+/// Mock "Classifier"
+/// ------------------------------
+/// This is a *deterministic* fake classifier so demo results feel stable.
+/// It chooses a label by hashing file length and a few bytes, then
+/// synthesizes a confidence and severity.
+class _MockClassifier {
+  static Future<_MockResult> classify(File file) async {
+    final len = await file.length();
+    final raf = await file.open();
+    final bytesToRead = min<int>(64, len);
+    final buf = await raf.read(bytesToRead);
+    await raf.close();
+
+    // Simple hash-like score
+    int score = len % 997; // prime-ish modulus
+    for (final b in buf) {
+      score = (score * 31 + b) % 10007;
+    }
+
+    // Map score to label
+    final labels = ['Healthy', 'Anthracnose', 'Powdery Mildew'];
+    final label = labels[score % labels.length];
+
+    // Confidence between 0.72 and 0.96
+    final confidence = 0.72 + ((score % 25) / 100.0);
+
+    // Severity buckets
+    final sevIdx = (score ~/ 3) % 3;
+    final severity = ['Mild', 'Moderate', 'Severe'][sevIdx];
+
+    return _MockResult(
+      label: label,
+      confidence: confidence,
+      severity: severity,
+    );
+  }
+}
+
+class _MockResult {
+  final String label;
+  final double confidence;
+  final String severity;
+  _MockResult({
+    required this.label,
+    required this.confidence,
+    required this.severity,
+  });
 }

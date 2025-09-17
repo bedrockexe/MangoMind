@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 
-/// Shows: temp, humidity, wind (speed/dir/gust), UV, precip (mm & %), sunrise/sunset, max/min.
 class WeatherPanel extends StatefulWidget {
   const WeatherPanel({super.key});
 
@@ -13,7 +11,7 @@ class WeatherPanel extends StatefulWidget {
 }
 
 class _WeatherPanelState extends State<WeatherPanel> {
-  Future<_WeatherData>? _future;
+  late Future<_WeatherData> _future;
 
   @override
   void initState() {
@@ -22,40 +20,73 @@ class _WeatherPanelState extends State<WeatherPanel> {
   }
 
   Future<_WeatherData> _load() async {
-    // 1) Get location (with permission). Fallback: Manila
+    // ---------- 1) Location with graceful fallbacks ----------
     double lat = 14.5995, lon = 120.9842; // Manila fallback
+
     try {
+      // a) Services enabled?
       final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        throw const LocationServiceDisabledException();
+      }
+
+      // b) Permission (runtime)
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (enabled &&
-          (perm == LocationPermission.always ||
-              perm == LocationPermission.whileInUse)) {
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
-        );
-        lat = pos.latitude;
-        lon = pos.longitude;
+
+      if (perm != LocationPermission.always &&
+          perm != LocationPermission.whileInUse) {
+        throw const PermissionDeniedException('location-permission-denied');
       }
+
+      // c) Last known first (instant)
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) {
+        lat = last.latitude;
+        lon = last.longitude;
+      }
+
+      // d) Fresh, accurate fix with short time limit (don’t block UX)
+      const settings = LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 0,
+        timeLimit: Duration(seconds: 8),
+      );
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: settings,
+      );
+
+      lat = pos.latitude;
+      lon = pos.longitude;
+    } on PermissionDeniedException {
+      // keep fallback silently
+    } on LocationServiceDisabledException {
+      // keep fallback silently
     } catch (_) {
-      /* use fallback */
+      // any other error → keep fallback silently
     }
 
-    // 2) Call Open-Meteo (free, no key). We ask for current & daily variables useful to mango farming.
+    // ---------- 2) Open-Meteo request ----------
     final uri = Uri.parse(
       'https://api.open-meteo.com/v1/forecast'
       '?latitude=$lat&longitude=$lon'
       '&timezone=auto'
-      '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,precipitation_probability,uv_index,cloud_cover'
-      '&daily=temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,precipitation_sum,rain_sum,showers_sum,precipitation_hours,wind_speed_10m_max,wind_gusts_10m_max,sunrise,sunset',
+      '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,'
+      'wind_direction_10m,wind_gusts_10m,precipitation,precipitation_probability,'
+      'uv_index,cloud_cover'
+      '&daily=temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,'
+      'precipitation_sum,rain_sum,showers_sum,precipitation_hours,wind_speed_10m_max,'
+      'wind_gusts_10m_max,sunrise,sunset',
     );
 
     final res = await http.get(uri);
     if (res.statusCode != 200) {
       throw Exception('Weather API error: ${res.statusCode}');
     }
+
     final j = jsonDecode(res.body) as Map<String, dynamic>;
     return _WeatherData.fromOpenMeteo(j);
   }
@@ -65,7 +96,7 @@ class _WeatherPanelState extends State<WeatherPanel> {
     return FutureBuilder<_WeatherData>(
       future: _future,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
+        if (snap.connectionState != ConnectionState.done) {
           return _panelShell(
             child: const Padding(
               padding: EdgeInsets.all(16),
@@ -73,27 +104,79 @@ class _WeatherPanelState extends State<WeatherPanel> {
             ),
           );
         }
+
+        // Error
         if (snap.hasError) {
           return _panelShell(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
-                'Unable to load weather.\n${snap.error}',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Unable to load weather data.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Possible causes:\n'
+                    '• Your internet might be slow\n'
+                    '• The server may be unreachable\n'
+                    '• Please try reloading again',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           );
         }
+
+        // No data (defensive; avoids snap.data! when null)
+        if (!snap.hasData) {
+          return _panelShell(
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('No weather data available right now.'),
+            ),
+          );
+        }
+
         final w = snap.data!;
-        final df = DateFormat('hh:mm a');
-        final today = w.daily.first;
+
+        // Guard when API returns zero daily rows
+        final _Daily today = (w.daily.isNotEmpty)
+            ? w.daily.first
+            : _Daily(
+                date: DateTime.now(),
+                tMax: w.currentTemp,
+                tMin: w.currentTemp,
+                uvMax: null,
+                precipSum: null,
+                rainSum: null,
+                showersSum: null,
+                precipHours: null,
+                windMax: w.currentWindSpeed,
+                gustMax: w.currentWindGust,
+                sunrise: DateTime.now(),
+                sunset: DateTime.now().add(const Duration(hours: 12)),
+              );
 
         return _panelShell(
           child: Container(
             decoration: BoxDecoration(
-              image: DecorationImage(
+              image: const DecorationImage(
                 image: AssetImage("assets/weather.jpg"),
-                fit: BoxFit.cover, // cover, contain, etc.
+                fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(14),
             ),
@@ -102,40 +185,27 @@ class _WeatherPanelState extends State<WeatherPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.wb_sunny_outlined,
-                            color: Colors.white,
-                          ),
-                          Text(
-                            'Today\'s Field Weather',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          SizedBox(width: 5, height: 5),
-                          Text(
-                            w.locationLabel,
-                            style: TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                        ],
+                  Row(
+                    children: const [
+                      Icon(Icons.wb_sunny_outlined, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        'Today\'s Field Weather',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
-
+                  const SizedBox(height: 4),
+                  Text(
+                    w.locationLabel,
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                  ),
                   const SizedBox(height: 12),
 
-                  // Current snapshot
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -143,58 +213,10 @@ class _WeatherPanelState extends State<WeatherPanel> {
                         '${w.currentTemp.toStringAsFixed(1)}°C',
                         'Feels like field temp',
                       ),
-                      // const SizedBox(width: 16),
-                      // Expanded(
-                      //   child: Wrap(
-                      //     runSpacing: 10,
-                      //     spacing: 12,
-                      //     children: [
-                      //       _chipStat(
-                      //         Icons.water_drop_outlined,
-                      //         'Humidity',
-                      //         '${w.currentHumidity}%',
-                      //       ),
-                      //       _chipStat(
-                      //         Icons.air_outlined,
-                      //         'Wind',
-                      //         '${w.currentWindSpeed.toStringAsFixed(1)} m/s ${_degToCompass(w.currentWindDir)}',
-                      //       ),
-                      //       _chipStat(
-                      //         Icons.speed_outlined,
-                      //         'Gust',
-                      //         '${w.currentWindGust?.toStringAsFixed(1) ?? '-'} m/s',
-                      //       ),
-                      //       _chipStat(
-                      //         Icons.grain_outlined,
-                      //         'Precip',
-                      //         '${w.currentPrecip?.toStringAsFixed(1) ?? '0'} mm',
-                      //       ),
-                      // _chipStat(
-                      //   Icons.percent,
-                      //   'Rain chance',
-                      //   w.currentPrecipProb != null
-                      //       ? '${w.currentPrecipProb!.round()}%'
-                      //       : '—',
-                      // ),
-                      //       _chipStat(
-                      //         Icons.sunny_snowing,
-                      //         'UV',
-                      //         w.currentUv?.toStringAsFixed(1) ?? '—',
-                      //       ),
-                      //       _chipStat(
-                      //         Icons.cloud_outlined,
-                      //         'Cloud',
-                      //         '${w.currentCloud ?? 0}%',
-                      //       ),
-                      //     ],
-                      //   ),
-                      // ),
                     ],
                   ),
-
                   const Divider(height: 24),
 
-                  // Today’s forecast (max/min, totals, sunrise/sunset)
                   Row(
                     children: [
                       Expanded(
@@ -204,20 +226,6 @@ class _WeatherPanelState extends State<WeatherPanel> {
                           '${today.tMax.toStringAsFixed(1)}° / ${today.tMin.toStringAsFixed(1)}°',
                         ),
                       ),
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.umbrella_outlined,
-                      //     'Precip (mm)',
-                      //     (today.precipSum ?? 0).toStringAsFixed(1),
-                      //   ),
-                      // ),
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.bolt,
-                      //     'UV max',
-                      //     (today.uvMax ?? 0).toStringAsFixed(1),
-                      //   ),
-                      // ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -227,23 +235,9 @@ class _WeatherPanelState extends State<WeatherPanel> {
                         child: _miniTile(
                           Icons.air,
                           'Wind max',
-                          '${today.windMax?.toStringAsFixed(1) ?? 0} m/s',
+                          '${(today.windMax ?? w.currentWindSpeed).toStringAsFixed(1)} m/s',
                         ),
                       ),
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.air_rounded,
-                      //     'Gust max',
-                      //     '${today.gustMax?.toStringAsFixed(1) ?? 0} m/s',
-                      //   ),
-                      // ),
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.timer,
-                      //     'Rain hours',
-                      //     '${today.precipHours ?? 0}h',
-                      //   ),
-                      // ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -256,21 +250,6 @@ class _WeatherPanelState extends State<WeatherPanel> {
                           '${w.currentHumidity}%',
                         ),
                       ),
-
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.wb_twighlight,
-                      //     'Sunrise',
-                      //     df.format(today.sunrise),
-                      //   ),
-                      // ),
-                      // Expanded(
-                      //   child: _miniTile(
-                      //     Icons.dark_mode_outlined,
-                      //     'Sunset',
-                      //     df.format(today.sunset),
-                      //   ),
-                      // ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -280,15 +259,16 @@ class _WeatherPanelState extends State<WeatherPanel> {
                         child: _miniTile(
                           Icons.percent,
                           'Chance of raining',
-                          '${w.currentHumidity}%',
+                          '${(w.currentPrecipProb ?? 0).round()}%',
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
 
+                  const SizedBox(height: 8),
                   Text(
-                    'Tip: High humidity + calm winds increase fungal risk (e.g., powdery mildew). Plan sprays/irrigation around forecasted rain & wind.',
+                    'Tip: High humidity + calm winds increase fungal risk (e.g., powdery mildew). '
+                    'Plan sprays/irrigation around forecasted rain & wind.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -331,25 +311,6 @@ class _WeatherPanelState extends State<WeatherPanel> {
     );
   }
 
-  Widget _chipStat(IconData icon, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 6),
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value),
-        ],
-      ),
-    );
-  }
-
   Widget _miniTile(IconData icon, String label, String value) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -370,36 +331,10 @@ class _WeatherPanelState extends State<WeatherPanel> {
       ),
     );
   }
-
-  String _degToCompass(num deg) {
-    const dirs = [
-      'N',
-      'NNE',
-      'NE',
-      'ENE',
-      'E',
-      'ESE',
-      'SE',
-      'SSE',
-      'S',
-      'SSW',
-      'SW',
-      'WSW',
-      'W',
-      'WNW',
-      'NW',
-      'NNW',
-    ];
-    return dirs[((deg / 22.5) + 0.5).floor() % 16];
-  }
 }
 
-/// --------------------
-/// Simple data classes
-/// --------------------
 class _WeatherData {
   final String locationLabel;
-  // current
   final double currentTemp;
   final int currentHumidity;
   final double currentWindSpeed;
@@ -431,25 +366,22 @@ class _WeatherData {
     final daily = j['daily'] as Map<String, dynamic>;
     final times = (daily['time'] as List).cast<String>();
 
-    List<_Daily> dailies = [];
-    for (var i = 0; i < times.length; i++) {
-      dailies.add(
-        _Daily(
-          date: DateTime.parse(times[i]),
-          tMax: _asD(daily['temperature_2m_max'][i]) ?? 0.0,
-          tMin: _asD(daily['temperature_2m_min'][i]) ?? 0.0,
-          uvMax: _asD(daily['uv_index_max'][i]),
-          precipSum: _asD(daily['precipitation_sum'][i]),
-          rainSum: _asD(daily['rain_sum'][i]),
-          showersSum: _asD(daily['showers_sum'][i]),
-          precipHours: _asD(daily['precipitation_hours'][i])?.round(),
-          windMax: _asD(daily['wind_speed_10m_max'][i]),
-          gustMax: _asD(daily['wind_gusts_10m_max'][i]),
-          sunrise: DateTime.parse(daily['sunrise'][i]),
-          sunset: DateTime.parse(daily['sunset'][i]),
-        ),
+    final List<_Daily> dailies = List.generate(times.length, (i) {
+      return _Daily(
+        date: DateTime.parse(times[i]),
+        tMax: _asD(daily['temperature_2m_max'][i]) ?? 0.0,
+        tMin: _asD(daily['temperature_2m_min'][i]) ?? 0.0,
+        uvMax: _asD(daily['uv_index_max'][i]),
+        precipSum: _asD(daily['precipitation_sum'][i]),
+        rainSum: _asD(daily['rain_sum'][i]),
+        showersSum: _asD(daily['showers_sum'][i]),
+        precipHours: _asD(daily['precipitation_hours'][i])?.round(),
+        windMax: _asD(daily['wind_speed_10m_max'][i]),
+        gustMax: _asD(daily['wind_gusts_10m_max'][i]),
+        sunrise: DateTime.parse(daily['sunrise'][i]),
+        sunset: DateTime.parse(daily['sunset'][i]),
       );
-    }
+    });
 
     return _WeatherData(
       locationLabel: j['timezone']?.toString() ?? 'Local forecast',

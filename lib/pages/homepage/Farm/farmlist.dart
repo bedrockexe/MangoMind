@@ -1,7 +1,9 @@
+// flutter packages
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// pages
 import 'package:insights/pages/homepage/Farm/addfarm.dart';
 import 'package:insights/pages/homepage/Farm/farmdetails.dart';
 
@@ -11,12 +13,14 @@ class FarmListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    // Worst Case handler
     if (user == null) {
       return const Scaffold(
         body: Center(child: Text('Please sign in to view your farms.')),
       );
     }
 
+    // Get the farm list
     final query = FirebaseFirestore.instance
         .collection('farms')
         .where('ownerUid', isEqualTo: user.uid)
@@ -206,7 +210,7 @@ class _Chip extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

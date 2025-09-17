@@ -19,6 +19,7 @@ class MangoDetectorTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           Navigator.of(context).push(
+            // MaterialPageRoute(builder: (_) => const MangoDiseaseDetectorPage()),
             MaterialPageRoute(builder: (_) => const MangoDiseaseDetectorPage()),
           );
         },
