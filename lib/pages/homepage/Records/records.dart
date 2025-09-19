@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show File, Platform;
 import 'package:flutter/services.dart' show Uint8List, rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
+import 'package:media_store_plus/media_store_plus.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
-import 'package:file_saver/file_saver.dart';
 
 class ReportsPage extends StatefulWidget {
   final String? farmId;
@@ -73,6 +76,84 @@ class _ReportsPageState extends State<ReportsPage> {
     return 'Load failed: $e';
   }
 
+  Future<String?> _previewAndDownload() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Preview PDF')),
+            body: PdfPreview(
+              build: (format) => _buildPdf(),
+              allowSharing: false,
+              allowPrinting: false,
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+              canDebug: false,
+              actions: [
+                PdfPreviewAction(
+                  icon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.download),
+                      SizedBox(width: 6),
+                      Text(
+                        "Download PDF",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  onPressed: (context, build, pageFormat) async {
+                    try {
+                      final bytes = await _buildPdf();
+                      final fileName =
+                          'FarmReport_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+
+                      final tmpDir = await getTemporaryDirectory();
+                      final tmpPath = '${tmpDir.path}/$fileName';
+                      final tmpFile = File(tmpPath);
+                      await tmpFile.writeAsBytes(bytes, flush: true);
+
+                      if (Platform.isAndroid) {
+                        final ms = MediaStore();
+                        await ms.saveFile(
+                          tempFilePath: tmpPath,
+                          dirType: DirType.download,
+                          dirName: DirName.download,
+                          relativePath: 'FarmReports',
+                        );
+
+                        if (await tmpFile.exists()) {
+                          await tmpFile.delete();
+                        }
+                      }
+
+                      await FlutterFileDialog.saveFile(
+                        params: SaveFileDialogParams(
+                          data: bytes,
+                          fileName: fileName,
+                        ),
+                      );
+
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Saved: $fileName')),
+                        );
+                      }
+                    } catch (e) {
+                      throw Error();
+                    }
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    return null;
+  }
+
   // 10s timeout wrapper so we never spin forever
   Future<T> _withTimeout<T>(
     Future<T> fut, {
@@ -83,64 +164,6 @@ class _ReportsPageState extends State<ReportsPage> {
 
   // Validate the selected farm before querying
   bool get _hasFarm => _farmId != null && _farmId!.isNotEmpty;
-
-  Future<void> _previewAndDownload() async {
-    // Push a preview screen with a custom Download action
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Preview PDF')),
-            body: PdfPreview(
-              build: (format) => _buildPdf(),
-              allowSharing: false, // hide default Share
-              allowPrinting: false, // hide default Print
-              canChangePageFormat: false,
-              canChangeOrientation: false,
-              canDebug: false,
-              // Add our own Download button
-              actions: [
-                PdfPreviewAction(
-                  icon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.download, color: Colors.white),
-                      SizedBox(width: 6),
-                      Text(
-                        'Download PDF',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  onPressed: (context, build, pageFormat) async {
-                    final bytes = await _buildPdf();
-                    final fileName =
-                        'Farm_Report_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
-
-                    await FileSaver.instance.saveFile(
-                      name: fileName,
-                      bytes: bytes,
-                      mimeType: MimeType.pdf,
-                    );
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Saved: $fileName')),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   Future<void> _initFarms() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -255,7 +278,8 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Future<void> _loadData() async {
-    if (!_hasFarm) {
+    // If there’s no selected farm, clear state and exit early.
+    if (!_hasFarm || _farmId == null) {
       setState(() {
         _yields = [];
         _irrigs = [];
@@ -269,79 +293,100 @@ class _ReportsPageState extends State<ReportsPage> {
       return;
     }
 
-    print(reloads);
+    // Optional: track reload attempts
     reloads++;
-    print(reloads);
-
     setState(() => _loadingData = true);
 
+    // Date range (assumes _currentRange() returns DateTimeRange)
     final range = _currentRange();
+
+    DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+    DateTime _nextDay(DateTime d) =>
+        DateTime(d.year, d.month, d.day).add(const Duration(days: 1));
+
+    final start = _startOfDay(range.start);
+    final endExclusive = _nextDay(range.end);
+
+    // Farm doc ref
     final farmRef = FirebaseFirestore.instance.collection('farms').doc(_farmId);
 
     try {
-      // Build the three reads (each has its own timeout)
-      final yieldsF = _withTimeout(
-        farmRef
-            .collection('yields')
-            .where(
-              'date',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
-            )
-            .where('date', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
-            .orderBy('date', descending: true)
-            .get(),
-      );
+      // Build queries for farm subcollections
+      final yieldsQ = farmRef
+          .collection('yields')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
+          )
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
+          .orderBy('date', descending: true);
 
-      final irrigsF = _withTimeout(
-        farmRef
-            .collection('irrigations')
-            .where(
-              'date',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
-            )
-            .where('date', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
-            .orderBy('date', descending: true)
-            .get(),
-      );
+      final irrigsQ = farmRef
+          .collection('irrigations')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
+          )
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
+          .orderBy('date', descending: true);
 
-      final obsF = _withTimeout(
-        farmRef
-            .collection('observations')
-            .where(
-              'date',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
-            )
-            .where('date', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
-            .orderBy('date', descending: true)
-            .get(),
-      );
+      final obsQ = farmRef
+          .collection('observations')
+          .where(
+            'observedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+          )
+          .where('observedAt', isLessThan: Timestamp.fromDate(endExclusive))
+          .orderBy('observedAt', descending: true);
 
-      // Run together; if any throws, we catch below
-      final results = await Future.wait([yieldsF, irrigsF, obsF]);
+      // Run all three in parallel (with your timeout wrapper)
+      final results = await Future.wait([
+        _withTimeout(yieldsQ.get()),
+        _withTimeout(irrigsQ.get()),
+        _withTimeout(obsQ.get()),
+      ]);
 
+      // Extract docs
       final yDocs = results[0].docs;
       final rDocs = results[1].docs;
       final oDocs = results[2].docs;
 
-      // Convert
-      _yields = yDocs.map((d) => {'id': d.id, ...d.data()}).toList();
-      _irrigs = rDocs.map((d) => {'id': d.id, ...d.data()}).toList();
-      _obs = oDocs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final yields = yDocs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final irrigs = rDocs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final obs = oDocs.map((d) {
+        final data = d.data();
+        return {
+          'id': d.id,
+          ...data,
+          'date': data['observedAt'],
+          'category': data['category'] ?? data['type'],
+        };
+      }).toList();
 
-      // Summaries (defensive if fields missing)
       num sumKg = 0;
-      for (final m in _yields) sumKg += _num(m['weightKg']);
+      for (final m in yields) {
+        sumKg += _num(m['weightKg']);
+      }
+
       num sumLiters = 0;
-      for (final m in _irrigs) sumLiters += _num(m['liters']);
+      for (final m in irrigs) {
+        sumLiters += _num(m['liters']);
+      }
+
+      if (!mounted) return;
 
       setState(() {
+        _yields = yields;
+        _irrigs = irrigs;
+        _obs = obs;
+
         _totalKg = sumKg;
-        _irrigCount = _irrigs.length;
+        _irrigCount = irrigs.length;
         _irrigLiters = sumLiters;
-        _obsCount = _obs.length;
+        _obsCount = obs.length;
       });
 
-      if (_yields.isEmpty && _irrigs.isEmpty && _obs.isEmpty && reloads >= 2) {
+      if (yields.isEmpty && irrigs.isEmpty && obs.isEmpty && reloads >= 2) {
         _showSnack(
           'No records found between ${_fmt.format(range.start)} → ${_fmt.format(range.end)}.',
         );
@@ -456,7 +501,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 pw.Text('Farm: ${_farmNameById(_farmId)}'),
                 pw.Text('Farm ID: ${_farmId ?? "—"}'),
                 pw.Text(
-                  'Range: ${_fmt.format(range.start)} – ${_fmt.format(range.end)}',
+                  'Range: ${_fmt.format(range.start)} - ${_fmt.format(range.end)}',
                 ),
               ],
             ),
@@ -540,7 +585,14 @@ class _ReportsPageState extends State<ReportsPage> {
           IconButton(
             tooltip: 'Preview & Download PDF',
             onPressed: (_farmId != null && !_loadingData)
-                ? _previewAndDownload
+                ? () async {
+                    try {
+                      await _previewAndDownload();
+                    } catch (e) {
+                      if (!mounted) return;
+                      _showSnack('Failed to save PDF: $e');
+                    }
+                  }
                 : null,
             icon: const Icon(Icons.picture_as_pdf),
           ),
@@ -617,7 +669,6 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  // --- Farm picker card
   Widget _farmPicker() {
     if (_loadingFarms) {
       return const Card(
@@ -818,12 +869,14 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  Widget _empty(String msg) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Center(
-      child: Text(msg, style: const TextStyle(color: Colors.black54)),
-    ),
-  );
+  Widget _empty(String msg) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Text(msg, style: const TextStyle(color: Colors.black54)),
+      ),
+    );
+  }
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));

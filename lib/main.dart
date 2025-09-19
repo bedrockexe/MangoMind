@@ -1,6 +1,8 @@
 // lib/main.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
@@ -20,6 +22,12 @@ import 'pages/home.dart';
 import 'app_gate.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isAndroid) {
+    await MediaStore.ensureInitialized();
+    MediaStore.appFolder = 'FarmReports';
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
