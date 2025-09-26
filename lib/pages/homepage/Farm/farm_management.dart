@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Pages
-import 'package:insights/pages/homepage/Farm/mangowidget.dart';
-import 'package:insights/pages/homepage/Farm/farmlist.dart';
+import 'package:insights/pages/homepage/Farm/mangoprice/mangowidget.dart';
+import 'package:insights/pages/homepage/Farm/farmlist/farmlist.dart';
 
 class FarmList extends StatefulWidget {
   const FarmList({super.key});
@@ -63,9 +63,13 @@ class _FarmListState extends State<FarmList> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
-                      subtitle: const Text("View and manage your farm list"),
+                      subtitle: Text(
+                        "View and manage your farm list",
+                        style: TextStyle(color: Colors.grey[800]),
+                      ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                     ),
                   ),
@@ -75,6 +79,7 @@ class _FarmListState extends State<FarmList> {
           ),
 
           SizedBox(height: 16),
+
           // View Mango Market Price
           Container(
             decoration: BoxDecoration(
@@ -102,8 +107,11 @@ class _FarmListState extends State<FarmList> {
                         const SizedBox(width: 8),
                         Text(
                           'Mango Public Market Price',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
+                          ),
                         ),
                         const Spacer(),
                       ],

@@ -26,7 +26,6 @@ class _PasswordForm extends State<ChangePassword> {
   bool _showConfirm = false;
   bool _loading = false;
 
-  // Field-specific error messages (to force red border + errorText from async errors)
   String? _currentError;
   String? _newError;
   String? _confirmError;
@@ -54,12 +53,11 @@ class _PasswordForm extends State<ChangePassword> {
     final val = (v ?? '').trim();
     if (val.isEmpty) return 'Enter a new password';
 
-    // Basic strength rule: at least 8 chars, with a letter and a number
-    final hasMinLen = val.length >= 8;
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(val);
-    final hasNumber = RegExp(r'\d').hasMatch(val);
-    if (!(hasMinLen && hasLetter && hasNumber)) {
-      return 'Use 8+ chars with letters & numbers';
+    final hasMinLen = val.length >= 6;
+    // final hasLetter = RegExp(r'[A-Za-z]').hasMatch(val);
+    // final hasNumber = RegExp(r'\d').hasMatch(val);
+    if (!hasMinLen) {
+      return 'Password must be 6+ characters long';
     }
     if (_newError != null) return _newError;
     return null;
@@ -126,7 +124,7 @@ class _PasswordForm extends State<ChangePassword> {
       // Map Firebase errors to field/global errors + revalidate to show red borders
       setState(() {
         switch (e.code) {
-          case 'wrong-password':
+          case 'invalid-credential':
             _currentError = 'Incorrect current password';
             _currentFocus.requestFocus();
             break;
@@ -227,7 +225,7 @@ class _PasswordForm extends State<ChangePassword> {
                         onToggle: () => setState(() => _showNew = !_showNew),
                         errorText: _newError,
                       ).copyWith(
-                        helperText: 'Use 8+ characters with letters & numbers',
+                        helperText: 'Password should be 6+ characters long',
                       ),
                   validator: _validateNew,
                 ),

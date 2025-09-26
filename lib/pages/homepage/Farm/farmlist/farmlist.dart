@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // pages
-import 'package:insights/pages/homepage/Farm/addfarm.dart';
-import 'package:insights/pages/homepage/Farm/farmdetails.dart';
+import 'package:insights/pages/homepage/Farm/farmlist/addfarm.dart';
+import 'package:insights/pages/homepage/Farm/farmlist/farmdetails.dart';
 
 class FarmListPage extends StatelessWidget {
   const FarmListPage({super.key});
@@ -200,9 +200,9 @@ class _EmptyFarms extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip(this.text, {this.icon});
+  const _Chip(this.text);
   final String text;
-  final IconData? icon;
+  // final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +216,7 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 14), const SizedBox(width: 4)],
+          // if (icon != null) ...[Icon(icon, size: 14), const SizedBox(width: 4)],
           Text(text, style: const TextStyle(fontSize: 12)),
         ],
       ),

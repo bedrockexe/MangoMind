@@ -33,19 +33,15 @@ class _LoginState extends State<Login> {
     switch (e.code) {
       case 'invalid-email':
         return 'The email address is badly formatted.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'user-not-found':
-        return 'No user found with that email.';
-      case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+      case 'invalid-credential':
+        return 'Email or Password is incorrect.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       case 'network-request-failed':
         return 'Network error. Check your connection.';
       default:
         // return 'Sign in failed. (${e.code})';
-        return 'Wrong email or password.';
+        return 'Error. Please wait and try again later.';
     }
   }
 
@@ -148,16 +144,16 @@ class _LoginState extends State<Login> {
                       color: Colors.grey[800],
                     ),
                     border: OutlineInputBorder(),
-                    errorText: (_errorText == null) ? null : '',
-                    errorStyle: const TextStyle(height: 1, fontSize: 12),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    // errorText: (_errorText == null) ? null : '',
+                    // errorStyle: const TextStyle(height: 1, fontSize: 12),
+                    // errorBorder: OutlineInputBorder(
+                    //   borderSide: const BorderSide(color: Colors.red, width: 2),
+                    //   borderRadius: BorderRadius.circular(8),
+                    // ),
+                    // focusedErrorBorder: OutlineInputBorder(
+                    //   borderSide: const BorderSide(color: Colors.red, width: 2),
+                    //   borderRadius: BorderRadius.circular(8),
+                    // ),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
@@ -168,6 +164,9 @@ class _LoginState extends State<Login> {
                       r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
                     ).hasMatch(email)) {
                       return 'Enter a valid email';
+                    }
+                    if (!(_errorText == null)) {
+                      return _errorText;
                     }
                     return null;
                   },
@@ -194,16 +193,6 @@ class _LoginState extends State<Login> {
                       color: Colors.grey[800],
                     ),
                     border: const OutlineInputBorder(),
-                    errorText: (_errorText == null) ? null : '',
-                    errorStyle: const TextStyle(height: 1, fontSize: 12),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscure ? Icons.visibility : Icons.visibility_off,
@@ -213,6 +202,9 @@ class _LoginState extends State<Login> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Password is required';
+                    if (!(_errorText == null)) {
+                      return _errorText;
+                    }
                     return null;
                   },
                   onChanged: (_) {
@@ -221,11 +213,6 @@ class _LoginState extends State<Login> {
                     }
                   },
                 ),
-
-                // Error text
-                if (_errorText != null) ...[
-                  Text(_errorText!, style: const TextStyle(color: Colors.red)),
-                ],
 
                 // Forgot Password
                 Row(

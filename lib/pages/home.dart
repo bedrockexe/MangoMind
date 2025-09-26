@@ -5,10 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 // pages
 import 'package:insights/pages/homepage/settings.dart';
-import 'package:insights/pages/homepage/Home/weather.dart';
-import 'package:insights/pages/homepage/Home/widget.dart';
-import 'package:insights/pages/homepage/Farm/farm.dart';
+import 'package:insights/pages/homepage/Home/weather_widget.dart';
+import 'package:insights/pages/homepage/Home/mango_widget.dart';
+import 'package:insights/pages/homepage/Farm/farm_management.dart';
 import 'package:insights/pages/homepage/Records/records.dart';
+import 'package:insights/pages/homepage/Home/irrigation_badge.dart';
+import 'package:insights/pages/homepage/Home/irrigation_check.dart';
 
 // Main Class
 class HomePage extends StatefulWidget {
@@ -34,7 +36,19 @@ class _Home extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _initIrrigation();
     _getData();
+  }
+
+  Future<void> _initIrrigation() async {
+    await IrrigationCheck.runOnceAndNotifyForLocation(
+      13.936169851018244,
+      120.95014935479112,
+    );
+    await IrrigationCheck.scheduleDailyForLocation(
+      13.936169851018244,
+      120.95014935479112,
+    );
   }
 
   Future<void> _getData() async {
@@ -191,6 +205,7 @@ class _HomeRoot extends StatefulWidget {
 
 class _HomeRootState extends State<_HomeRoot> {
   int _refreshToken = 0;
+  double lat = 13.928880330206127, lon = 120.95075460563223;
 
   Future<void> _onRefresh() async {
     setState(() => _refreshToken++);
@@ -214,6 +229,9 @@ class _HomeRootState extends State<_HomeRoot> {
             padding: EdgeInsets.symmetric(vertical: 10),
             child: MangoDetectorTile(),
           ),
+          const SizedBox(height: 16),
+          IrrigationBadge(latitude: lat, longitude: lon),
+          const SizedBox(height: 20),
         ],
       ),
     );

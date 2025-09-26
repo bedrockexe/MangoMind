@@ -210,7 +210,6 @@ class _ReportsPageState extends State<ReportsPage> {
       });
 
       if (_farmId != null) {
-        // load the initial farm’s data
         _loadData();
       }
     } catch (e) {
@@ -370,7 +369,7 @@ class _ReportsPageState extends State<ReportsPage> {
 
       num sumLiters = 0;
       for (final m in irrigs) {
-        sumLiters += _num(m['liters']);
+        sumLiters += _num(m['waterLiters']);
       }
 
       if (!mounted) return;
@@ -440,7 +439,7 @@ class _ReportsPageState extends State<ReportsPage> {
         data: rows,
         headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
         headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-        cellAlignment: pw.Alignment.centerLeft,
+        cellAlignment: pw.Alignment.center,
         cellPadding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
         border: null,
       );
@@ -451,8 +450,8 @@ class _ReportsPageState extends State<ReportsPage> {
           (y) => [
             _fmt.format(_date(y['date']) ?? DateTime(1970)),
             _num(y['weightKg']).toString(),
-            (y['variety'] ?? '').toString(),
-            (y['notes'] ?? '').toString(),
+            (y['type'] ?? '').toString(),
+            (y['notes'] ?? 'None').toString(),
           ],
         )
         .toList();
@@ -462,8 +461,8 @@ class _ReportsPageState extends State<ReportsPage> {
           (r) => [
             _fmt.format(_date(r['date']) ?? DateTime(1970)),
             (r['method'] ?? '').toString(),
-            _num(r['liters']).toString(),
-            (r['notes'] ?? '').toString(),
+            _num(r['waterLiters']).toString(),
+            (r['notes'] ?? 'None').toString(),
           ],
         )
         .toList();
@@ -474,7 +473,7 @@ class _ReportsPageState extends State<ReportsPage> {
             _fmt.format(_date(o['date']) ?? DateTime(1970)),
             (o['category'] ?? '').toString(),
             (o['severity'] ?? '').toString(),
-            (o['note'] ?? o['notes'] ?? '').toString(),
+            (o['note'] ?? o['notes'] ?? 'None').toString(),
           ],
         )
         .toList();
@@ -599,7 +598,7 @@ class _ReportsPageState extends State<ReportsPage> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: _initFarms,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -612,13 +611,6 @@ class _ReportsPageState extends State<ReportsPage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 title: Text('Loading farms…'),
-              ),
-              const SizedBox(height: 12),
-            ] else if (!_hasFarm) ...[
-              const ListTile(
-                leading: Icon(Icons.agriculture),
-                title: Text('Choose a farm to generate a report'),
-                subtitle: Text('Use the dropdown above to select a farm.'),
               ),
               const SizedBox(height: 12),
             ],
@@ -634,7 +626,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 (m) => [
                   _fmt.format(_date(m['date']) ?? DateTime(1970)),
                   '${_num(m["weightKg"])} kg',
-                  (m['variety'] ?? '').toString(),
+                  (m['type'] ?? '').toString(),
                 ],
               ),
             ),
@@ -646,7 +638,9 @@ class _ReportsPageState extends State<ReportsPage> {
                 (m) => [
                   _fmt.format(_date(m['date']) ?? DateTime(1970)),
                   (m['method'] ?? '').toString(),
-                  _num(m['liters']) > 0 ? '${_num(m["liters"])} L' : '',
+                  _num(m['waterLiters']) > 0
+                      ? '${_num(m["waterLiters"])} L'
+                      : '',
                 ],
               ),
             ),

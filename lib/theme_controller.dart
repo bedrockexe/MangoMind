@@ -10,7 +10,6 @@ class ThemeController extends ChangeNotifier {
   ThemeMode _mode = ThemeMode.light;
   ThemeMode get mode => _mode;
 
-  /// Call this in main() before runApp.
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kKey); // "system" | "light" | "dark"

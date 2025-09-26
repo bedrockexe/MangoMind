@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:insights/pages/homepage/Home/helper.dart';
+import 'package:insights/pages/homepage/Home/mango_classifier.dart';
 
 class MangoDiseaseDetectorPage extends StatefulWidget {
   const MangoDiseaseDetectorPage({super.key});

@@ -21,7 +21,7 @@ class _WeatherPanelState extends State<WeatherPanel> {
 
   Future<_WeatherData> _load() async {
     // ---------- 1) Location with graceful fallbacks ----------
-    double lat = 14.5995, lon = 120.9842; // Manila fallback
+    double lat = 13.928880330206127, lon = 120.95075460563223;
 
     try {
       // a) Services enabled?
@@ -98,9 +98,89 @@ class _WeatherPanelState extends State<WeatherPanel> {
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return _panelShell(
-            child: const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+            child: Container(
+              decoration: BoxDecoration(
+                image: const DecorationImage(
+                  image: AssetImage("assets/weather.jpg"),
+                  fit: BoxFit.cover,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.wb_sunny_outlined, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Today\'s Field Weather',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    Text(
+                      'Fetching weather data',
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [_bigStat('', 'Feels like field temp')],
+                    ),
+                    const Divider(height: 24),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _miniTile(Icons.thermostat, 'Max / Min', ''),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: _miniTile(Icons.air, 'Wind max', '')),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _miniTile(
+                            Icons.water_drop_outlined,
+                            'Humidity',
+                            '',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _miniTile(
+                            Icons.percent,
+                            'Chance of raining',
+                            '',
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
             ),
           );
         }
@@ -153,7 +233,6 @@ class _WeatherPanelState extends State<WeatherPanel> {
 
         final w = snap.data!;
 
-        // Guard when API returns zero daily rows
         final _Daily today = (w.daily.isNotEmpty)
             ? w.daily.first
             : _Daily(
@@ -266,11 +345,6 @@ class _WeatherPanelState extends State<WeatherPanel> {
                   ),
 
                   const SizedBox(height: 8),
-                  Text(
-                    'Tip: High humidity + calm winds increase fungal risk (e.g., powdery mildew). '
-                    'Plan sprays/irrigation around forecasted rain & wind.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
                 ],
               ),
             ),
@@ -293,17 +367,21 @@ class _WeatherPanelState extends State<WeatherPanel> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        color: Theme.of(
+          context,
+        ).colorScheme.primaryContainer.withValues(alpha: 0.3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600),
-          ),
+          value == ''
+              ? Center(child: CircularProgressIndicator(strokeWidth: 3))
+              : Text(
+                  value,
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
           const SizedBox(height: 6),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
@@ -326,7 +404,12 @@ class _WeatherPanelState extends State<WeatherPanel> {
           Icon(icon, size: 18),
           const SizedBox(width: 8),
           Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          value == ''
+              ? Center(child: CircularProgressIndicator(strokeWidth: 3))
+              : Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
         ],
       ),
     );

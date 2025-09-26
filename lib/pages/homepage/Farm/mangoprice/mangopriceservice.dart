@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:insights/pages/homepage/Farm/mangomodel.dart';
+import 'package:insights/pages/homepage/Farm/mangoprice/mangomodel.dart';
 
 class MangoPriceService {
   static const _base = 'http://www.bantaypresyo.da.gov.ph';

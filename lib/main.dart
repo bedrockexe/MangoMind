@@ -17,26 +17,26 @@ import 'pages/signup.dart';
 import 'pages/success.dart';
 import 'pages/landing.dart';
 import 'pages/forgot.dart';
-import 'pages/testing.dart';
 import 'pages/home.dart';
 import 'app_gate.dart';
+import 'notifier.dart';
+import 'notifications_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   if (Platform.isAndroid) {
     await MediaStore.ensureInitialized();
     MediaStore.appFolder = 'FarmReports';
   }
 
-  WidgetsFlutterBinding.ensureInitialized();
-
   try {
-    // Ensure Firebase is ready before the first frame
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Also Intialize the dark mode light mode function
     await ThemeController.init();
+    await NotificationsController.instance.init();
+    await LocalNotifier.init();
   } catch (e, st) {
     // If something goes wrong during init, show a minimal error UI
     runApp(_InitErrorApp(error: e, stack: st));
@@ -96,7 +96,6 @@ class SweetInsightsApp extends StatelessWidget {
             '/landing': (context) => const Landing(),
             '/forgot': (context) => const Forgot(),
             '/success': (context) => const SuccessPage(),
-            '/test': (context) => const HomePage1(),
             '/home': (context) => const HomePage(),
           },
         );
@@ -133,7 +132,7 @@ class _InitErrorApp extends StatelessWidget {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      // Blablablabla
+                      exit(0);
                     },
                     child: const Text('Close'),
                   ),

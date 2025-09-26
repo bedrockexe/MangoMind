@@ -1,7 +1,6 @@
-// lib/widgets/mango_price_tile.dart
 import 'package:flutter/material.dart';
-import 'package:insights/pages/homepage/Farm/mangopriceservice.dart';
-import 'package:insights/pages/homepage/Farm/mangomodel.dart';
+import 'package:insights/pages/homepage/Farm/mangoprice/mangopriceservice.dart';
+import 'package:insights/pages/homepage/Farm/mangoprice/mangomodel.dart';
 import 'package:intl/intl.dart';
 
 class MangoPriceTile extends StatefulWidget {
@@ -97,6 +96,7 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
+                                color: Colors.black,
                               ),
                             ),
                           ],
@@ -109,6 +109,7 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
                             fontSize: 15,
                             fontFamily: "Poppins",
                             fontFamilyFallback: ["Roboto", "sans-serif"],
+                            color: Colors.grey[800],
                           ),
                         ),
                       ),

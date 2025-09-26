@@ -18,7 +18,7 @@ class Landing extends StatelessWidget {
               children: [
                 Image.asset(
                   'assets/logo.png',
-                  width: 120, // optional: resize
+                  width: 120,
                   height: 120,
                   fit: BoxFit.contain,
                 ),
@@ -45,8 +45,7 @@ class Landing extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch, // full-width buttons
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Sign Up
                 Container(

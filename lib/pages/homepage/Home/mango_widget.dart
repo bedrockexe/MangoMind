@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:insights/pages/homepage/Home/detector.dart';
+import 'package:insights/pages/homepage/Home/mango_detector.dart';
 
 class MangoDetectorTile extends StatelessWidget {
   const MangoDetectorTile({super.key});
@@ -11,7 +11,7 @@ class MangoDetectorTile extends StatelessWidget {
       decoration: BoxDecoration(
         image: DecorationImage(
           image: AssetImage("assets/mango_disease.jpg"),
-          fit: BoxFit.cover, // cover, contain, etc.
+          fit: BoxFit.cover,
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -19,7 +19,6 @@ class MangoDetectorTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           Navigator.of(context).push(
-            // MaterialPageRoute(builder: (_) => const MangoDiseaseDetectorPage()),
             MaterialPageRoute(builder: (_) => const MangoDiseaseDetectorPage()),
           );
         },

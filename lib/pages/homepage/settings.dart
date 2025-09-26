@@ -1,4 +1,3 @@
-// lib/pages/settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,10 +5,16 @@ import 'package:insights/pages/services/session.dart';
 import 'package:insights/pages/homepage/Settings/change.dart';
 import 'package:insights/pages/homepage/Settings/editprofile.dart';
 import 'package:insights/theme_controller.dart';
+import 'package:insights/notifications_controller.dart';
 
-// Class for settings page
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+  @override
+  State<SettingsPage> createState() => _Settings();
+}
+
+class _Settings extends State<SettingsPage> {
+  final ValueNotifier<bool> notifNotifier = ValueNotifier<bool>(false);
 
   Future<void> _signOut(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -67,19 +72,17 @@ class SettingsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Profile
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Profile with border
                     Container(
-                      padding: const EdgeInsets.all(4), // border thickness
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.blue, // border color
-                          width: 3,
-                        ),
+                        border: Border.all(color: Colors.blue, width: 3),
                       ),
                       child: CircleAvatar(
                         radius: 48,
@@ -96,6 +99,7 @@ class SettingsPage extends StatelessWidget {
                             : null,
                       ),
                     ),
+
                     const SizedBox(height: 12),
 
                     // Name
@@ -120,6 +124,7 @@ class SettingsPage extends StatelessWidget {
 
               Text('Account'),
               const SizedBox(height: 8),
+              // Account Settings
               Card(
                 child: Column(
                   children: [
@@ -160,15 +165,46 @@ class SettingsPage extends StatelessWidget {
               Card(
                 child: Column(
                   children: [
-                    SwitchListTile(
-                      value: true,
-                      onChanged: (_) {
-                        // TODO: toggle notifications in your app
+                    ValueListenableBuilder<bool>(
+                      valueListenable:
+                          NotificationsController.instance.notifier,
+                      builder: (context, enabled, _) {
+                        return SwitchListTile(
+                          value: enabled,
+                          onChanged: (v) async {
+                            await NotificationsController.instance.setEnabled(
+                              v,
+                            );
+
+                            final current =
+                                NotificationsController.instance.notifier.value;
+                            if (current != v) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Notification permission denied.',
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    v
+                                        ? 'Notifications enabled'
+                                        : 'Notifications disabled',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          secondary: const Icon(Icons.notifications),
+                          title: const Text('Notifications'),
+                          subtitle: const Text('Receive alerts and updates'),
+                        );
                       },
-                      secondary: const Icon(Icons.notifications),
-                      title: const Text('Notifications'),
-                      subtitle: const Text('Receive alerts and updates'),
                     ),
+
                     const Divider(height: 0),
                     ListTile(
                       leading: const Icon(Icons.color_lens),
