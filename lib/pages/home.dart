@@ -143,7 +143,7 @@ class _Home extends State<HomePage> {
         body: IndexedStack(
           index: _index,
           children: [
-            _TabNavigator(navigatorKey: _navkeys[0], root: _HomeRoot()),
+            _TabNavigator(navigatorKey: _navkeys[0], root: Home()),
             _TabNavigator(navigatorKey: _navkeys[1], root: const FarmList()),
             _TabNavigator(navigatorKey: _navkeys[2], root: ReportsPage()),
             _TabNavigator(navigatorKey: _navkeys[3], root: SettingsPage()),
@@ -197,13 +197,13 @@ class _TabNavigator extends StatelessWidget {
   }
 }
 
-class _HomeRoot extends StatefulWidget {
-  const _HomeRoot();
+class Home extends StatefulWidget {
+  const Home({super.key});
   @override
-  State<_HomeRoot> createState() => _HomeRootState();
+  State<Home> createState() => _HomeRootState();
 }
 
-class _HomeRootState extends State<_HomeRoot> {
+class _HomeRootState extends State<Home> {
   int _refreshToken = 0;
   double lat = 13.928880330206127, lon = 120.95075460563223;
 
@@ -219,35 +219,26 @@ class _HomeRootState extends State<_HomeRoot> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
+          // Title
           const Text(
             "Home",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
           ),
+          //
           const SizedBox(height: 16),
+          // Weather widget
           WeatherPanel(key: ValueKey(_refreshToken)),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: MangoDetectorTile(),
-          ),
+          //
           const SizedBox(height: 16),
+          //
+          MangoDetectorTile(),
+          //
+          const SizedBox(height: 16),
+          //
           IrrigationBadge(latitude: lat, longitude: lon),
+          //
           const SizedBox(height: 20),
         ],
-      ),
-    );
-  }
-}
-
-class ReportRoot extends StatelessWidget {
-  const ReportRoot({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () => Navigator.of(
-          context,
-        ).pushNamed('/details', arguments: 'Placeholder Data'),
-        child: const Text('Placeholder Button'),
       ),
     );
   }

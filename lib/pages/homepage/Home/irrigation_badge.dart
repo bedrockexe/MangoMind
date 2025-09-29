@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:insights/pages/services/open_meteo_service.dart';
 import 'package:insights/pages/services/irrigation_advisor.dart';
+import 'package:insights/pages/homepage/Farm/farmlist/farmlist.dart';
 
 class IrrigationBadge extends StatefulWidget {
   final double latitude;
@@ -38,7 +39,6 @@ class _IrrigationBadgeState extends State<IrrigationBadge> {
       final advice = IrrigationAdvisor.evaluate(m, kc: widget.kc);
       return (advice, m);
     } catch (e, st) {
-      print('IrrigationBadge _load error: $e\n$st');
       rethrow;
     }
   }
@@ -118,72 +118,97 @@ class _IrrigationBadgeState extends State<IrrigationBadge> {
               ),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          //
-        },
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: bg,
-                  child: const Icon(Icons.opacity),
+      child: Stack(
+        children: [
+          Container(
+            height: 160,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FarmListPage()),
+              );
+            },
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: bg,
+                      child: const Icon(Icons.opacity),
+                    ),
+                    title: Text(
+                      'Irrigation check',
+                      style: isRecommended
+                          ? TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              color: Colors.black,
+                            )
+                          : TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              color: Colors.white,
+                            ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          text,
+                          style: isRecommended
+                              ? TextStyle(color: Colors.black)
+                              : TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
-                title: Text(
-                  'Irrigation check',
-                  style: isRecommended
-                      ? TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                          color: Colors.black,
+                Divider(height: 5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: isRecommended
+                      ? Text(
+                          "Tip: Conditions are dry and your plants may need water. Run a short irrigation cycle or check soil moisture to confirm.",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.justify,
                         )
-                      : TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                          color: Colors.white,
+                      : Text(
+                          "Tip: Rain detected — irrigation is not recommended right now. Soil moisture should stay sufficient for the next 24–48 hours. Save water and skip the scheduled cycle.",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.justify,
                         ),
                 ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      text,
-                      style: isRecommended
-                          ? TextStyle(color: Colors.black)
-                          : TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: isRecommended
-                  ? Text(
-                      "Tip: Conditions are dry and your plants may need water. Run a short irrigation cycle or check soil moisture to confirm.",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: Colors.black,
-                      ),
-                      textAlign: TextAlign.justify,
-                    )
-                  : Text(
-                      "Tip: Rain detected — irrigation is not recommended right now. Soil moisture should stay sufficient for the next 24–48 hours. Save water and skip the scheduled cycle.",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.justify,
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

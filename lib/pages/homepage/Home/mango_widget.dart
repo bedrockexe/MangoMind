@@ -15,39 +15,52 @@ class MangoDetectorTile extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MangoDiseaseDetectorPage()),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: const Icon(Icons.image_search_rounded),
-            ),
-            title: const Text(
-              'Mango Checkup',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-                color: Colors.white,
-              ),
-            ),
-            subtitle: const Text(
-              'Scan leaf/fruit for Anthracnose or Mildew',
-              style: TextStyle(color: Colors.white),
-            ),
-            trailing: const Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.white,
+      child: Stack(
+        children: [
+          Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
-        ),
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MangoDiseaseDetectorPage(),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: const Icon(Icons.image_search_rounded),
+                ),
+                title: const Text(
+                  'Mango Checkup',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Colors.black,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Scan leaf/fruit for Anthracnose or Mildew',
+                  style: TextStyle(color: Colors.black),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

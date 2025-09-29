@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:insights/pages/homepage/Farm/farmlist/overview/yieldchart.dart';
+
 class OverviewPage extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> farmRef;
   final TabController tabController;
@@ -860,7 +862,6 @@ class _OverviewPage extends State<OverviewPage> {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        //
         final data = snap.data?.data() ?? {};
         final name = data['name'] ?? 'Farm';
         final address = data['address'] ?? '';
@@ -869,30 +870,29 @@ class _OverviewPage extends State<OverviewPage> {
         final lastObs = dp['lastObserved'] as Timestamp?;
         final anth = dp['anthracnose'] == true;
         final pm = dp['powderyMildew'] == true;
-        final DateTime? _lastDiseaseDt = lastObs?.toDate();
-        final String _lastDiseaseValue = _lastDiseaseDt == null
+        final DateTime? lastDiseaseDt = lastObs?.toDate();
+        final String lastDiseaseValue = lastDiseaseDt == null
             ? '—'
-            : DateFormat('yyyy-MM-dd').format(_lastDiseaseDt);
+            : DateFormat('yyyy-MM-dd').format(lastDiseaseDt);
         // Color logic: orange if in last 14 days, green otherwise
-        final bool _recent =
-            _lastDiseaseDt != null &&
-            DateTime.now().difference(_lastDiseaseDt).inDays <= 14;
-        final Color _accent = _recent
+        final bool recent =
+            lastDiseaseDt != null &&
+            DateTime.now().difference(lastDiseaseDt).inDays <= 14;
+        final Color accent = recent
             ? const Color(0xFFF59E0B)
             : const Color(0xFF22C55E);
-        final IconData _icon = _recent
+        final IconData icon = recent
             ? Icons.warning_amber_rounded
             : Icons.verified_rounded;
-        final String? _caption = _recent
+        final String caption = recent
             ? 'Recent issue—monitor closely'
             : 'No recent disease flags';
-        //
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // Farm Title Card
-            Card(
-              shape: RoundedRectangleBorder(
+            Container(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
@@ -913,7 +913,7 @@ class _OverviewPage extends State<OverviewPage> {
                     if (areaHa != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'Area: ${areaHa.toString()} ha',
+                        'Area: ${areaHa.toString()} hectares',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -921,6 +921,13 @@ class _OverviewPage extends State<OverviewPage> {
                 ),
               ),
             ),
+            //
+            const Divider(height: 5),
+            //
+            const SizedBox(height: 12),
+            // Yields Chart Card
+            CompactYieldCard(farmRef: farmRef),
+            //
             const SizedBox(height: 12),
             // Task List Card
             InkWell(
@@ -1031,12 +1038,18 @@ class _OverviewPage extends State<OverviewPage> {
                           const SizedBox(height: 8),
 
                           if (picked.isEmpty) ...[
-                            const Text('All caught up 👏'),
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              onPressed: _addTaskSheet,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Task'),
+                            Center(
+                              child: Column(
+                                children: [
+                                  const Text('All caught up 👏'),
+                                  const SizedBox(height: 8),
+                                  OutlinedButton.icon(
+                                    onPressed: _addTaskSheet,
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Add Task'),
+                                  ),
+                                ],
+                              ),
                             ),
                           ] else
                             ...picked.map((doc) {
@@ -1133,8 +1146,6 @@ class _OverviewPage extends State<OverviewPage> {
                   .limit(500)
                   .snapshots(),
               builder: (context, ysnap) {
-                String lastSeasonTotal = '—';
-
                 if (ysnap.hasData) {
                   final docs = ysnap.data!.docs;
 
@@ -1158,7 +1169,6 @@ class _OverviewPage extends State<OverviewPage> {
                   }
 
                   // Pick the latest season: higher seasonYear wins; for same year Wet > Dry
-                  String? bestKey;
                   int? bestYear;
                   String? bestSeason;
 
@@ -1181,15 +1191,9 @@ class _OverviewPage extends State<OverviewPage> {
                     }
 
                     if (isBetter) {
-                      bestKey = key;
                       bestYear = yr;
                       bestSeason = ssn;
                     }
-                  }
-
-                  if (bestKey != null) {
-                    final sum = totals[bestKey] ?? 0;
-                    lastSeasonTotal = sum.toStringAsFixed(sum % 1 == 0 ? 0 : 1);
                   }
                 }
 
@@ -1198,10 +1202,10 @@ class _OverviewPage extends State<OverviewPage> {
                     Expanded(
                       child: KpiCard(
                         title: 'Last Disease',
-                        value: _lastDiseaseValue,
-                        caption: _caption,
-                        color: _accent,
-                        icon: _icon,
+                        value: lastDiseaseValue,
+                        caption: caption,
+                        color: accent,
+                        icon: icon,
                       ),
                     ),
                   ],
