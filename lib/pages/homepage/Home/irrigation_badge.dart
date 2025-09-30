@@ -38,7 +38,7 @@ class _IrrigationBadgeState extends State<IrrigationBadge> {
       );
       final advice = IrrigationAdvisor.evaluate(m, kc: widget.kc);
       return (advice, m);
-    } catch (e, st) {
+    } catch (e) {
       rethrow;
     }
   }
