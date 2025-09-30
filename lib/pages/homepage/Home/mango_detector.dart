@@ -1,73 +1,227 @@
-import 'dart:io';
+import 'dart:async';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+import 'package:tflite_flutter/tflite_flutter.dart';
 
-import 'package:insights/pages/homepage/Home/mango_classifier.dart';
-
-class MangoDiseaseDetectorPage extends StatefulWidget {
-  const MangoDiseaseDetectorPage({super.key});
+class MangoDiseaseDetectionPage extends StatefulWidget {
+  const MangoDiseaseDetectionPage({super.key});
 
   @override
-  State<MangoDiseaseDetectorPage> createState() =>
-      _MangoDiseaseDetectorPageState();
+  State<MangoDiseaseDetectionPage> createState() =>
+      _MangoDiseaseDetectionPageState();
 }
 
-class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
-  final _picker = ImagePicker();
-  File? _imageFile;
-  bool _analyzing = false;
+class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
+  CameraController? _cameraController;
+  Interpreter? _interpreter;
+  List<String>? _labels;
+  List<String>? _predictions;
+  bool _isLoading = true;
+  bool _isInitialized = false;
+  bool _isProcessing = false;
+  String _status = 'Initializing...';
+  Timer? _inferenceTimer;
+  final int _inputSize = 224;
 
-  Result? _result;
-
-  // Image Picker
-  Future<void> _pick(ImageSource source) async {
-    setState(() {
-      _result = null;
-    });
-    final xfile = await _picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 92,
-    );
-    if (xfile == null) return;
-    setState(() => _imageFile = File(xfile.path));
+  @override
+  void initState() {
+    super.initState();
+    _predictions = ['No detection yet – point at a mango leaf or fruit'];
+    _initializeCamera();
   }
 
-  // Image Analyzer
-  Future<void> _analyze() async {
-    if (_imageFile == null) return;
-    setState(() {
-      _analyzing = true;
-      _result = null;
-    });
-
+  Future<void> _initializeCamera() async {
     try {
-      await MangoClassifier.load();
-      final r = await MangoClassifier.classifyFile(_imageFile!);
-
-      final prettyLabel = _prettyLabel(r.label);
-
       setState(() {
-        _result = Result(
-          label: prettyLabel,
-          confidence: r.confidence,
-          probs: r.probs,
-        );
+        _status = 'Initializing Camera...';
       });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Analysis failed: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _analyzing = false);
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        throw Exception('No cameras available');
       }
+      final camera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      _cameraController = CameraController(camera, ResolutionPreset.medium);
+      await _cameraController!.initialize();
+      await _loadModelAndLabels();
+      setState(() {
+        _isInitialized = true;
+        _status = 'Camera Ready – Starting Detection';
+      });
+      _startInference();
+    } catch (e) {
+      setState(() {
+        _status = 'Camera Error: $e';
+        _isLoading = false;
+      });
     }
   }
 
-  // Label Formatter
+  Future<void> _loadModelAndLabels() async {
+    try {
+      setState(() {
+        _status = 'Loading Model & Labels...';
+      });
+
+      final labelsString = await rootBundle.loadString('assets/labels.txt');
+      _labels = labelsString
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+
+      if (_labels!.isEmpty || _labels!.length != 4) {
+        throw Exception('Expected 4 labels, got ${_labels?.length}');
+      }
+
+      _interpreter = await Interpreter.fromAsset('assets/model.tflite');
+      final inputShape = _interpreter?.getInputTensor(0).shape;
+      final outputShape = _interpreter?.getOutputTensor(0).shape;
+
+      if (inputShape == null || outputShape == null || outputShape[1] != 4) {
+        throw Exception(
+          'Model shape mismatch: Expected output [1,4], got $outputShape',
+        );
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _status = 'Model Error: $e – Check assets/model.tflite and labels.txt';
+        _isLoading = false;
+        _predictions = ['Error loading model: $e'];
+      });
+    }
+  }
+
+  void _startInference() {
+    if (_cameraController == null ||
+        !_cameraController!.value.isInitialized ||
+        _interpreter == null) {
+      return;
+    }
+
+    _inferenceTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      timer,
+    ) async {
+      if (!_isInitialized || _isLoading || _isProcessing) {
+        return;
+      }
+      setState(() {
+        _status = 'Running Inference... (Processing: $_isProcessing)';
+      });
+      await _runInference();
+      setState(() {
+        _status = 'Detecting Live...';
+      });
+    });
+  }
+
+  Future<void> _runInference() async {
+    if (_isProcessing) {
+      return;
+    }
+    _isProcessing = true;
+    if (_cameraController == null || _interpreter == null || _labels == null) {
+      _isProcessing = false;
+      return;
+    }
+
+    try {
+      final image = await _cameraController!.takePicture();
+      final bytes = await image.readAsBytes();
+
+      img.Image? processedImage = img.decodeImage(bytes);
+      if (processedImage == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      processedImage = img.copyResize(
+        processedImage,
+        width: _inputSize,
+        height: _inputSize,
+      );
+      final input = buildInputTensor(processedImage, _inputSize);
+
+      final output = [List<double>.filled(_labels!.length, 0.0)];
+      _interpreter!.run(input, output);
+      final probabilities = output[0] as List<double>;
+      final probSum = probabilities.fold(0.0, (sum, p) => sum + p);
+
+      if (probSum < 0.1) {
+        throw Exception(
+          'Invalid probabilities (sum too low: $probSum) – check model',
+        );
+      }
+
+      // Get top prediction only
+      final topIndex = _argmaxIndex(probabilities);
+      final topLabel = _labels![topIndex];
+      final confidence = probabilities[topIndex];
+
+      if (mounted) {
+        setState(() {
+          _predictions = [
+            '${_prettyLabel(topLabel)}: ${(confidence * 100).toStringAsFixed(1)}%',
+          ];
+          _currentTopLabel = topLabel;
+          _currentConfidence = confidence;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _predictions = [
+            'Inference Error: $e – Check model input/output shapes',
+          ];
+          _currentTopLabel = null;
+          _currentConfidence = null;
+        });
+      }
+    } finally {
+      _isProcessing = false;
+    }
+  }
+
+  List<List<List<List<double>>>> buildInputTensor(img.Image image, int size) {
+    final input = List.generate(
+      1,
+      (_) => List.generate(
+        size,
+        (_) => List.generate(size, (_) => List.filled(3, 0.0)),
+      ),
+    );
+
+    int i = 0;
+    for (final pixel in image) {
+      final y = i ~/ size;
+      final x = i % size;
+      input[0][y][x][0] = pixel.r / 255.0;
+      input[0][y][x][1] = pixel.g / 255.0;
+      input[0][y][x][2] = pixel.b / 255.0;
+      i++;
+    }
+    return input;
+  }
+
+  int _argmaxIndex(List<double> probabilities) {
+    int maxIndex = 0;
+    double maxProb = probabilities[0];
+    for (int i = 1; i < probabilities.length; i++) {
+      if (probabilities[i] > maxProb) {
+        maxProb = probabilities[i];
+        maxIndex = i;
+      }
+    }
+    return maxIndex;
+  }
+
   String _prettyLabel(String raw) {
     switch (raw) {
       case 'Powdery_Mildew':
@@ -81,201 +235,20 @@ class _MangoDiseaseDetectorPageState extends State<MangoDiseaseDetectorPage> {
     }
   }
 
-  void _reset() {
-    setState(() {
-      _imageFile = null;
-      _analyzing = false;
-      _result = null;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textTheme = GoogleFonts.poppinsTextTheme(theme.textTheme);
-
-    Color labelColor(String label) {
-      switch (label) {
-        case 'Healthy':
-          return Colors.green;
-        case 'Anthracnose':
-          return Colors.orange;
-        case 'Powdery Mildew':
-          return Colors.purple;
-        case 'Not Mango':
-          return Colors.red;
-        default:
-          return theme.colorScheme.primary;
-      }
+  Color _labelColor(String label) {
+    switch (label) {
+      case 'Healthy':
+        return Colors.green;
+      case 'Anthracnose':
+        return Colors.orange;
+      case 'Powdery Mildew':
+        return Colors.purple;
+      case 'Not Mango':
+        return Colors.red;
+      default:
+        return Colors.blueGrey;
     }
-
-    return Theme(
-      data: theme.copyWith(textTheme: textTheme),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Mango Disease Check'),
-          actions: [
-            if (_imageFile != null || _result != null)
-              IconButton(
-                tooltip: 'Reset',
-                onPressed: _reset,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-          ],
-        ),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'Scan a mango leaf',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Detect Anthracnose, Powdery Mildew, Healthy, or Not Mango.\n'
-                'Take a photo or upload from gallery.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withValues(
-                    alpha: 0.8,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.camera_alt_rounded),
-                      label: const Text('Take Photo'),
-                      onPressed: () => _pick(ImageSource.camera),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.upload_file_rounded),
-                      label: const Text('Upload Photo'),
-                      onPressed: () => _pick(ImageSource.gallery),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Image preview
-              AspectRatio(
-                aspectRatio: 1,
-                child: Ink(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.4,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.dividerColor.withValues(alpha: 0.4),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: _imageFile == null
-                        ? const _EmptyPreview()
-                        : Image.file(_imageFile!, fit: BoxFit.cover),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Analyze button / progress
-              _analyzing
-                  ? FilledButton.icon(
-                      onPressed: null,
-                      icon: const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      label: const Text('Analyzing…'),
-                    )
-                  : FilledButton.icon(
-                      icon: const Icon(Icons.search_rounded),
-                      label: const Text('Analyze'),
-                      onPressed: _imageFile == null ? null : _analyze,
-                    ),
-
-              const SizedBox(height: 16),
-
-              // Results (no severity)
-              AnimatedCrossFade(
-                firstChild: const SizedBox.shrink(),
-                secondChild: _result == null
-                    ? const SizedBox.shrink()
-                    : _ResultPanel(
-                        label: _result!.label,
-                        confidence: _result!.confidence,
-                        color: labelColor(_result!.label),
-                      ),
-                crossFadeState: _result != null
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                duration: const Duration(milliseconds: 300),
-              ),
-
-              const SizedBox(height: 16),
-              const _TipsCard(),
-            ],
-          ),
-        ),
-      ),
-    );
   }
-}
-
-class _EmptyPreview extends StatelessWidget {
-  const _EmptyPreview();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final subdued = textTheme.bodyMedium?.copyWith(
-      color: textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
-    );
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.image_outlined, size: 48),
-          const SizedBox(height: 8),
-          Text('No image selected', style: textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Use Take Photo or Upload to begin.',
-            style: subdued,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResultPanel extends StatelessWidget {
-  const _ResultPanel({
-    required this.label,
-    required this.confidence,
-    required this.color,
-  });
-
-  final String label;
-  final double confidence;
-  final Color color;
 
   String _descriptionFor(String label) {
     switch (label) {
@@ -288,7 +261,7 @@ class _ResultPanel extends StatelessWidget {
       case 'Not Mango':
         return 'This image likely isn’t a mango leaf or fruit. Please retake a clearer photo of a mango sample.';
       default:
-        return '—';
+        return 'No description available.';
     }
   }
 
@@ -307,139 +280,254 @@ class _ResultPanel extends StatelessWidget {
     }
   }
 
+  String? _currentTopLabel;
+  double? _currentConfidence;
+
+  @override
+  void dispose() {
+    _inferenceTimer?.cancel();
+    _cameraController?.dispose();
+    _interpreter?.close();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title + chip
-            Row(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Mango Disease Detection',
+          style: TextStyle(fontSize: 14, color: Colors.white),
+        ),
+        backgroundColor: Colors.green,
+        // actions: [
+        //   Padding(
+        //     padding: const EdgeInsets.all(16.0),
+        //     child: Text(
+        //       _status,
+        //       style: const TextStyle(color: Colors.white, fontSize: 12),
+        //     ),
+        //   ),
+        // ],
+      ),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading model and camera...'),
+                ],
+              ),
+            )
+          : !_isInitialized
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 64),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to initialize: $_status',
+                    style: const TextStyle(color: Colors.red, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Check console logs, permissions, and assets.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
+              fit: StackFit.expand,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: color.withValues(alpha: 0.35)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.local_florist_rounded, size: 18, color: color),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: text.titleMedium?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                CameraPreview(_cameraController!),
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: _isProcessing
+                        ? Row(
+                            children: [
+                              const Text(
+                                'Detecting mango disease... ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(width: 20),
+                              CircularProgressIndicator(strokeWidth: 3),
+                            ],
+                          )
+                        : const Text(
+                            'Point the camera at a mango leaf or fruit for detection.',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
-                const Spacer(),
-                _ConfidencePill(confidence: confidence),
+                Positioned(
+                  bottom: 50,
+                  left: 20,
+                  right: 20,
+                  child: _currentTopLabel == null
+                      ? Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'No detection yet – analyzing...',
+                            style: TextStyle(
+                              color: Colors.yellow,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : _buildResultCard(
+                          _currentTopLabel!,
+                          _currentConfidence ?? 0,
+                          theme,
+                        ),
+                ),
               ],
             ),
+    );
+  }
 
-            const SizedBox(height: 12),
-            Text(_descriptionFor(label), style: text.bodyMedium),
+  Widget _buildResultCard(String label, double confidence, ThemeData theme) {
+    final prettyLabel = _prettyLabel(label);
+    final color = _labelColor(prettyLabel);
+    final confidencePercent = (confidence * 100).toStringAsFixed(1);
+    final isError = prettyLabel == 'Not Mango';
 
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-
-            const SizedBox(height: 12),
-            Text('Suggested actions', style: text.titleMedium),
-            const SizedBox(height: 6),
-            _Bullet(text: _actionFor(label)),
-            const _Bullet(
-              text: 'Ensure clear, well-lit photos for best results.',
+    return Card(
+      // color: isError ? Colors.red.shade700 : Colors.black87,
+      color: Colors.black87,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Label and confidence row
+            Row(
+              children: [
+                Icon(Icons.local_florist_rounded, color: color, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    prettyLabel,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: 12,
+                //     vertical: 6,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: Colors.white24,
+                //     borderRadius: BorderRadius.circular(999),
+                //   ),
+                //   child: Text(
+                //     '$confidencePercent%',
+                //     style: theme.textTheme.titleMedium?.copyWith(
+                //       color: Colors.white,
+                //       fontWeight: FontWeight.w600,
+                //     ),
+                //   ),
+                // ),
+              ],
             ),
+            const SizedBox(height: 16),
+
+            // Description
+            Text(
+              _descriptionFor(prettyLabel),
+              style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+
+            // Suggested actions or tips
+            Text(
+              'Suggested Actions',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _actionFor(prettyLabel),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white70,
+              ),
+            ),
+
+            // if (isError) ...[
+            //   const SizedBox(height: 16),
+            //   Text(
+            //     'Tips for better photos:',
+            //     style: theme.textTheme.titleMedium?.copyWith(
+            //       color: Colors.white,
+            //       fontWeight: FontWeight.w600,
+            //     ),
+            //   ),
+            //   const SizedBox(height: 8),
+            //   _buildTip(theme, 'Fill the frame with the mango leaf or fruit.'),
+            //   _buildTip(theme, 'Use good lighting and avoid glare or shadows.'),
+            //   _buildTip(
+            //     theme,
+            //     'Keep the camera steady and focus on the subject.',
+            //   ),
+            // ],
           ],
         ),
       ),
     );
   }
-}
 
-// Confidence
-class _ConfidencePill extends StatelessWidget {
-  const _ConfidencePill({required this.confidence});
-  final double confidence;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.25)),
-      ),
+  Widget _buildTip(ThemeData theme, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fact_check_rounded, size: 18),
+          Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.white70,
+            size: 20,
+          ),
           const SizedBox(width: 8),
-          Text(
-            '${(confidence * 100).toStringAsFixed(0)}%',
-            style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white70,
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
-}
-
-// Photo Tips
-class _TipsCard extends StatelessWidget {
-  const _TipsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Photo tips', style: text.titleMedium),
-            const SizedBox(height: 8),
-            const _Bullet(text: 'Fill the frame with the leaf or fruit.'),
-            const _Bullet(text: 'Good lighting, avoid glare/shadows.'),
-            const _Bullet(text: 'Keep the subject sharp and steady.'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Bullet Widget
-class _Bullet extends StatelessWidget {
-  const _Bullet({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.check_circle_outline_rounded, size: 18),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text)),
-      ],
     );
   }
 }

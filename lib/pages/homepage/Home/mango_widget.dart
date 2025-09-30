@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:insights/pages/homepage/Home/mango_detector.dart';
-import 'package:insights/pages/homepage/Home/test.dart';
 
 class MangoDetectorTile extends StatelessWidget {
   const MangoDetectorTile({super.key});
@@ -30,7 +29,6 @@ class MangoDetectorTile extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  // builder: (_) => const MangoDiseaseDetectorPage(),
                   builder: (_) => const MangoDiseaseDetectionPage(),
                 ),
               );
