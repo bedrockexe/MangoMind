@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:insights/pages/services/session.dart';
 import 'pages/landing.dart';
-import 'pages/home.dart';
+import 'pages/homepage.dart';
 
 class AppGate extends StatelessWidget {
   const AppGate({super.key});

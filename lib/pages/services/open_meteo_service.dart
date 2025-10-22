@@ -13,6 +13,8 @@ class OpenMeteoData {
   final double maxWindToday; // km/h
   final int maxPrecipProbNext24h; // %
   final double precipNowcastNext2h; // mm
+  final double dailyTempMax;
+  final double dailyTempMin;
 
   OpenMeteoData({
     required this.dailyEt0,
@@ -24,6 +26,8 @@ class OpenMeteoData {
     required this.maxWindToday,
     required this.maxPrecipProbNext24h,
     required this.precipNowcastNext2h,
+    required this.dailyTempMax,
+    required this.dailyTempMin,
   });
 }
 
@@ -43,6 +47,8 @@ class OpenMeteoService {
       'precipitation_sum',
       'rain_sum',
       'shortwave_radiation_sum',
+      'temperature_2m_max',
+      'temperature_2m_min',
     ].join(',');
 
     // Hourly signals (includes soil & wind & precip prob)
@@ -64,7 +70,6 @@ class OpenMeteoService {
 
     final fRes = await http.get(forecastUri);
     if (fRes.statusCode != 200) {
-      // Surface server message to help debugging
       throw Exception('Open-Meteo error ${fRes.statusCode}: ${fRes.body}');
     }
 
@@ -77,6 +82,7 @@ class OpenMeteoService {
 
     // Daily
     final daily = _as<Map<String, dynamic>>(fjson['daily'], {});
+    print(daily);
     final et0 = _pickDaily(
       _as<List>(daily['et0_fao_evapotranspiration'], const []),
     );
@@ -85,6 +91,8 @@ class OpenMeteoService {
     final sw = _pickDaily(
       _as<List>(daily['shortwave_radiation_sum'], const []),
     );
+    final tMax = _pickDaily(_as<List>(daily['temperature_2m_max'], const []));
+    final tMin = _pickDaily(_as<List>(daily['temperature_2m_min'], const []));
 
     // Hourly
     final hourly = _as<Map<String, dynamic>>(fjson['hourly'], {});
@@ -140,6 +148,8 @@ class OpenMeteoService {
       maxWindToday: maxWind,
       maxPrecipProbNext24h: maxProb,
       precipNowcastNext2h: nowcastSum,
+      dailyTempMax: tMax,
+      dailyTempMin: tMin,
     );
   }
 

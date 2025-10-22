@@ -7,6 +7,44 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:645669274410:android:65579c74f98de24c03d453",
+        "android_client_info": {
+          "package_name": "com.example.sweet_insights_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDP8C0XlzXd7K5Q6OrBAKASKXZ09Sbis14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:645669274410:android:53275a24626e4de303d453",
+        "android_client_info": {
+          "package_name": "com.example.testapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDP8C0XlzXd7K5Q6OrBAKASKXZ09Sbis14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:645669274410:android:c873bd7e611becbc03d453",
         "android_client_info": {
           "package_name": "com.sweet.insights"

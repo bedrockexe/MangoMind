@@ -56,7 +56,7 @@ class ObservationsPage extends StatelessWidget {
 
                   // Severity
                   DropdownButtonFormField<String>(
-                    value: severity,
+                    initialValue: severity,
                     decoration: const InputDecoration(labelText: 'Severity'),
                     items: const [
                       DropdownMenuItem(value: 'low', child: Text('Low')),

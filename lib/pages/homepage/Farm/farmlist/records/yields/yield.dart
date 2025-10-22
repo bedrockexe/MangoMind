@@ -143,12 +143,30 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
     );
   }
 
+  String _seasonFromDate(DateTime d) {
+    // PH: Wet = May–Oct; Dry = Nov–Apr
+    return (d.month >= 5 && d.month <= 10) ? 'Wet' : 'Dry';
+  }
+
+  int _seasonYearFromDate(DateTime d) {
+    // Label “season year” so Dry spans Nov–Apr under the *next* year label.
+    // e.g., Nov 2025 -> Dry 2026; Jan 2026 -> Dry 2026; Jun 2026 -> Wet 2026
+    final isWet = d.month >= 5 && d.month <= 10;
+    if (!isWet && d.month >= 11) return d.year + 1; // Nov–Dec -> next year
+    return d.year; // Jan–Apr Dry -> same calendar year; Wet -> same year
+  }
+
   Future<void> _openAddSheet(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
     final dateVN = ValueNotifier<DateTime>(DateTime.now());
     final kgCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
+
+    // Local state for season (auto from date but user can override)
     String type = _mangoTypes.first;
+    String season = _seasonFromDate(dateVN.value);
+    int seasonYear = _seasonYearFromDate(dateVN.value);
+    bool saving = false;
 
     await showModalBottomSheet(
       context: context,
@@ -156,109 +174,206 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
       showDragHandle: true,
       builder: (ctx) {
         final inset = MediaQuery.of(ctx).viewInsets.bottom;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, inset + 16),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Add yield',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: kgCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Kilograms (kg)',
-                    prefixIcon: Icon(Icons.monitor_weight_outlined),
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, inset + 16),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Add yield',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter kilograms';
-                    final x = double.tryParse(v);
-                    if (x == null || x <= 0) return 'Enter a valid number > 0';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(
-                    labelText: 'Mango type',
-                    prefixIcon: Icon(Icons.local_florist_outlined),
-                  ),
-                  items: _mangoTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (v) => type = v ?? _mangoTypes.first,
-                ),
-                const SizedBox(height: 10),
-                ValueListenableBuilder<DateTime>(
-                  valueListenable: dateVN,
-                  builder: (context, date, _) {
-                    final label = DateFormat('MMMM d, yyyy').format(date);
-                    return InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: date,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) dateVN.value = picked;
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Date',
-                          prefixIcon: Icon(Icons.event_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(label),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                    prefixIcon: Icon(Icons.notes_outlined),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.check),
-                    label: const Text('Save'),
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final kg = double.tryParse(kgCtrl.text.trim()) ?? 0;
-                      await _yields.add({
-                        'date': Timestamp.fromDate(
-                          DateTime(
-                            dateVN.value.year,
-                            dateVN.value.month,
-                            dateVN.value.day,
-                          ),
-                        ),
-                        'weightKg': kg,
-                        'type': type,
-                        'notes': notesCtrl.text.trim(),
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
-                      if (context.mounted) Navigator.pop(context);
+                  const SizedBox(height: 8),
+                  // Kilograms
+                  TextFormField(
+                    controller: kgCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Kilograms (kg)',
+                      prefixIcon: Icon(Icons.monitor_weight_outlined),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        setLocal(() => saving = false);
+                        return 'Enter kilograms';
+                      }
+                      final x = double.tryParse(v);
+                      if (x == null || x <= 0) {
+                        setLocal(() => saving = false);
+                        return 'Enter a valid number > 0';
+                      }
+                      return null;
                     },
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+
+                  // Mango type
+                  DropdownButtonFormField<String>(
+                    initialValue: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Mango type',
+                      prefixIcon: Icon(Icons.local_florist_outlined),
+                    ),
+                    items: _mangoTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (v) => type = v ?? _mangoTypes.first,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Date picker (auto-updates season + year)
+                  ValueListenableBuilder<DateTime>(
+                    valueListenable: dateVN,
+                    builder: (context, date, _) {
+                      final label = DateFormat('MMMM d, yyyy').format(date);
+                      return InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: date,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            dateVN.value = picked;
+                            setLocal(() {
+                              season = _seasonFromDate(picked);
+                              seasonYear = _seasonYearFromDate(picked);
+                            });
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            prefixIcon: Icon(Icons.event_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(label),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Season row (dropdown + year chip)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: season,
+                          decoration: const InputDecoration(
+                            labelText: 'Season',
+                            prefixIcon: Icon(Icons.thermostat_auto_outlined),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Wet', child: Text('Wet')),
+                            DropdownMenuItem(value: 'Dry', child: Text('Dry')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setLocal(() {
+                              season = v;
+                              // Recompute seasonYear if user flips season manually:
+                              final d = dateVN.value;
+                              // If Wet selected -> same calendar year
+                              // If Dry selected -> Nov–Dec dry should map to next year label,
+                              // Jan–Apr dry stays same year.
+                              if (v == 'Wet') {
+                                seasonYear = d.year;
+                              } else {
+                                seasonYear = (d.month >= 11)
+                                    ? d.year + 1
+                                    : d.year;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      InputChip(
+                        label: Text('$seasonYear'),
+                        avatar: const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 18,
+                        ),
+                        onPressed: null, // display only
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Notes
+                  TextFormField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Save
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: const Text('Save'),
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              setLocal(() => saving = true);
+                              if (!formKey.currentState!.validate()) return;
+
+                              final kg =
+                                  double.tryParse(kgCtrl.text.trim()) ?? 0;
+                              final dOnly = DateTime(
+                                dateVN.value.year,
+                                dateVN.value.month,
+                                dateVN.value.day,
+                              );
+
+                              final isWet = (season == 'Wet');
+                              final seasonKey = '$seasonYear-$season';
+
+                              await widget.farmRef.collection('yields').add({
+                                'date': Timestamp.fromDate(dOnly),
+                                'weightKg': kg,
+                                'type': type,
+                                'notes': notesCtrl.text.trim(),
+                                // NEW fields for season reporting:
+                                'season': season, // 'Wet' | 'Dry'
+                                'isWet': isWet, // boolean
+                                'seasonYear': seasonYear, // e.g., 2026
+                                'seasonKey': seasonKey, // e.g., '2026-Dry'
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+
+                              if (context.mounted) Navigator.pop(context);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Yield Recorded'),
+                                  ),
+                                );
+                              }
+                            },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

@@ -60,7 +60,6 @@ class _RegisterForm extends State<Signup> {
   }
 
   OutlineInputBorder _borderFor({required bool touched, required bool ok}) {
-    // touched = field has some text already
     final color = !touched
         ? Colors
               .grey // default
@@ -81,7 +80,6 @@ class _RegisterForm extends State<Signup> {
   }
 
   Future<void> _register() async {
-    // Check form inputs
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
@@ -124,7 +122,6 @@ class _RegisterForm extends State<Signup> {
           'Registration failed: ${e.message}';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } on FirebaseException catch (e) {
-      // Firestore/Storage errors land here
       debugPrint('FIREBASE code=${e.code} message=${e.message}');
       ScaffoldMessenger.of(
         context,
@@ -144,7 +141,6 @@ class _RegisterForm extends State<Signup> {
     return Scaffold(
       body: ListView(
         children: [
-          // Back Button
           Row(
             children: [
               Padding(

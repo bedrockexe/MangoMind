@@ -17,7 +17,8 @@ import 'pages/signup.dart';
 import 'pages/success.dart';
 import 'pages/landing.dart';
 import 'pages/forgot.dart';
-import 'pages/home.dart';
+import 'pages/homepage.dart';
+import 'pages/homepage/Farm/farmlist/farmlist.dart';
 import 'app_gate.dart';
 import 'notifier.dart';
 import 'notifications_controller.dart';
@@ -91,12 +92,13 @@ class SweetInsightsApp extends StatelessWidget {
 
           // Named routes for easy navigation
           routes: {
-            '/login': (context) => const Login(),
+            '/login': (context) => const LoginPage(),
             '/signup': (context) => const Signup(),
             '/landing': (context) => const Landing(),
             '/forgot': (context) => const Forgot(),
             '/success': (context) => const SuccessPage(),
             '/home': (context) => const HomePage(),
+            '/farm': (context) => const FarmListPage(),
           },
         );
       },

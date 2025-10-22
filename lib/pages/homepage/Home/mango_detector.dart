@@ -13,7 +13,8 @@ class MangoDiseaseDetectionPage extends StatefulWidget {
       _MangoDiseaseDetectionPageState();
 }
 
-class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
+class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage>
+    with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   Interpreter? _interpreter;
   List<String>? _labels;
@@ -21,15 +22,49 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
   bool _isLoading = true;
   bool _isInitialized = false;
   bool _isProcessing = false;
+  bool _isScanning = false;
   String _status = 'Initializing...';
-  Timer? _inferenceTimer;
   final int _inputSize = 224;
+  bool _didPrecache = false;
+
+  // Animation controller for 5 second scan animation
+  late AnimationController _scanController;
+
+  String? _currentTopLabel;
+  double? _currentConfidence;
 
   @override
   void initState() {
     super.initState();
     _predictions = ['No detection yet – point at a mango leaf or fruit'];
-    _initializeCamera();
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+    _scanController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        // scanning UI turned off in _startScan after wait
+      }
+    });
+    _initializeAll();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didPrecache) {
+      precacheImage(const AssetImage('assets/loading.gif'), context);
+      _didPrecache = true;
+    }
+  }
+
+  Future<void> _initializeAll() async {
+    setState(() {
+      _isLoading = true;
+      _status = 'Initializing camera & model...';
+    });
+    await _loadModelAndLabels();
+    await _initializeCamera();
   }
 
   Future<void> _initializeCamera() async {
@@ -45,18 +80,23 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
         (camera) => camera.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
-      _cameraController = CameraController(camera, ResolutionPreset.medium);
+      _cameraController = CameraController(
+        camera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
       await _cameraController!.initialize();
-      await _loadModelAndLabels();
+
       setState(() {
         _isInitialized = true;
-        _status = 'Camera Ready – Starting Detection';
+        _isLoading = false;
+        _status = 'Camera Ready – Tap preview to scan';
       });
-      _startInference();
     } catch (e) {
       setState(() {
         _status = 'Camera Error: $e';
         _isLoading = false;
+        _isInitialized = false;
       });
     }
   }
@@ -79,18 +119,13 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
       }
 
       _interpreter = await Interpreter.fromAsset('assets/model.tflite');
-      final inputShape = _interpreter?.getInputTensor(0).shape;
       final outputShape = _interpreter?.getOutputTensor(0).shape;
 
-      if (inputShape == null || outputShape == null || outputShape[1] != 4) {
+      if (outputShape == null || outputShape[1] != 4) {
         throw Exception(
           'Model shape mismatch: Expected output [1,4], got $outputShape',
         );
       }
-
-      setState(() {
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() {
         _status = 'Model Error: $e – Check assets/model.tflite and labels.txt';
@@ -100,42 +135,97 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
     }
   }
 
-  void _startInference() {
-    if (_cameraController == null ||
-        !_cameraController!.value.isInitialized ||
-        _interpreter == null) {
+  // Start a scan: run both the animation and inference, wait for both to finish,
+  // then stop the camera and show the result page.
+  Future<void> _startScan() async {
+    if (!_isInitialized || _isLoading || _isProcessing) return;
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
 
-    _inferenceTimer = Timer.periodic(const Duration(milliseconds: 500), (
-      timer,
-    ) async {
-      if (!_isInitialized || _isLoading || _isProcessing) {
-        return;
-      }
-      setState(() {
-        _status = 'Running Inference... (Processing: $_isProcessing)';
-      });
-      await _runInference();
-      setState(() {
-        _status = 'Detecting Live...';
-      });
+    setState(() {
+      _isScanning = true;
+      _status = 'Scanning...';
+      _currentTopLabel = null;
+      _currentConfidence = null;
     });
+
+    // Start the animation
+    final animationFuture = _scanController.forward(from: 0.0);
+
+    // Start inference
+    final inferenceFuture = _runInference();
+
+    // Wait for both to finish
+    final results = await Future.wait<dynamic>([
+      animationFuture,
+      inferenceFuture,
+    ]);
+
+    // inference result is at index 1
+    final Map<String, dynamic> inferenceResult =
+        results[1] as Map<String, dynamic>;
+
+    // Stop / dispose camera so we can show the captured image without camera occupying the device
+    try {
+      await _cameraController?.dispose();
+    } catch (_) {}
+    _cameraController = null;
+
+    setState(() {
+      _isScanning = false;
+      _isInitialized = false;
+    });
+
+    // Navigate to full screen result page. After the user pops the result page,
+    // reinitialize the camera so user can scan again.
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          imageBytes: inferenceResult['bytes'] as Uint8List?,
+          label: inferenceResult['label'] as String?,
+          confidence: inferenceResult['confidence'] as double?,
+          error: inferenceResult['error'] as String?,
+        ),
+      ),
+    );
+
+    // Re-initialize camera for next scans
+    await _initializeCamera();
   }
 
-  Future<void> _runInference() async {
+  // Run inference and return a map containing the captured bytes and results.
+  // This ensures caller can wait for inference result.
+  Future<Map<String, dynamic>> _runInference() async {
     if (_isProcessing) {
-      return;
+      return {
+        'bytes': null,
+        'label': null,
+        'confidence': null,
+        'error': 'Already processing',
+      };
     }
     _isProcessing = true;
+
+    Uint8List? bytes;
+    String? topLabel;
+    double? confidence;
+    String? error;
+
     if (_cameraController == null || _interpreter == null || _labels == null) {
       _isProcessing = false;
-      return;
+      return {
+        'bytes': null,
+        'label': null,
+        'confidence': null,
+        'error': 'Missing camera/model',
+      };
     }
 
     try {
-      final image = await _cameraController!.takePicture();
-      final bytes = await image.readAsBytes();
+      final picture = await _cameraController!.takePicture();
+      bytes = await picture.readAsBytes();
 
       img.Image? processedImage = img.decodeImage(bytes);
       if (processedImage == null) {
@@ -154,32 +244,29 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
       final probabilities = output[0] as List<double>;
       final probSum = probabilities.fold(0.0, (sum, p) => sum + p);
 
-      if (probSum < 0.1) {
-        throw Exception(
-          'Invalid probabilities (sum too low: $probSum) – check model',
-        );
+      if (probSum < 0.01) {
+        throw Exception('Invalid probabilities (sum too low: $probSum)');
       }
 
-      // Get top prediction only
       final topIndex = _argmaxIndex(probabilities);
-      final topLabel = _labels![topIndex];
-      final confidence = probabilities[topIndex];
+      final rawTopLabel = _labels![topIndex];
+      topLabel = rawTopLabel;
+      confidence = probabilities[topIndex];
 
       if (mounted) {
         setState(() {
           _predictions = [
-            '${_prettyLabel(topLabel)}: ${(confidence * 100).toStringAsFixed(1)}%',
+            '${_prettyLabel(topLabel!)}: ${(confidence! * 100).toStringAsFixed(1)}%',
           ];
           _currentTopLabel = topLabel;
           _currentConfidence = confidence;
         });
       }
     } catch (e) {
+      error = e.toString();
       if (mounted) {
         setState(() {
-          _predictions = [
-            'Inference Error: $e – Check model input/output shapes',
-          ];
+          _predictions = ['Inference Error: $e'];
           _currentTopLabel = null;
           _currentConfidence = null;
         });
@@ -187,6 +274,13 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
     } finally {
       _isProcessing = false;
     }
+
+    return {
+      'bytes': bytes,
+      'label': topLabel,
+      'confidence': confidence,
+      'error': error,
+    };
   }
 
   List<List<List<List<double>>>> buildInputTensor(img.Image image, int size) {
@@ -280,15 +374,178 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
     }
   }
 
-  String? _currentTopLabel;
-  double? _currentConfidence;
-
   @override
   void dispose() {
-    _inferenceTimer?.cancel();
+    _scanController.dispose();
     _cameraController?.dispose();
     _interpreter?.close();
     super.dispose();
+  }
+
+  // Put this method inside your State class (_MangoDiseaseDetectionPageState)
+  Widget _buildScanOverlay() {
+    const double boxSize = 360;
+    const double cornerLength = 24;
+    final double borderWidth = 3.0;
+
+    return AnimatedOpacity(
+      opacity: _isScanning ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 200),
+      child: IgnorePointer(
+        ignoring: !_isScanning,
+        child: Container(
+          alignment: Alignment.center,
+          color: _isScanning ? Colors.black45 : Colors.transparent,
+          child: SizedBox(
+            width: boxSize,
+            height: boxSize,
+            child: Stack(
+              children: [
+                // The scanning box background (slightly transparent so preview is visible)
+                Center(
+                  child: Container(
+                    width: boxSize,
+                    height: boxSize,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.25),
+                        width: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Pulsing border (animated by _scanController)
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _scanController,
+                    builder: (context, child) {
+                      // pulse value between 0.7 and 1.0
+                      final pulse =
+                          0.7 +
+                          0.3 *
+                              (0.5 +
+                                  0.5 *
+                                      (1 -
+                                          (_scanController.value - 0.5).abs() *
+                                              2));
+                      return Center(
+                        child: Transform.scale(
+                          scale: pulse,
+                          child: Container(
+                            width: boxSize,
+                            height: boxSize,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.greenAccent.withOpacity(
+                                  0.9 * (1 - _scanController.value * 0.4),
+                                ),
+                                width: borderWidth,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Corner markers
+                // Top-left
+                Positioned(
+                  left: 6,
+                  top: 6,
+                  child: _CornerMarker(length: cornerLength),
+                ),
+                // Top-right
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Transform(
+                    transform: Matrix4.identity()..rotateZ(3.1416 / 2),
+                    alignment: Alignment.center,
+                    child: _CornerMarker(length: cornerLength),
+                  ),
+                ),
+                // Bottom-left
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: Transform(
+                    transform: Matrix4.identity()..rotateZ(-3.1416 / 2),
+                    alignment: Alignment.center,
+                    child: _CornerMarker(length: cornerLength),
+                  ),
+                ),
+                // Bottom-right
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Transform(
+                    transform: Matrix4.identity()..rotateZ(3.1416),
+                    alignment: Alignment.center,
+                    child: _CornerMarker(length: cornerLength),
+                  ),
+                ),
+
+                // Moving laser line
+                AnimatedBuilder(
+                  animation: _scanController,
+                  builder: (context, child) {
+                    // y position inside the box [0..boxSize]
+                    final double y = (_scanController.value) * (boxSize - 4);
+                    return Positioned(
+                      left: 2,
+                      right: 2,
+                      top: y,
+                      child: Opacity(
+                        opacity: 0.95,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Colors.transparent,
+                                Colors.greenAccent.withOpacity(0.9),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.5, 1.0],
+                            ),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // Small status text inside box (optional)
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      'Analyzing…',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -302,15 +559,6 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
           style: TextStyle(fontSize: 14, color: Colors.white),
         ),
         backgroundColor: Colors.green,
-        // actions: [
-        //   Padding(
-        //     padding: const EdgeInsets.all(16.0),
-        //     child: Text(
-        //       _status,
-        //       style: const TextStyle(color: Colors.white, fontSize: 12),
-        //     ),
-        //   ),
-        // ],
       ),
       body: _isLoading
           ? const Center(
@@ -323,7 +571,7 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
                 ],
               ),
             )
-          : !_isInitialized
+          : !_isInitialized || _cameraController == null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -340,13 +588,28 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
                     'Check console logs, permissions, and assets.',
                     style: TextStyle(fontSize: 12),
                   ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: null,
+                    child: Text('Retry (reopen app)'),
+                  ),
                 ],
               ),
             )
           : Stack(
               fit: StackFit.expand,
               children: [
-                CameraPreview(_cameraController!),
+                // Make preview tappable to start scan
+                GestureDetector(
+                  onTap: () {
+                    if (!_isScanning && !_isProcessing) {
+                      _startScan();
+                    }
+                  },
+                  child: CameraPreview(_cameraController!),
+                ),
+
+                // Top status/info bar
                 Positioned(
                   top: 20,
                   left: 20,
@@ -357,67 +620,71 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: _isProcessing
+                    child: _isScanning
                         ? Row(
                             children: [
-                              const Text(
-                                'Detecting mango disease... ',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                              const Expanded(
+                                child: Text(
+                                  'Scanning... hold steady',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(
+                                width: 120,
+                                child: AnimatedBuilder(
+                                  animation: _scanController,
+                                  builder: (context, child) {
+                                    return LinearProgressIndicator(
+                                      value: _scanController.value,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          )
+                        : _isProcessing
+                        ? Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Processing image...',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 20),
-                              CircularProgressIndicator(strokeWidth: 3),
+                              const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
                             ],
                           )
                         : const Text(
-                            'Point the camera at a mango leaf or fruit for detection.',
+                            'Point the camera at a mango leaf or fruit and tap to scan.',
                             style: TextStyle(color: Colors.white, fontSize: 16),
                             textAlign: TextAlign.center,
                           ),
                   ),
                 ),
-                Positioned(
-                  bottom: 50,
-                  left: 20,
-                  right: 20,
-                  child: _currentTopLabel == null
-                      ? Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'No detection yet – analyzing...',
-                            style: TextStyle(
-                              color: Colors.yellow,
-                              fontSize: 16,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        )
-                      : _buildResultCard(
-                          _currentTopLabel!,
-                          _currentConfidence ?? 0,
-                          theme,
-                        ),
-                ),
+
+                _buildScanOverlay(),
               ],
             ),
     );
   }
 
   Widget _buildResultCard(String label, double confidence, ThemeData theme) {
-    final prettyLabel = _prettyLabel(label);
-    final color = _labelColor(prettyLabel);
-    final confidencePercent = (confidence * 100).toStringAsFixed(1);
-    final isError = prettyLabel == 'Not Mango';
+    final color = _labelColor(label);
 
     return Card(
-      // color: isError ? Colors.red.shade700 : Colors.black87,
       color: Colors.black87,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -433,37 +700,27 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    prettyLabel,
+                    label,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                // Container(
-                //   padding: const EdgeInsets.symmetric(
-                //     horizontal: 12,
-                //     vertical: 6,
-                //   ),
-                //   decoration: BoxDecoration(
-                //     color: Colors.white24,
-                //     borderRadius: BorderRadius.circular(999),
-                //   ),
-                //   child: Text(
-                //     '$confidencePercent%',
-                //     style: theme.textTheme.titleMedium?.copyWith(
-                //       color: Colors.white,
-                //       fontWeight: FontWeight.w600,
-                //     ),
-                //   ),
-                // ),
+                Text(
+                  '${(confidence * 100).toStringAsFixed(1)}%',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
 
             // Description
             Text(
-              _descriptionFor(prettyLabel),
+              _descriptionFor(label),
               style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
             ),
             const SizedBox(height: 16),
@@ -478,51 +735,221 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              _actionFor(prettyLabel),
+              _actionFor(label),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.white70,
               ),
             ),
+            const SizedBox(height: 12),
 
-            // if (isError) ...[
-            //   const SizedBox(height: 16),
-            //   Text(
-            //     'Tips for better photos:',
-            //     style: theme.textTheme.titleMedium?.copyWith(
-            //       color: Colors.white,
-            //       fontWeight: FontWeight.w600,
-            //     ),
-            //   ),
-            //   const SizedBox(height: 8),
-            //   _buildTip(theme, 'Fill the frame with the mango leaf or fruit.'),
-            //   _buildTip(theme, 'Use good lighting and avoid glare or shadows.'),
-            //   _buildTip(
-            //     theme,
-            //     'Keep the camera steady and focus on the subject.',
-            //   ),
-            // ],
+            // Action row with Scan Again
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    // Start scan again from card (user might prefer to stay on same screen)
+                    _startScan();
+                  },
+                  child: const Text('Scan Again'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildTip(ThemeData theme, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+/// Full-screen result page that shows the captured image on top and result below.
+class ResultPage extends StatelessWidget {
+  final Uint8List? imageBytes;
+  final String? label; // raw label from model (e.g., 'Powdery_Mildew')
+  final double? confidence;
+  final String? error;
+
+  const ResultPage({
+    super.key,
+    required this.imageBytes,
+    required this.label,
+    required this.confidence,
+    required this.error,
+  });
+
+  String _prettyLabel(String raw) {
+    switch (raw) {
+      case 'Powdery_Mildew':
+        return 'Powdery Mildew';
+      case 'Healthy_Mango':
+        return 'Healthy';
+      case 'Not_Mango':
+        return 'Not Mango';
+      default:
+        return raw;
+    }
+  }
+
+  Color _labelColor(String label) {
+    switch (label) {
+      case 'Healthy':
+        return Colors.green;
+      case 'Anthracnose':
+        return Colors.orange;
+      case 'Powdery Mildew':
+        return Colors.purple;
+      case 'Not Mango':
+        return Colors.red;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  String _descriptionFor(String label) {
+    switch (label) {
+      case 'Healthy':
+        return 'No visible signs of disease detected.';
+      case 'Anthracnose':
+        return 'Dark, sunken spots that may expand; common on leaves and fruit.';
+      case 'Powdery Mildew':
+        return 'White powdery growth on young leaves and fruit; may cause distortion.';
+      case 'Not Mango':
+        return 'This image likely isn’t a mango leaf or fruit. Please retake a clearer photo of a mango sample.';
+      default:
+        return 'No description available.';
+    }
+  }
+
+  String _actionFor(String label) {
+    switch (label) {
+      case 'Anthracnose':
+        return 'Prune infected parts; avoid overhead irrigation; consider copper-based fungicide per local guidance.';
+      case 'Powdery Mildew':
+        return 'Improve airflow; remove heavily infected leaves; consider sulfur-based fungicide if allowed.';
+      case 'Healthy':
+        return 'Maintain good sanitation and monitor regularly.';
+      case 'Not Mango':
+        return 'Retake the photo focusing on a mango leaf or fruit. Fill the frame and use good lighting.';
+      default:
+        return 'Follow local best practices for orchard hygiene.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pretty = label == null ? null : _prettyLabel(label!);
+    final color = pretty == null ? Colors.blueGrey : _labelColor(pretty);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Scan Result'),
+        backgroundColor: Colors.green,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Column(
         children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            color: Colors.white70,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
+          // Display the captured image (or placeholder)
           Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white70,
+            flex: 5,
+            child: Container(
+              width: double.infinity,
+              color: Colors.black,
+              child: imageBytes != null
+                  ? Image.memory(imageBytes!, fit: BoxFit.cover)
+                  : const Center(
+                      child: Text(
+                        'No image captured',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+            ),
+          ),
+
+          // Result card
+          Expanded(
+            flex: 5,
+            child: Container(
+              color: Colors.grey[100],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: error != null
+                    ? Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'Inference error:\n$error',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      )
+                    : Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.local_florist_rounded,
+                                    color: color,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      pretty ?? 'Unknown',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _descriptionFor(pretty ?? 'Unknown'),
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(color: Colors.black87),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Suggested Actions',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _actionFor(pretty ?? 'Unknown'),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Scan Again'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -530,4 +957,46 @@ class _MangoDiseaseDetectionPageState extends State<MangoDiseaseDetectionPage> {
       ),
     );
   }
+}
+
+class _CornerMarker extends StatelessWidget {
+  final double length;
+  const _CornerMarker({Key? key, required this.length}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: length,
+      height: length,
+      child: CustomPaint(painter: _CornerPainter()),
+    );
+  }
+}
+
+class _CornerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.greenAccent
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // draw two short lines to form a corner (L shape)
+    // horizontal line
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(size.width * 0.6, size.height),
+      paint,
+    );
+    // vertical line
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width, size.height * 0.6),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

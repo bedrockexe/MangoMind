@@ -4,12 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 // pages
-import 'package:insights/pages/homepage/settings.dart';
-import 'package:insights/pages/homepage/Home/weather_widget.dart';
-import 'package:insights/pages/homepage/Home/mango_widget.dart';
+import 'package:insights/pages/homepage/HomeNavigator.dart';
+import 'package:insights/pages/homepage/Settings/settings.dart';
 import 'package:insights/pages/homepage/Farm/farm_management.dart';
 import 'package:insights/pages/homepage/Records/records.dart';
-import 'package:insights/pages/homepage/Home/irrigation_badge.dart';
 import 'package:insights/pages/homepage/Home/irrigation_check.dart';
 
 // Main Class
@@ -143,10 +141,13 @@ class _Home extends State<HomePage> {
         body: IndexedStack(
           index: _index,
           children: [
-            _TabNavigator(navigatorKey: _navkeys[0], root: Home()),
+            _TabNavigator(navigatorKey: _navkeys[0], root: const Home()),
             _TabNavigator(navigatorKey: _navkeys[1], root: const FarmList()),
-            _TabNavigator(navigatorKey: _navkeys[2], root: ReportsPage()),
-            _TabNavigator(navigatorKey: _navkeys[3], root: SettingsPage()),
+            _TabNavigator(navigatorKey: _navkeys[2], root: const ReportsPage()),
+            _TabNavigator(
+              navigatorKey: _navkeys[3],
+              root: const SettingsPage(),
+            ),
           ],
         ),
         bottomNavigationBar: BottomNavigationBar(
@@ -193,53 +194,6 @@ class _TabNavigator extends StatelessWidget {
         }
         return null;
       },
-    );
-  }
-}
-
-class Home extends StatefulWidget {
-  const Home({super.key});
-  @override
-  State<Home> createState() => _HomeRootState();
-}
-
-class _HomeRootState extends State<Home> {
-  int _refreshToken = 0;
-  double lat = 13.928880330206127, lon = 120.95075460563223;
-
-  Future<void> _onRefresh() async {
-    setState(() => _refreshToken++);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator.adaptive(
-      onRefresh: _onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Title
-          const Text(
-            "Home",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-          ),
-          //
-          const SizedBox(height: 16),
-          // Weather widget
-          WeatherPanel(key: ValueKey(_refreshToken)),
-          //
-          const SizedBox(height: 16),
-          //
-          MangoDetectorTile(),
-          //
-          const SizedBox(height: 16),
-          //
-          IrrigationBadge(latitude: lat, longitude: lon),
-          //
-          const SizedBox(height: 20),
-        ],
-      ),
     );
   }
 }

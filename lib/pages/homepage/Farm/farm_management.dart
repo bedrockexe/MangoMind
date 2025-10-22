@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // Pages
 import 'package:insights/pages/homepage/Farm/mangoprice/mangowidget.dart';
 import 'package:insights/pages/homepage/Farm/farmlist/farmlist.dart';
+import 'package:insights/pages/homepage/Farm/assessment_button.dart';
 
 class FarmList extends StatefulWidget {
   const FarmList({super.key});
@@ -19,6 +20,8 @@ class _FarmListState extends State<FarmList> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          AssessmentButton(),
+          SizedBox(height: 16),
           // View and Manage Farms
           Container(
             decoration: BoxDecoration(

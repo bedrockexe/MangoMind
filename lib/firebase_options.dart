@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'sweet-insights-1e5f1',
     storageBucket: 'sweet-insights-1e5f1.firebasestorage.app',
   );
+
 }

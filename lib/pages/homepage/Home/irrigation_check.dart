@@ -24,7 +24,6 @@ class IrrigationCheck {
     }
   }
 
-  // Schedule a daily local 6:00 AM notification (uses supplied lat/lon when building body)
   static Future<void> scheduleDailyForLocation(double lat, double lon) async {
     await LocalNotifier.scheduleDailyAt6AM(
       buildBody: () async {
