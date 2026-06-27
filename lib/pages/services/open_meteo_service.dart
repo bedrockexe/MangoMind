@@ -15,6 +15,7 @@ class OpenMeteoData {
   final double precipNowcastNext2h; // mm
   final double dailyTempMax;
   final double dailyTempMin;
+  final double dailyHumidity;
 
   OpenMeteoData({
     required this.dailyEt0,
@@ -28,6 +29,7 @@ class OpenMeteoData {
     required this.precipNowcastNext2h,
     required this.dailyTempMax,
     required this.dailyTempMin,
+    required this.dailyHumidity,
   });
 }
 
@@ -51,13 +53,14 @@ class OpenMeteoService {
       'temperature_2m_min',
     ].join(',');
 
-    // Hourly signals (includes soil & wind & precip prob)
+    // Hourly signals (includes soil & wind & precip prob and humidity)
     final hourlyVars = [
       'precipitation_probability',
       'precipitation',
       'rain',
       'wind_speed_10m',
       'soil_moisture_0_to_7cm',
+      'relativehumidity_2m', // NEW: hourly relative humidity (percent)
     ].join(',');
 
     final forecastUri = Uri.parse(
@@ -82,7 +85,7 @@ class OpenMeteoService {
 
     // Daily
     final daily = _as<Map<String, dynamic>>(fjson['daily'], {});
-    print(daily);
+    // print(daily);
     final et0 = _pickDaily(
       _as<List>(daily['et0_fao_evapotranspiration'], const []),
     );
@@ -99,6 +102,10 @@ class OpenMeteoService {
     final probs = _as<List>(hourly['precipitation_probability'], const []);
     final winds = _as<List>(hourly['wind_speed_10m'], const []);
     final soil = _as<List>(hourly['soil_moisture_0_to_7cm'], const []);
+    final humidityList = _as<List>(
+      hourly['relativehumidity_2m'],
+      const [],
+    ); // NEW
 
     final maxProb = probs.take(24).fold<int>(0, (m, e) {
       final v = (e is num) ? e.toInt() : 0;
@@ -112,6 +119,27 @@ class OpenMeteoService {
 
     // Choose a near-"now" soil value; first element is fine for simple display
     final soil07 = soil.isNotEmpty ? _nn(soil.first as num?) : 0.0;
+
+    // Compute a simple daily humidity (mean over next 24 hourly values if available)
+    double dailyHumidity = 0.0;
+    try {
+      final take = humidityList.take(24).toList();
+      if (take.isNotEmpty) {
+        double sum = 0.0;
+        int count = 0;
+        for (final v in take) {
+          if (v is num) {
+            sum += v.toDouble();
+            count++;
+          }
+        }
+        if (count > 0) {
+          dailyHumidity = sum / count;
+        }
+      }
+    } catch (_) {
+      dailyHumidity = 0.0;
+    }
 
     // ---------- 2) Nowcast (sum next 2h, 15-min steps) ----------
     double nowcastSum = 0.0;
@@ -150,6 +178,7 @@ class OpenMeteoService {
       precipNowcastNext2h: nowcastSum,
       dailyTempMax: tMax,
       dailyTempMin: tMin,
+      dailyHumidity: dailyHumidity, // NEW
     );
   }
 

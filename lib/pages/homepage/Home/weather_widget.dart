@@ -35,9 +35,8 @@ class _WeatherPanelState extends State<WeatherPanel>
   Future<Map<String, dynamic>> _loadWeatherAndLocation() async {
     final data = await OpenMeteoService.fetchWithAutoLocation();
 
-    String locationName = "Your Field";
+    String locationName = "Manila";
     try {
-      // Use the same location used inside fetchWithAutoLocation
       final pos = await Geolocator.getCurrentPosition();
       final placemarks = await placemarkFromCoordinates(
         pos.latitude,
@@ -53,9 +52,7 @@ class _WeatherPanelState extends State<WeatherPanel>
           province,
         ].where((e) => e.isNotEmpty).join(', ').trim();
       }
-    } catch (_) {
-      // fallback if reverse geocoding fails
-    }
+    } catch (_) {}
 
     return {"data": data, "location": locationName};
   }
@@ -89,29 +86,277 @@ class _WeatherPanelState extends State<WeatherPanel>
     );
   }
 
-  // ---------- UI builders ----------
-  Widget _buildLoadingPanel() => _shimmerContainer(
-    child: const Text(
-      'Fetching Weather Data...',
-      style: TextStyle(color: Colors.white, fontSize: 18),
+  // ---------- Loading (upgraded shimmer skeleton) ----------
+  Widget _buildLoadingPanel() => Container(
+    height: 500,
+    decoration: BoxDecoration(
+      image: DecorationImage(
+        image: AssetImage("assets/weather2.jpg"),
+        fit: BoxFit.cover,
+        colorFilter: ColorFilter.mode(
+          Colors.black.withValues(alpha: 0.3),
+          BlendMode.darken,
+        ),
+      ),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Shimmer.fromColors(
+      baseColor: Colors.white.withValues(alpha: 0.18),
+      highlightColor: Colors.white.withValues(alpha: 0.5),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // header row skeleton
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 160,
+                        height: 18,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 14,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // big card skeleton for temperature
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 150,
+                        height: 22,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 14,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 150,
+                        height: 22,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 14,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 150,
+                        height: 22,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 14,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
+        ),
+      ),
     ),
   );
 
   Widget _buildErrorPanel() => _coloredContainer(
     Colors.red.shade400,
     Colors.red.shade900,
-    child: const Text(
-      'Failed to load weather data.',
-      style: TextStyle(color: Colors.white, fontSize: 18),
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Animated error icon
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.08),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Icon(Icons.error_outline, color: Colors.white, size: 48),
+          ).animate().shake(delay: 200.ms, duration: 800.ms),
+          const SizedBox(height: 12),
+          const Text(
+            'Failed to load weather data',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ).animate().fadeIn(delay: 300.ms),
+          const SizedBox(height: 6),
+          Text(
+            'Please check your connection or try again later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+          ).animate().fadeIn(delay: 500.ms),
+          const SizedBox(height: 14),
+          // subtle retry action — non-blocking, caller can change behavior
+          ElevatedButton.icon(
+            onPressed: () => setState(() {
+              _future = _loadWeatherAndLocation();
+            }),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.12),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ).animate().fadeIn(delay: 700.ms),
+        ],
+      ),
     ),
   );
 
   Widget _buildNoDataPanel() => _coloredContainer(
     Colors.grey.shade400,
     Colors.grey.shade900,
-    child: const Text(
-      'No weather data available.',
-      style: TextStyle(color: Colors.white, fontSize: 18),
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Icon(
+                  Icons.cloud_off_rounded,
+                  color: Colors.white,
+                  size: 44,
+                ),
+              )
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .scale(
+                begin: const Offset(0.9, 0.9),
+                end: const Offset(1.0, 1.0),
+                duration: 600.ms,
+              ),
+          const SizedBox(height: 12),
+          const Text(
+            'No weather data available',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ).animate().fadeIn(delay: 200.ms),
+          const SizedBox(height: 6),
+          Text(
+            'Data might be temporarily unavailable for your location.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+          ).animate().fadeIn(delay: 400.ms),
+        ],
+      ),
     ),
   );
 
@@ -138,14 +383,14 @@ class _WeatherPanelState extends State<WeatherPanel>
           ),
           const SizedBox(height: 4),
           Text(
-            location,
-            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+            'San Nicolas, Batangas',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
           ).animate().fadeIn(duration: 600.ms),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -166,7 +411,9 @@ class _WeatherPanelState extends State<WeatherPanel>
                     ),
                     Text(
                       'Max / Min Temperature',
-                      style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
                     ),
                   ],
                 ),
@@ -189,6 +436,11 @@ class _WeatherPanelState extends State<WeatherPanel>
             'Chance of Rain (Next 24 h)',
             '${data.maxPrecipProbNext24h}%',
           ),
+          _buildAnimatedTile(
+            Icons.opacity,
+            'Humidity',
+            '${double.parse(data.dailyHumidity.toString()).toInt().toString()}%',
+          ),
         ],
       ),
     );
@@ -199,7 +451,7 @@ class _WeatherPanelState extends State<WeatherPanel>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -228,42 +480,26 @@ class _WeatherPanelState extends State<WeatherPanel>
   // ---------- Utility containers ----------
   Widget _coloredContainer(Color base1, Color base2, {required Widget child}) {
     return Container(
-      height: 450,
+      height: 500,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [base1, base2],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        image: DecorationImage(
+          image: AssetImage("assets/weather2.jpg"),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(
+            Colors.black.withValues(alpha: 0.3),
+            BlendMode.darken,
+          ),
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Padding(padding: const EdgeInsets.all(20), child: child),
-    );
-  }
-
-  Widget _shimmerContainer({required Widget child}) {
-    return Container(
-      height: 400,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade300, Colors.blue.shade600],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Shimmer.fromColors(
-        baseColor: Colors.white.withOpacity(0.3),
-        highlightColor: Colors.white.withOpacity(0.6),
-        child: Center(child: child),
-      ),
     );
   }
 }

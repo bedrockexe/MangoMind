@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:insights/pages/homepage/Home/weather_widget.dart';
 import 'package:insights/pages/homepage/Home/irrigation_reco.dart';
 import 'package:insights/pages/homepage/Home/mango_test.dart';
@@ -89,48 +88,52 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     final isLarge = mq.size.width > 900;
+    final bottomInset = mq.viewPadding.bottom + mq.viewInsets.bottom;
+
     return RefreshIndicator.adaptive(
       onRefresh: _onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Title
-          const Text(
-            "Home",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 16),
-          // Weather widget
-          WeatherPanel(key: ValueKey(_refreshToken)),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: features.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isLarge ? 2 : 1,
-              mainAxisExtent: 150,
-              mainAxisSpacing: 18,
-              crossAxisSpacing: 18,
+      child: SafeArea(
+        bottom: true,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
+          children: [
+            // Title
+            const Text(
+              "Home",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
             ),
-            itemBuilder: (context, index) {
-              return FadeTransition(
-                opacity: _itemanimations[index],
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.08),
-                    end: Offset.zero,
-                  ).animate(_itemanimations[index]),
-                  child: FeatureCard(
-                    feature: features[index],
-                    onTap: () => _openFeature(context, features[index]),
+            const SizedBox(height: 16),
+            WeatherPanel(key: ValueKey(_refreshToken)),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: features.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isLarge ? 2 : 1,
+                mainAxisExtent: 150,
+                mainAxisSpacing: 18,
+                crossAxisSpacing: 18,
+              ),
+              itemBuilder: (context, index) {
+                return FadeTransition(
+                  opacity: _itemanimations[index],
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    ).animate(_itemanimations[index]),
+                    child: FeatureCard(
+                      feature: features[index],
+                      onTap: () => _openFeature(context, features[index]),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -190,7 +193,7 @@ class _FeatureCardState extends State<FeatureCard>
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -220,7 +223,6 @@ class _FeatureCardState extends State<FeatureCard>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
                     Row(
                       children: [
                         TextButton(

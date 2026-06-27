@@ -13,7 +13,7 @@ import 'package:printing/printing.dart';
 
 class ReportsPage extends StatefulWidget {
   final String? farmId;
-  final String? logoAssetPath; // e.g., 'assets/logo.png'
+  final String? logoAssetPath;
   const ReportsPage({
     super.key,
     this.farmId,
@@ -812,17 +812,16 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  Widget _section({required String title, required Widget child}) {
-    return Card(
-      elevation: 1,
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        children: [child],
-      ),
-    );
-  }
+  Widget _section({
+  required String title,
+  required Widget child,
+}) {
+  return _ExpandableCard(
+    title: title,
+    child: child,
+  );
+}
+
 
   Widget _simpleList(
     List<Map<String, dynamic>> rows,
@@ -882,3 +881,90 @@ class _Farm {
   final String name;
   _Farm(this.id, this.name);
 }
+
+class _ExpandableCard extends StatefulWidget {
+  final String title;
+  final Widget child;
+
+  const _ExpandableCard({
+    super.key,
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  State<_ExpandableCard> createState() => _ExpandableCardState();
+}
+
+class _ExpandableCardState extends State<_ExpandableCard>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          // ---------------- HEADER ----------------
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.keyboard_arrow_down, size: 28),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ---------------- EXPANDED CONTENT ----------------
+          AnimatedCrossFade(
+            firstChild: const SizedBox(), // Closed
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Column(
+                children: [
+                  widget.child,
+                  const SizedBox(height: 15),
+
+                  // ---------------- BOTTOM CLOSE BUTTON ----------------
+                  TextButton.icon(
+                    onPressed: () => setState(() => _expanded = false),
+                    icon: const Icon(Icons.keyboard_arrow_up),
+                    label: const Text(
+                      "Collapse",
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

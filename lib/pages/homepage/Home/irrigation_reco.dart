@@ -5,6 +5,8 @@ import 'package:insights/pages/services/open_meteo_service.dart';
 import 'package:insights/pages/services/irrigation_advisor.dart';
 import 'package:insights/pages/homepage/Home/irrigation_check.dart';
 import 'package:insights/pages/homepage/Farm/farmlist/farmlist.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class IrrigationPage extends StatefulWidget {
   final double lat;
@@ -30,16 +32,37 @@ class _IrrigationPageState extends State<IrrigationPage>
   IrrigationAdvice? _advice;
   String? _error;
 
-  // small animation controller for the header accent
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 1),
   )..repeat(reverse: true);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _runCheck(notify: false),
+    );
+    checkScheduled();
+  }
+
+  @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
+  }
+
+  Future<void> checkScheduled() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final snapshot = await docRef.get();
+    if (snapshot.exists) {
+      final data = snapshot.data();
+      final scheduled = data?['irrigationScheduled'] ?? false;
+      setState(() {
+        _scheduled = scheduled;
+      });
+    }
   }
 
   Future<void> _runCheck({bool notify = true}) async {
@@ -75,6 +98,12 @@ class _IrrigationPageState extends State<IrrigationPage>
     }
   }
 
+  Future<void> saveSchedule(bool value) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    await docRef.set({'irrigationScheduled': value}, SetOptions(merge: true));
+  }
+
   Future<void> _toggleSchedule(bool value) async {
     setState(() {
       _scheduled = value;
@@ -82,11 +111,19 @@ class _IrrigationPageState extends State<IrrigationPage>
 
     if (value) {
       await IrrigationCheck.scheduleDailyForLocation(widget.lat, widget.lon);
+      await saveSchedule(value);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Daily irrigation check scheduled at 6:00 AM'),
           ),
+        );
+      }
+    } else {
+      await saveSchedule(value);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Daily irrigation check unchecked.')),
         );
       }
     }
@@ -169,7 +206,7 @@ class _IrrigationPageState extends State<IrrigationPage>
                   ),
                 if (_advice != null) const SizedBox(height: 8),
                 if (_advice != null)
-                  Row(
+                  Column(
                     children: [
                       if (recommend)
                         Chip(
@@ -239,13 +276,6 @@ class _IrrigationPageState extends State<IrrigationPage>
         ),
       ],
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Optionally run a quick check on open (comment out if undesired)
-    // WidgetsBinding.instance.addPostFrameCallback((_) => _runCheck(notify: false));
   }
 
   @override

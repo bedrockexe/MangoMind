@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class MangoDetector extends StatefulWidget {
   const MangoDetector({super.key});
@@ -441,16 +441,9 @@ class DetectionLoadingPage extends StatefulWidget {
 
 class _DetectionLoadingPageState extends State<DetectionLoadingPage>
     with SingleTickerProviderStateMixin {
-  String _raw = '';
   Map<String, dynamic>? _parsed;
   String _error = '';
   bool _done = false;
-
-  // Keep model instance here; supply your own apiKey safely in production
-  final _model = GenerativeModel(
-    model: 'gemini-2.5-flash',
-    apiKey: '***REMOVED_GEMINI_KEY***',
-  );
 
   late AnimationController _pulse;
 
@@ -511,25 +504,27 @@ END: Process the attached image and return the JSON object only.
 
       final bytes = await widget.imageFile.readAsBytes();
 
-      final content = [
-        Content.multi([TextPart(prompt), DataPart("image/jpeg", bytes)]),
-      ];
+      final encodedImage = base64Encode(bytes);
 
-      final response = await _model.generateContent(
-        content,
-      ); // adjust if your package differs
-      final text = response.text ?? '';
-      setState(() {
-        _raw = text;
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'imageAnalyzer',
+      );
+
+      final result = await callable.call({
+        'prompt': prompt,
+        'imageBase64': encodedImage,
       });
-      // parse with same validator used before:
-      final parsed = _safeParseAndValidateJson(text);
+
+      final data = result.data['text'];
+      final datafinal = data.replaceAll(RegExp(r'```json|```'), '');
+
+      final parsed = _safeParseAndValidateJson(datafinal);
+
       setState(() {
         _parsed = parsed;
         _done = true;
       });
 
-      // navigate to result page after small delay to show transition
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -617,7 +612,6 @@ END: Process the attached image and return the JSON object only.
     );
   }
 
-  // --- JSON validate/parse copied/adapted from your original code ---
   Map<String, dynamic> _safeParseAndValidateJson(String rawText) {
     Map<String, dynamic> unsureFallback() {
       final ts = DateFormat(
@@ -626,10 +620,10 @@ END: Process the attached image and return the JSON object only.
       return {
         "object_type": "Other",
         "is_mango": false,
-        "disease_label": "UNSURE",
+        "disease_label": "HEALTHY",
         "disease_confidence": 0.00,
         "fruit_ripeness_pct": 0.00,
-        "ripeness_stage": "UNSURE",
+        "ripeness_stage": "RIPE",
         "recommendations": [],
         "photo_tips": [
           "Center mango in frame",
@@ -685,8 +679,9 @@ END: Process the attached image and return the JSON object only.
 
     final objectType = m["object_type"];
     if (objectType is! String ||
-        !["Leaf", "Fruit", "Other"].contains(objectType))
+        !["Leaf", "Fruit", "Other"].contains(objectType)) {
       return unsureFallback();
+    }
 
     final isMango = m["is_mango"];
     if (isMango is! bool) return unsureFallback();
@@ -700,8 +695,9 @@ END: Process the attached image and return the JSON object only.
       "OtherPestDamage",
       "UNSURE",
     ];
-    if (diseaseLabel is! String || !allowedDiseases.contains(diseaseLabel))
+    if (diseaseLabel is! String || !allowedDiseases.contains(diseaseLabel)) {
       return unsureFallback();
+    }
 
     double diseaseConfidence;
     try {
@@ -725,8 +721,9 @@ END: Process the attached image and return the JSON object only.
       "Overripe",
       "UNSURE",
     ];
-    if (ripenessStage is! String || !allowedRipeness.contains(ripenessStage))
+    if (ripenessStage is! String || !allowedRipeness.contains(ripenessStage)) {
       return unsureFallback();
+    }
 
     List<String> recommendations = _toStringList(m["recommendations"]);
     List<String> photoTips = _toStringList(m["photo_tips"]);
@@ -830,6 +827,7 @@ class DetectionResultPage extends StatelessWidget {
     final isMango = parsed['is_mango'] as bool;
     final objectType = parsed['object_type'] as String;
     final disease = parsed['disease_label'] as String;
+    print(disease);
     final diseaseConf = (parsed['disease_confidence'] as num).toDouble();
     final ripeness = (parsed['fruit_ripeness_pct'] as num).toDouble();
     final ripenessStage = parsed['ripeness_stage'] as String;
@@ -841,6 +839,9 @@ class DetectionResultPage extends StatelessWidget {
     final explainers = List<String>.from(parsed['explainers'] as List);
     final overall = (parsed['overall_confidence'] as num).toDouble();
     final timestamp = parsed['timestamp_utc'] as String;
+    final displayDisease = (disease.toUpperCase() == 'UNSURE')
+        ? 'Healthy'
+        : disease;
 
     // choose icon + label
     final mainLabel = isMango ? 'Mango detected' : 'Not a mango';
@@ -889,13 +890,10 @@ class DetectionResultPage extends StatelessWidget {
                             child: Text(
                               mainLabel,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                          _smallBadge(
-                            'Confidence: ${(overall).toStringAsFixed(2)}',
                           ),
                         ],
                       ),
@@ -929,7 +927,7 @@ class DetectionResultPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Health: $disease (${(diseaseConf).toStringAsFixed(2)})',
+                            'Condition: $displayDisease',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 12),
@@ -947,7 +945,7 @@ class DetectionResultPage extends StatelessWidget {
                           ],
                         ] else if (objectType == 'Leaf') ...[
                           Text(
-                            'Leaf health: $disease (${(diseaseConf).toStringAsFixed(2)})',
+                            'Leaf Condition: $displayDisease',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 12),
@@ -976,7 +974,7 @@ class DetectionResultPage extends StatelessWidget {
                       ],
                       const SizedBox(height: 10),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
@@ -985,8 +983,12 @@ class DetectionResultPage extends StatelessWidget {
                             icon: const Icon(
                               Icons.camera_alt_outlined,
                               size: 16,
+                              color: Colors.white,
                             ),
-                            label: const Text('Scan again'),
+                            label: const Text(
+                              'Scan again',
+                              style: TextStyle(color: Colors.white),
+                            ),
                             onPressed: () async {
                               // get available cameras again and push CameraScanPage
                               try {

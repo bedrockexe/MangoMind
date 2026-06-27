@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shimmer/shimmer.dart';
+
 
 // pages
 import 'package:insights/pages/homepage/Farm/farmlist/addfarm.dart';
@@ -71,84 +73,126 @@ class FarmListPage extends StatelessWidget {
               final hasPowderyMildew = disease['powderyMildew'] == true;
 
               return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.green, width: 2),
-                  borderRadius: BorderRadius.circular(12),
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    border: Border.all(color: Colors.green, width: 2),
+    borderRadius: BorderRadius.circular(12),
+  ),
+
+  child: Column(children: [
+Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text('📍 $address'),
+            if (areaHa != null)
+              Text('🌾 ${areaHa.toStringAsFixed(2)} hectares'),
+
+            Row(
+              children: [
+                _Chip('Soil: ${soilType ?? "-"}'),
+                const SizedBox(width: 6),
+                if (soilPh is num) _Chip('pH: ${soilPh.toString()}'),
+              ],
+            ),
+
+            Row(
+              children: [
+                _Chip('Irrigation: ${irrigationType ?? "-"}'),
+              ],
+            ),
+
+            Row(
+              children: [
+                if (hasAnthracnose) const _WarnChip('Anthracnose'),
+                const SizedBox(width: 8),
+                if (hasPowderyMildew) const _WarnChip('Powdery Mildew'),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            
+          ],
+        ),
+      ),
+
+      const SizedBox(width: 14),
+  
+      // ---------------------------
+      // 📸 Right SIDE — FARM IMAGE
+      // ---------------------------
+      ClipRRect(
+  borderRadius: BorderRadius.circular(10),
+  child: data['imageUrl'] != null && data['imageUrl'] != ""
+      ? Image.network(
+          data['imageUrl'],
+          width: 110,
+          height: 110,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+
+            // SHIMMER PLACEHOLDER
+            return Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+              child: Container(
+                width: 110,
+                height: 110,
+                color: Colors.grey,
+              ),
+            );
+          },
+        )
+      : Container(
+          width: 110,
+          height: 110,
+          color: Colors.grey[300],
+          child: const Icon(Icons.image, size: 50, color: Colors.grey),
+        ),
+)
+    ],
+  ),
+    SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FarmDetailsPage(farmId: doc.id),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.agriculture,
-                          size: 32,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text('📍 $address'),
-                        if (areaHa != null)
-                          Text('🌾 ${areaHa.toStringAsFixed(2)} hectares'),
-                        Row(
-                          children: [
-                            _Chip('Soil: ${soilType ?? "-"}'),
-                            const SizedBox(width: 6),
-                            if (soilPh is num)
-                              _Chip('pH: ${soilPh.toString()}'),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            _Chip('Irrigation: ${irrigationType ?? "-"}'),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            if (hasAnthracnose) const _WarnChip('Anthracnose'),
-                            const SizedBox(width: 8),
-                            if (hasPowderyMildew)
-                              const _WarnChip('Powdery Mildew'),
-                          ],
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FarmDetailsPage(farmId: doc.id),
-                          ),
-                        ),
-                        icon: const Icon(Icons.build),
-                        label: const Text('Manage Farm'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                icon: const Icon(Icons.build),
+                label: const Text('Manage Farm'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-              );
+              ),
+            ),
+  ],)
+  
+  
+);
+
             },
           );
         },

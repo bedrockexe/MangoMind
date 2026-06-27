@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:insights/pages/homepage/Farm/farmlist/overview/yieldchart.dart';
+import 'package:insights/pages/homepage/Farm/farmlist/editfarm.dart';
 
 class OverviewPage extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> farmRef;
@@ -172,6 +174,64 @@ class _OverviewPage extends State<OverviewPage> {
       },
     );
   }
+
+  Future<void> _confirmDelete(BuildContext context, String farmId) async {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("Delete Farm"),
+          content: const Text(
+              "Are you sure you want to delete this farm? This action cannot be undone."),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            TextButton(
+              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _deleteFarm(farmId, context);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteFarm(String farmId, BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final db = FirebaseFirestore.instance;
+
+    try {
+      // Remove from user's farmIds array
+      await db.collection("users").doc(user.uid).update({
+        "farmIds": FieldValue.arrayRemove([farmId])
+      });
+
+      // Delete farm document
+      await db.collection("farms").doc(farmId).delete();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Farm deleted successfully")),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete farm: $e")),
+        );
+      }
+    }
+  }
+
+
 
   Future<void> _addObservationSheet() async {
     String type = 'anthracnose';
@@ -1288,6 +1348,48 @@ class _OverviewPage extends State<OverviewPage> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditFarmPage(farmId: snap.data!.id),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit Farm'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _confirmDelete(context, snap.data!.id),
+              icon: const Icon(Icons.delete),
+              label: const Text('Delete Farm'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+
           ],
         );
       },

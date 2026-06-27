@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class AddFarmPage extends StatefulWidget {
   const AddFarmPage({super.key});
@@ -40,9 +43,12 @@ class _AddFarmPageState extends State<AddFarmPage> {
   ];
   String? _irrigationType = 'None';
 
-  // Disease flags (thesis focus: anthracnose / powdery mildew)
+  // Disease flags
   bool _anthracnose = false;
   bool _powderyMildew = false;
+
+  // Image
+  XFile? _pickedImage;
 
   bool _saving = false;
 
@@ -61,6 +67,21 @@ class _AddFarmPageState extends State<AddFarmPage> {
   num? _numOrNull(String s) => s.trim().isEmpty ? null : num.tryParse(s.trim());
   int? _intOrNull(String s) => s.trim().isEmpty ? null : int.tryParse(s.trim());
 
+  // -----------------------------
+  // PICK IMAGE
+  // -----------------------------
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery);
+
+    if (img != null) {
+      setState(() => _pickedImage = img);
+    }
+  }
+
+  // -----------------------------
+  // SAVE FARM
+  // -----------------------------
   Future<void> _saveFarm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -74,19 +95,32 @@ class _AddFarmPageState extends State<AddFarmPage> {
     }
 
     setState(() => _saving = true);
+
     try {
       final db = FirebaseFirestore.instance;
       final batch = db.batch();
+      String? imageUrl;
 
-      // 1) make new farm at top-level
-      final farmRef = db.collection('farms').doc(); // auto id
+      // 1) Upload image if picked
+      if (_pickedImage != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('farm_images')
+            .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+        await storageRef.putFile(File(_pickedImage!.path));
+        imageUrl = await storageRef.getDownloadURL();
+      }
+
+      // 2) Create farm document
+      final farmRef = db.collection('farms').doc();
       final farmDoc = {
-        'ownerUid': user.uid, // link to user
+        'ownerUid': user.uid,
         'name': _name.text.trim(),
         'address': _address.text.trim(),
         'areaHa': _numOrNull(_areaHa.text),
+        'imageUrl': imageUrl,
         'createdAt': FieldValue.serverTimestamp(),
-        // nested bits (optional, thesis-aligned)
         'soil': {
           if (_soilType != null) 'type': _soilType,
           'ph': _numOrNull(_soilPh.text),
@@ -98,9 +132,10 @@ class _AddFarmPageState extends State<AddFarmPage> {
           'powderyMildew': _powderyMildew,
         },
       };
+
       batch.set(farmRef, farmDoc);
 
-      // 2) add farmId to the user’s farmIds array
+      // 3) Add farmId to user
       final userRef = db.collection('users').doc(user.uid);
       batch.set(userRef, {
         'farmIds': FieldValue.arrayUnion([farmRef.id]),
@@ -140,7 +175,40 @@ class _AddFarmPageState extends State<AddFarmPage> {
             key: _formKey,
             child: Column(
               children: [
-                // Basic
+                // ---------------------------
+                // IMAGE PREVIEW + BUTTON
+                // ---------------------------
+                if (_pickedImage != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      File(_pickedImage!.path),
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.image, size: 60),
+                  ),
+
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.photo),
+                  label: const Text("Choose Farm Picture"),
+                ),
+
+                pad16,
+
+                // BASIC INFO
                 TextFormField(
                   controller: _name,
                   decoration: const InputDecoration(labelText: 'Farm Name *'),
@@ -174,7 +242,7 @@ class _AddFarmPageState extends State<AddFarmPage> {
                 ),
                 pad8,
                 DropdownButtonFormField<String>(
-                  initialValue: _soilType,
+                  value: _soilType,
                   items: _soilTypes
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
@@ -217,7 +285,7 @@ class _AddFarmPageState extends State<AddFarmPage> {
                 ),
                 pad8,
                 DropdownButtonFormField<String>(
-                  initialValue: _irrigationType,
+                  value: _irrigationType,
                   items: _irrigationTypes
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
