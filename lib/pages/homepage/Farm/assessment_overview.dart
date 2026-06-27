@@ -1,576 +1,540 @@
+// farmer_overview.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'assessment_history.dart';
+import 'package:flutter/services.dart';
 import 'assessment_page.dart';
+import 'assessment_history.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class AssessmentOverviewPage extends StatelessWidget {
-  const AssessmentOverviewPage({super.key});
+class FarmerOverviewPage extends StatefulWidget {
+  const FarmerOverviewPage({Key? key}) : super(key: key);
 
-  Future<Map<String, dynamic>?> _fetchLatestAssessment() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
-    final snap = await FirebaseFirestore.instance
-        .collection('assessments')
-        .where('farmerId', isEqualTo: uid)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-    if (snap.docs.isEmpty) return null;
-    return snap.docs.first.data();
+  @override
+  State<FarmerOverviewPage> createState() => _FarmerOverviewPageState();
+}
+
+class _FarmerOverviewPageState extends State<FarmerOverviewPage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _slideUp;
+
+  // Stats received from the stat widget (real-time)
+  int _submissionCount = 0;
+  DateTime? _lastAssessmentDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _animController.forward();
   }
 
   @override
-  Widget build(BuildContext context) {
-    const accent = Color(0xFF2E7D32);
-    final bottomPadding = MediaQuery.of(context).viewPadding.bottom + 12.0;
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Assessment Overview',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: accent,
-        elevation: 0,
-      ),
-      // Body is scrollable and responsive
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 600;
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomPadding + 64),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Card(
-                    elevation: 5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Hero(
-                            tag: 'assessment-hero',
-                            child: Container(
-                              width: 66,
-                              height: 66,
-                              decoration: BoxDecoration(
-                                color: accent.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.eco,
-                                color: accent,
-                                size: 34,
-                              ),
-                            ),
-                          ),
+  void _openQuestionnaire() {
+    HapticFeedback.selectionClick();
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const QuestionnairePage()));
+  }
 
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Farmer Assessment',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'A short questionnaire to evaluate farm readiness and produce practical recommendations.',
-                                  style: TextStyle(color: Colors.black54),
-                                ),
-                                const SizedBox(height: 12),
-                                Column(
-                                  children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: accent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                      ),
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              SimpleAssessmentPage(),
-                                        ),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.white,
-                                      ),
-                                      label: const Text(
-                                        'Start',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    TextButton.icon(
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder:
-                                              (
-                                                BuildContext dialogContext,
-                                              ) => AlertDialog(
-                                                title: const Text(
-                                                  'About this assessment',
-                                                ),
-                                                content: const Text(
-                                                  'This quick questionnaire helps generate practical, recommendations for your farm.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          dialogContext,
-                                                        ),
-                                                    child: const Text('OK'),
-                                                  ),
-                                                ],
-                                              ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.info_outline),
-                                      label: const Text('Why this?'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+  void _openHistory() {
+    HapticFeedback.selectionClick();
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MySubmissionsPage()));
+  }
 
-                  const SizedBox(height: 14),
-
-                  isWide
-                      ? Row(
-                          children: [
-                            Expanded(
-                              child: _InfoTile(
-                                icon: Icons.timer,
-                                title: 'Estimated time',
-                                subtitle: '~ 5 - 10 minutes',
-                                color: accent,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _InfoTile(
-                                icon: Icons.list_alt,
-                                title: 'Questions',
-                                subtitle: '7 short steps',
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _InfoTile(
-                              icon: Icons.timer,
-                              title: 'Estimated time',
-                              subtitle: '~ 5 - 10 minutes',
-                              color: accent,
-                            ),
-                            const SizedBox(height: 12),
-                            _InfoTile(
-                              icon: Icons.list_alt,
-                              title: 'Questions',
-                              subtitle: '8 short steps',
-                              color: Colors.orange,
-                            ),
-                          ],
-                        ),
-
-                  const SizedBox(height: 14),
-
-                  // What we will ask
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'What we will ask',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          SizedBox(height: 10),
-                          _BulletText('Farm number'),
-                          _BulletText('Average yield per harvest'),
-                          _BulletText('Weather forecast awareness'),
-                          _BulletText('Pest Monitoring'),
-                          _BulletText('Irrigation practices'),
-                          _BulletText('Data Record Keeping'),
-                          _BulletText('Training and Education'),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Latest assessment preview
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: FutureBuilder<Map<String, dynamic>?>(
-                        future: _fetchLatestAssessment(),
-                        builder: (context, snap) {
-                          if (snap.connectionState == ConnectionState.waiting) {
-                            return Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 8),
-                                  Text('Loading latest assessment...'),
-                                ],
-                              ),
-                            );
-                          }
-                          final data = snap.data;
-                          if (data == null) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'No previous assessment',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'You haven\'t completed an assessment yet. Start now to get recommendations and track progress over time.',
-                                  style: TextStyle(color: Colors.black54),
-                                ),
-                                const SizedBox(height: 12),
-                                Center(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => SimpleAssessmentPage(),
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.play_circle,
-                                      color: Colors.white,
-                                    ),
-                                    label: const Text(
-                                      'Start first assessment',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: accent,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-
-                          final int score = (data['score'] is int)
-                              ? data['score']
-                              : int.tryParse('${data['score']}') ?? 0;
-                          final String classif =
-                              data['classification'] ??
-                              (score <= 40
-                                  ? 'Low'
-                                  : (score <= 70 ? 'Medium' : 'High'));
-                          final String timestamp = (data['timestamp'] ?? '')
-                              .toString();
-                          final List recs = data['recommendations'] ?? [];
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // score circle
-                                  SizedBox(
-                                    width: 80,
-                                    height: 80,
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Transform.scale(
-                                          scale: 2.0,
-                                          child: CircularProgressIndicator(
-                                            value: (score / 100).clamp(
-                                              0.0,
-                                              1.0,
-                                            ),
-                                            strokeWidth: 8,
-                                            valueColor: AlwaysStoppedAnimation(
-                                              classif == 'High'
-                                                  ? Colors.green
-                                                  : (classif == 'Good'
-                                                        ? Colors.orange
-                                                        : Colors.redAccent),
-                                            ),
-                                            backgroundColor:
-                                                Colors.grey.shade200,
-                                          ),
-                                        ),
-
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '$score',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            Text(
-                                              classif,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Last assessment: ${timestamp.isNotEmpty ? timestamp.split('T').first : 'Unknown'}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Top recommendation:',
-                                          style: TextStyle(
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        if (recs.isEmpty)
-                                          const Text(
-                                            '—',
-                                            style: TextStyle(
-                                              color: Colors.black54,
-                                            ),
-                                          )
-                                        else
-                                          Text(
-                                            '- ${recs.first}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            TextButton.icon(
-                                              onPressed: () => Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      SimpleAssessmentPage(),
-                                                ),
-                                              ),
-                                              icon: const Icon(Icons.replay),
-                                              label: const Text('Re-take'),
-                                            ),
-                                            TextButton.icon(
-                                              onPressed: () => Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      AssessmentHistoryPage(),
-                                                ),
-                                              ),
-                                              icon: const Icon(Icons.history),
-                                              label: const Text('History'),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Full recommendations:',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              if (recs.isEmpty)
-                                const Text(
-                                  'No recommendations found.',
-                                  style: TextStyle(color: Colors.black54),
-                                )
-                              else
-                                ...recs
-                                    .map(
-                                      (r) => Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.circle,
-                                              size: 8,
-                                              color: Colors.black54,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(child: Text('$r')),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Big start button (ensures not overlapped by bottom nav)
-                  Center(
-                    child: SizedBox(
-                      width: isWide ? 360 : double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SimpleAssessmentPage(),
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Start Assessment',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildHeroCard({
+    required Color start,
+    required Color end,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required String badge,
+  }) {
+    return SlideTransition(
+      position: _slideUp,
+      child: FadeTransition(
+        opacity: _fadeIn,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [start, end],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            );
-          },
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // icon circle
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, size: 36, color: Colors.white),
+                ),
+                const SizedBox(width: 14),
+                // text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              badge,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // chevron
+                Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.9)),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
-}
 
-// small helper widgets used above
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSmallInfoCard(String label, String value, {IconData? icon}) {
     return Card(
-      elevation: 3,
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
+            if (icon != null) Icon(icon, size: 18, color: Colors.green),
+            if (icon != null) const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(subtitle, style: const TextStyle(color: Colors.black54)),
-              ],
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class _BulletText extends StatelessWidget {
-  final String text;
-  const _BulletText(this.text, {super.key});
+  // Callback used by the child to pass real-time stats up
+  void _onStatsLoaded(int count, DateTime? latest) {
+    setState(() {
+      _submissionCount = count;
+      _lastAssessmentDate = latest;
+    });
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return 'No submissions yet';
+    return DateFormat.yMMMd().add_jm().format(dt);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+    // Responsive paddings
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width > 700;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Welcome, Farmer'),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'How this works',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                builder: (ctx) => Padding(
+                  padding: const EdgeInsets.all(18.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'How to use',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '• Tap "Take Assessment" to answer seasonal questions about your farm.',
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        '• Use "Assessment History" to view your past submissions and export PDFs.',
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Got it'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Colors.green.shade50,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isWide ? width * 0.12 : 0,
+            vertical: 18,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // greeting + short description
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Sweet Insights',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Get personalized farming guidance and keep track of your assessments.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // small stat cards (child will push stats up via callback)
+                    SizedBox(
+                      width: isWide ? 260 : 120,
+                      child: Column(
+                        children: [
+                          _SmallStatRow(onStatsLoaded: _onStatsLoaded),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // action cards
+              _buildHeroCard(
+                start: Colors.green.shade600,
+                end: Colors.green.shade400,
+                icon: Icons.note_add_rounded,
+                title: 'Take Assessment',
+                subtitle:
+                    'Answer questions about your farm — takes ~10 minutes.',
+                onTap: _openQuestionnaire,
+                badge: 'Start',
+              ),
+
+              _buildHeroCard(
+                start: Colors.indigo.shade600,
+                end: Colors.indigo.shade400,
+                icon: Icons.history_rounded,
+                title: 'Assessment History',
+                subtitle: 'View previous submissions and export reports.',
+                onTap: _openHistory,
+                badge: 'History',
+              ),
+
+              const SizedBox(height: 18),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSmallInfoCard(
+                        'Last assessment',
+                        _formatDate(_lastAssessmentDate),
+                        icon: Icons.calendar_month,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 22),
+
+              // help card and tips
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline,
+                          color: Colors.amber,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Tips for better answers',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                '• Answer honestly to get useful recommendations.\n• Use the history to track changes across seasons.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 38),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small widget that subscribes to live updates for the signed-in farmer's assessment documents.
+/// It reports submission count and the latest assessment date back to the parent via `onStatsLoaded`.
+class _SmallStatRow extends StatefulWidget {
+  final void Function(int submissionCount, DateTime? latestDate) onStatsLoaded;
+  const _SmallStatRow({Key? key, required this.onStatsLoaded})
+    : super(key: key);
+
+  @override
+  State<_SmallStatRow> createState() => _SmallStatRowState();
+}
+
+class _SmallStatRowState extends State<_SmallStatRow> {
+  late final StreamSubscription<QuerySnapshot> _subscription;
+  int _submissionCount = 0;
+  DateTime? _latestDate;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startListening();
+  }
+
+  void _startListening() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // no user: nothing to listen to. inform parent with zeros.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.onStatsLoaded(0, null),
+      );
+      setState(() {
+        _loading = false;
+      });
+      return;
+    }
+
+    final query = FirebaseFirestore.instance
+        .collection('assessments')
+        .where('farmer_id', isEqualTo: user.uid)
+        .orderBy('submitted_at', descending: true);
+
+    _subscription = query.snapshots().listen(
+      (snapshot) {
+        int count = snapshot.docs.length;
+        DateTime? latest;
+        if (snapshot.docs.isNotEmpty) {
+          final data = snapshot.docs.first.data() as Map<String, dynamic>;
+          final submittedAt = data['submitted_at'];
+          if (submittedAt is Timestamp) {
+            latest = submittedAt.toDate();
+          } else if (submittedAt is DateTime) {
+            latest = submittedAt;
+          } else {
+            latest = null;
+          }
+        } else {
+          latest = null;
+        }
+
+        setState(() {
+          _submissionCount = count;
+          _latestDate = latest;
+          _loading = false;
+        });
+
+        // pass stats up
+        widget.onStatsLoaded(_submissionCount, _latestDate);
+      },
+      onError: (err) {
+        // On error, still inform parent with zeros
+        widget.onStatsLoaded(0, null);
+        setState(() {
+          _submissionCount = 0;
+          _latestDate = null;
+          _loading = false;
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    try {
+      _subscription.cancel();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
         children: [
-          const Icon(Icons.check, size: 14, color: Colors.green),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text, style: const TextStyle(color: Colors.black87)),
+          Text(
+            '$_submissionCount',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Submissions',
+            style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
         ],
       ),

@@ -1,163 +1,256 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'assessment_review.dart';
 
-class SimpleAssessmentPage extends StatefulWidget {
-  const SimpleAssessmentPage({super.key});
+class QuestionnairePage extends StatefulWidget {
+  final Map<String, dynamic>? initialDraft;
+  const QuestionnairePage({super.key, this.initialDraft});
 
   @override
-  State<SimpleAssessmentPage> createState() => _SimpleAssessmentPageState();
+  State<QuestionnairePage> createState() => _QuestionnairePageState();
 }
 
-class _SimpleAssessmentPageState extends State<SimpleAssessmentPage>
-    with SingleTickerProviderStateMixin {
-  final PageController _pageController = PageController();
-  final _formKey = GlobalKey<FormState>();
+class _QuestionnairePageState extends State<QuestionnairePage> {
+  final Map<String, dynamic> answers = {};
+  final Map<String, TextEditingController> textControllers = {};
+  int currentSection = 0;
+  final sections = ['A', 'B', 'C', 'D', 'E'];
 
-  int currentIndex = 0;
-  bool saving = false;
-  bool showResults = false;
+  static const Map<String, String> QUESTION_BANK = {
+    'A1': 'When do you start preparing your farm for the mango season?',
+    'A2': 'What type of fertilizer do you use before flowering?',
+    'A3':
+        'Do you check your soil condition or moisture before applying fertilizer?',
+    'A4': 'How do you know when your trees are ready for flowering?',
+    'A5': 'What is your biggest problem at the start of the season?',
+    'A6':
+        'How often do you face unexpected rain or drought during preparation?',
+    'A7': 'Do you record your fertilizer or chemical usage?',
+    'A8': 'How do you get updates about weather for farming?',
+    'A9': 'Do you think using an app to guide farm timing would help you?',
+    'A10': 'What do you need most before flowering?',
 
-  // Form variables (unchanged names for Firestore)
-  int numFarms = 1;
-  double yieldKg = 100;
-  String weatherCheck = 'sometimes';
-  String pestMonitoring = 'regularly';
-  String irrigationScheduling = 'regularly';
-  String dataRecording = 'yes';
-  String attendsTraining = 'occasionally';
+    // Section B
+    'B1': 'When do your mango trees usually start flowering?',
+    'B2': 'Do you use a flower inducer or let them flower naturally?',
+    'B3': 'What weather problem affects flowering the most?',
+    'B4': 'Do you often have pest problems during flowering?',
+    'B5': 'How do you control pests during this stage?',
+    'B6': 'Do you experience many fruits falling before harvest?',
+    'B7': 'What do you think causes fruit drop?',
+    'B8': 'How often do you water or irrigate your trees during flowering?',
+    'B9': 'Do you record weather conditions during flowering?',
+    'B10': 'What help do you need most during this stage?',
 
-  int score = 0;
-  String classification = '';
-  List<String> recommendations = [];
+    // Section C
+    'C1': 'When do you usually start harvesting?',
+    'C2': 'Who helps you harvest?',
+    'C3': 'How do you decide when fruits are ready to harvest?',
+    'C4': 'What weather condition often affects your harvest?',
+    'C5': 'Do you record your total harvest (number or weight)?',
+    'C6': 'How do you keep your harvested fruits?',
+    'C7': 'Do you experience fruit damage or loss during harvest?',
+    'C8': 'What causes most harvest losses?',
+    'C9': 'Would it help if the app reminds you of ideal harvest dates?',
+    'C10': 'What support would make harvesting easier?',
 
-  // Visible step titles (FILIPINO — only UI text changed)
-  final List<String> stepTitles = [
-    'Ilang taniman ng mangga?', // Farms
-    'Karaniwang ani?', // Yield
-    'Tinitingnan ba ang panahon?', // Weather Awareness
-    'Pagmomonitor ng peste', // Pest Monitoring
-    'Irigasyon', // Irrigation
-    'Pag-record ng datos', // Data Recording
-    'Pagsasanay', // Training
-  ];
+    // Section D
+    'D1': 'How do you store your mangoes after harvest?',
+    'D2': 'Do you lose fruits due to spoilage before selling?',
+    'D3': 'How do you bring mangoes to the buyer or market?',
+    'D4': 'Where do you usually sell your mangoes?',
+    'D5': 'How do you know the current market price?',
+    'D6': 'What is your biggest selling problem?',
+    'D7': 'Do you record your sales and income per harvest?',
+    'D8': 'Would you use an app that shows daily mango prices?',
+    'D9': 'How often do you face price changes during harvest time?',
+    'D10': 'What kind of app feature would help you sell better?',
 
-  final int totalSteps = 7;
+    // Section E
+    'E1': 'What is your biggest problem in mango farming right now?',
+    'E2': 'Which part of farming do you find hardest to manage?',
+    'E3': 'What do you think causes most of your farming losses?',
+    'E4': 'Where do you usually ask for help or advice when problems happen?',
+    'E5': 'What kind of help would improve your mango production the most?',
+    'E6':
+        'Have you received any support or training from government or organizations?',
+    'E7':
+        'Would you like more training about mango care and new farming methods?',
+    'E8':
+        'Do you think an app that gives alerts and guides could reduce your farming problems?',
+    'E9': 'What would make you trust a farming app like Sweet Insights more?',
+    'E10':
+        'If Sweet Insights helps you increase your income or reduce losses, would you continue using it every season?',
+  };
 
-  // Animation controller used for small button animations
-  late final AnimationController _btnAnimController;
+  final Map<String, List<String>> options = {
+    'A1': [
+      'Before October',
+      'October–December',
+      'January–February',
+      'Just before flowering starts',
+    ],
+    'A2': ['Organic', 'Chemical', 'Both', 'None'],
+    'A3': ['Yes', 'Sometimes', 'No', 'I don’t know how'],
+    'A4': [
+      'Based on weather',
+      'Based on experience',
+      'Advice from others',
+      'Random timing',
+    ],
+    'A5': ['Weather', 'Lack of money', 'Labor', 'Pests'],
+    'A6': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'A7': ['Yes', 'Sometimes', 'No', 'I don’t know how'],
+    'A8': ['Phone or app', 'Radio or news', 'Other farmers', 'I don’t check'],
+    'A9': ['Yes', 'Maybe', 'Not sure', 'No'],
+    'A10': [
+      'Better weather info',
+      'Farm budget',
+      'Equipment',
+      'Pest control help',
+    ],
+
+    'B1': ['December', 'January', 'February', 'March or later'],
+    'B2': ['Use inducer', 'Natural', 'Both', 'None'],
+    'B3': ['Too much rain', 'Too dry', 'Strong wind', 'None'],
+    'B4': ['Yes', 'Sometimes', 'Rarely', 'Never'],
+    'B5': ['Spray', 'Organic control', 'Advice from others', 'Do nothing'],
+    'B6': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'B7': ['Weather', 'Pests', 'Lack of nutrients', 'I don’t know'],
+    'B8': ['Regularly', 'Only when dry', 'Rarely', 'Never'],
+    'B9': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    // B10 is open: "What help do you need most during this stage?"
+    'B10': [
+      'Pest alerts',
+      'Weather updates',
+      'Fertilizer guide',
+      'Labor assistance',
+    ],
+
+    'C1': ['March', 'April', 'May', 'Other'],
+    'C2': ['Family', 'Hired workers', 'Both', 'Others'],
+    'C3': ['Fruit color', 'Size', 'Buyer schedule', 'Random timing'],
+    'C4': ['Rain', 'Heat', 'Wind', 'None'],
+    'C5': ['Yes', 'Sometimes', 'No', 'Not sure how'],
+    'C6': ['Basket', 'Sack', 'Crate', 'Other'],
+    'C7': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'C8': ['Weather', 'Handling', 'Delay', 'Transport'],
+    'C9': ['Yes', 'Maybe', 'Not sure', 'No'],
+    'C10': ['Weather alert', 'Labor info', 'Equipment', 'Buyer coordination'],
+
+    'D1': ['Cool area', 'Warehouse', 'Open space', 'None'],
+    'D2': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'D3': ['Tricycle', 'Truck', 'Buyer pickup', 'Others'],
+    'D4': ['Local market', 'Trader', 'Direct buyer', 'Online'],
+    'D5': ['Buyers', 'Market visit', 'Online', 'Guess only'],
+    'D6': ['Low price', 'No buyer', 'Late payment', 'Transport cost'],
+    'D7': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'D8': ['Yes', 'Maybe', 'No', 'Not sure'],
+    'D9': ['Always', 'Sometimes', 'Rarely', 'Never'],
+    'D10': [
+      'Price updates',
+      'Buyer contacts',
+      'Online selling',
+      'Income tracking',
+    ],
+
+    'E1': [
+      'Weather changes',
+      'Pest and disease',
+      'Low market price',
+      'Lack of funds',
+    ],
+    'E2': ['Flowering', 'Fruit care', 'Harvest', 'Selling'],
+    'E3': ['Bad weather', 'Pests', 'Poor timing', 'Lack of support'],
+    'E4': [
+      'Fellow farmers',
+      'Agriculture office',
+      'Technicians',
+      'I handle it myself',
+    ],
+    'E5': [
+      'Weather and pest updates',
+      'Fertilizer and chemical guide',
+      'Training',
+      'Financial support',
+    ],
+    'E6': ['Yes', 'No', 'Sometimes', 'Not aware'],
+    'E7': ['Yes', 'Maybe', 'Not sure', 'No'],
+    'E8': ['Strongly agree', 'Agree', 'Disagree', 'Not sure'],
+    'E9': [
+      'Accurate data',
+      'Easy to use',
+      'Local language',
+      'Supported by agriculture office',
+    ],
+    'E10': ['Yes', 'Maybe', 'Not sure', 'No'],
+  };
+
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _btnAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-      lowerBound: 0.95,
-      upperBound: 1.0,
-    )..value = 1.0;
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
-    _btnAnimController.dispose();
+    for (final c in textControllers.values) c.dispose();
     super.dispose();
   }
 
-  // ---------- Scoring logic (kept the same) ----------
-  void computeScoreAndRecommendations() {
-    int s = 0;
-    List<String> recs = [];
-
-    // 1. Number of farms (10)
-    s += (numFarms >= 2) ? 10 : 5;
-
-    // 2. Yield (20)
-    if (yieldKg > 500) {
-      s += 20;
-    } else if (yieldKg >= 100)
-      s += 10;
-    else
-      s += 5;
-
-    // 3. Weather check (15)
-    if (weatherCheck == 'always') {
-      s += 15;
-    } else if (weatherCheck == 'sometimes')
-      s += 10;
-
-    // 4. Pest monitoring (15)
-    if (pestMonitoring == 'regularly') {
-      s += 15;
-    } else if (pestMonitoring == 'sometimes')
-      s += 10;
-
-    // 5. Irrigation scheduling (15)
-    if (irrigationScheduling == 'regularly') {
-      s += 15;
-    } else if (irrigationScheduling == 'occasionally')
-      s += 10;
-
-    // 6. Data recording (10)
-    if (dataRecording == 'yes') {
-      s += 10;
-    } else if (dataRecording == 'sometimes')
-      s += 5;
-
-    // 7. Training attendance (15)
-    if (attendsTraining == 'regularly') {
-      s += 15;
-    } else if (attendsTraining == 'occasionally')
-      s += 10;
-
-    // Classification
-    String cls;
-    if (s >= 80) {
-      cls = 'Excellent';
-    } else if (s >= 60)
-      cls = 'Good';
-    else
-      cls = 'Low';
-
-    // Recommendations (FILIPINO messages shown to user)
-    if (weatherCheck != 'always') {
-      recs.add('Tingnan nang regular ang weather forecast.');
-    }
-    if (pestMonitoring != 'regularly') {
-      recs.add('Dagdagan ang monitoring ng peste.');
-    }
-    if (dataRecording != 'yes') {
-      recs.add('Sisimulan ang pag-record ng farm data.');
-    }
-    if (attendsTraining != 'regularly') {
-      recs.add('Sumali sa mas maraming training at seminar.');
-    }
-
-    setState(() {
-      score = s;
-      classification = cls;
-      recommendations = recs.take(3).toList();
-    });
+  Widget _buildRadioQuestion(String key, String questionLabel) {
+    final opts = options[key] ?? [];
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              questionLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...opts.map((opt) {
+              return RadioListTile<String>(
+                value: opt,
+                groupValue: answers[key],
+                title: Text(opt),
+                onChanged: (v) => setState(() => answers[key] = v),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
   }
 
-  // ---------- Firestore save (unchanged schema keys) ----------
-  Future<void> saveAssessment() async {
-    // validate numeric field (yield)
-    if (yieldKg <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid yield value.')),
-      );
-      return;
+  bool _validateSection(String section) {
+    final keys = answers.keys; // current answers
+    final requiredKeys = options.keys
+        .where((k) => k.startsWith(section))
+        .toList();
+    for (final k in requiredKeys) {
+      if (!answers.containsKey(k) ||
+          answers[k] == null ||
+          (answers[k] is String && (answers[k] as String).isEmpty)) {
+        return false;
+      }
     }
+    return true;
+  }
 
-    computeScoreAndRecommendations();
-    setState(() => saving = true);
+  Future<void> _submitAll() async {
+    setState(() => _isSubmitting = true);
+    final user = FirebaseAuth.instance.currentUser;
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    // load farmer name
     final name = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(user!.uid)
         .get()
         .then((doc) {
           final data = doc.data();
@@ -168,651 +261,440 @@ class _SimpleAssessmentPageState extends State<SimpleAssessmentPage>
           return fullName.isNotEmpty ? fullName : 'Unknown Farmer';
         });
 
-    final doc = FirebaseFirestore.instance.collection('assessments').doc();
+    // validation
+    final missing = options.keys
+        .where((k) => !answers.containsKey(k) || answers[k] == null)
+        .toList();
+    if (missing.isNotEmpty) {
+      final snack =
+          'Please answer all questions. First missing: ${missing.first}';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(snack)));
+      setState(() => _isSubmitting = false);
+      return;
+    }
 
-    await doc.set({
-      'assessmentId': doc.id,
-      'farmerId': uid,
-      'farmerName': name,
-      'timestamp': DateTime.now().toUtc().toIso8601String(),
-      'answers': {
-        'numFarms': numFarms,
-        'yieldKg': yieldKg,
-        'weatherCheck': weatherCheck,
-        'pestMonitoring': pestMonitoring,
-        'irrigationScheduling': irrigationScheduling,
-        'dataRecording': dataRecording,
-        'attendsTraining': attendsTraining,
-      },
-      'score': score,
-      'classification': classification,
-      'recommendations': recommendations,
-    });
+    // include any open text fields
+    for (final e in textControllers.entries) {
+      answers[e.key] = e.value.text;
+    }
 
-    setState(() {
-      saving = false;
-      showResults = true;
-    });
-  }
+    final farmerAssessment = <String, dynamic>{
+      'answers': answers,
+      'submitted_at':
+          FieldValue.serverTimestamp(), // server will write real Timestamp
+      'farmer_id': user.uid,
+      'farmer_name': name,
+      'farmer_email': user.email,
+    };
 
-  // ---------- Page navigation ----------
-  void _nextPage() {
-    if (currentIndex < totalSteps - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+    debugPrint('Questionnaire answers:\n${answers.toString()}');
+
+    try {
+      final assessments = FirebaseFirestore.instance.collection('assessments');
+      // add() returns a DocumentReference
+      final docRef = await assessments.add(farmerAssessment);
+
+      final savedSnap = await docRef.get();
+      final savedData = savedSnap.data() as Map<String, dynamic>? ?? {};
+
+      // optionally merge id into savedData
+      savedData['id'] = docRef.id;
+
+      setState(() => _isSubmitting = false);
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ReviewPage(
+            docId: docRef.id,
+            answers: Map<String, dynamic>.from(answers),
+            questionBank: QUESTION_BANK,
+            docData: savedData,
+          ),
+        ),
       );
+    } catch (e) {
+      debugPrint('Firestore save failed: $e');
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     }
   }
 
-  void _prevPage() {
-    if (currentIndex > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  // ---------- UI pieces ----------
-  Widget _stepHeader(BuildContext context) {
-    final theme = Theme.of(context);
-    final double progress = (currentIndex + 1) / totalSteps;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  stepTitles[currentIndex],
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Text(
-                '${((progress) * 100).toInt()}%',
-                style: theme.textTheme.titleMedium,
-              ),
-            ],
+  // Build UI per section
+  List<Widget> _sectionWidgets(String section) {
+    switch (section) {
+      case 'A':
+        return [
+          _buildRadioQuestion(
+            'A1',
+            'A1. When do you start preparing your farm for the mango season?',
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(value: progress, minHeight: 6),
+          _buildRadioQuestion(
+            'A2',
+            'A2. What type of fertilizer do you use before flowering?',
           ),
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-
-  Widget _numberStepper() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text('Ilang taniman ang inaasikaso mo?'),
-      const SizedBox(height: 8),
-      TextFormField(
-        initialValue: numFarms.toString(),
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          hintText: 'Hal. 1',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+          _buildRadioQuestion(
+            'A3',
+            'A3. Do you check your soil condition or moisture before applying fertilizer?',
           ),
-          filled: true,
-          fillColor: Colors.grey.shade50,
-        ),
-        onChanged: (v) {
-          final parsed = int.tryParse(v);
-          if (parsed != null && parsed >= 1 && parsed <= 100) {
-            setState(() => numFarms = parsed);
-          }
-        },
-        validator: (v) {
-          if (v == null || v.isEmpty) return 'Kailangan ng value';
-          final parsed = int.tryParse(v);
-          if (parsed == null || parsed < 1 || parsed > 100) return 'Invalid number (1-100)';
-          return null;
-        },
-      ),
-      const SizedBox(height: 8),
-      Text('You entered: $numFarms farms'),
-    ],
-  );
-}
-
-  Widget _yieldInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Ilagay ang karaniwang ani ng mangga (sa kg):'),
-        const SizedBox(height: 8),
-        Form(
-          key: _formKey,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  initialValue: yieldKg.toInt().toString(),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: false,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Hal. 250',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  onChanged: (v) {
-                    final parsed = double.tryParse(v);
-                    if (parsed != null) setState(() => yieldKg = parsed);
-                  },
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Kailangan ng value';
-                    final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0) return 'Invalid number';
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() => yieldKg = 100);
-                },
-                child: const Text('100kg'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => setState(() => yieldKg = 500),
-                child: const Text('500kg'),
-              ),
-            ],
+          _buildRadioQuestion(
+            'A4',
+            'A4. How do you know when your trees are ready for flowering?',
           ),
-        ),
-        const SizedBox(height: 8),
-        Text('You entered: ${yieldKg.toInt()} kg'),
-      ],
-    );
-  }
-
-  Widget _optionCard({
-    required String label,
-    required String subtitle,
-    required List<Map<String, String>> options,
-    required String currentValue,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6),
-        child: Column(
-          children: [
-            ListTile(
-              title: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(subtitle),
-            ),
-            const Divider(),
-            ...options.map((o) {
-              final v = o['value']!;
-              final t = o['text']!;
-              // each option wrapped in AnimatedSwitcher for subtle transition
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (child, anim) =>
-                    SizeTransition(sizeFactor: anim, child: child),
-                child: RadioListTile<String>(
-                  key: ValueKey('$currentValue-$v'),
-                  value: v,
-                  groupValue: currentValue,
-                  title: Text(t),
-                  onChanged: (val) {
-                    onChanged(val);
-                    // tiny visual feedback
-                    _btnAnimController.reverse().then(
-                      (_) => _btnAnimController.forward(),
-                    );
-                  },
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepContent(int index) {
-    switch (index) {
-      case 0:
-        return Column(
-          children: [
-            const SizedBox(height: 8),
-            const Text('Ilang taniman ang inaasikaso mo?'),
-            const SizedBox(height: 16),
-            _numberStepper(),
-          ],
-        );
-      case 1:
-        return _yieldInput();
-      case 2:
-        return _optionCard(
-          label: 'Tinitingnan mo ba lagi ang weather forecast?',
-          subtitle: 'Makakatulong ito sa pag-spray at pag-ani',
-          options: [
-            {'value': 'never', 'text': 'Hindi kailanman'},
-            {'value': 'sometimes', 'text': 'Minsan lang / Paminsan-minsan'},
-            {'value': 'always', 'text': 'Oo, regular'},
-          ],
-          currentValue: weatherCheck,
-          onChanged: (v) => setState(() => weatherCheck = v ?? weatherCheck),
-        );
-      case 3:
-        return _optionCard(
-          label: 'Gaano ka kadalas mag-monitor ng peste?',
-          subtitle: 'Importanteng malaman agad kapag may outbreak',
-          options: [
-            {'value': 'rarely', 'text': 'Bihira'},
-            {'value': 'sometimes', 'text': 'Paminsan-minsan'},
-            {'value': 'regularly', 'text': 'Regular / Weekly'},
-          ],
-          currentValue: pestMonitoring,
-          onChanged: (v) =>
-              setState(() => pestMonitoring = v ?? pestMonitoring),
-        );
-      case 4:
-        return _optionCard(
-          label: 'May maayos ka bang irrigation scheduling?',
-          subtitle: 'Nakakatulong sa water efficiency',
-          options: [
-            {'value': 'none', 'text': 'Wala'},
-            {'value': 'occasionally', 'text': 'Paminsan-minsan lang'},
-            {'value': 'regularly', 'text': 'Oo, may schedule'},
-          ],
-          currentValue: irrigationScheduling,
-          onChanged: (v) =>
-              setState(() => irrigationScheduling = v ?? irrigationScheduling),
-        );
-      case 5:
-        return _optionCard(
-          label: 'Nirerecord mo ba ang iyong farm data (ani, peste, pataba)?',
-          subtitle: 'Mahalaga para sa analysis at improvements',
-          options: [
-            {'value': 'no', 'text': 'Hindi'},
-            {'value': 'sometimes', 'text': 'Minsan lang'},
-            {'value': 'yes', 'text': 'Oo, regular'},
-          ],
-          currentValue: dataRecording,
-          onChanged: (v) => setState(() => dataRecording = v ?? dataRecording),
-        );
-      case 6:
-        return _optionCard(
-          label: 'Sumasali ka ba sa farming trainings o seminar?',
-          subtitle: 'Pinapabuti nito ang kaalaman sa modernong practices',
-          options: [
-            {'value': 'never', 'text': 'Hindi kailanman'},
-            {'value': 'occasionally', 'text': 'Paminsan-minsan'},
-            {'value': 'regularly', 'text': 'Oo, regular'},
-          ],
-          currentValue: attendsTraining,
-          onChanged: (v) =>
-              setState(() => attendsTraining = v ?? attendsTraining),
-        );
+          _buildRadioQuestion(
+            'A5',
+            'A5. What is your biggest problem at the start of the season?',
+          ),
+          _buildRadioQuestion(
+            'A6',
+            'A6. How often do you face unexpected rain or drought during preparation?',
+          ),
+          _buildRadioQuestion(
+            'A7',
+            'A7. Do you record your fertilizer or chemical usage?',
+          ),
+          _buildRadioQuestion(
+            'A8',
+            'A8. How do you get updates about weather for farming?',
+          ),
+          _buildRadioQuestion(
+            'A9',
+            'A9. Do you think using an app to guide farm timing would help you?',
+          ),
+          _buildRadioQuestion(
+            'A10',
+            'A10. What do you need most before flowering?',
+          ),
+        ];
+      case 'B':
+        return [
+          _buildRadioQuestion(
+            'B1',
+            'B1. When do your mango trees usually start flowering?',
+          ),
+          _buildRadioQuestion(
+            'B2',
+            'B2. Do you use a flower inducer or let them flower naturally?',
+          ),
+          _buildRadioQuestion(
+            'B3',
+            'B3. What weather problem affects flowering the most?',
+          ),
+          _buildRadioQuestion(
+            'B4',
+            'B4. Do you often have pest problems during flowering?',
+          ),
+          _buildRadioQuestion(
+            'B5',
+            'B5. How do you control pests during this stage?',
+          ),
+          _buildRadioQuestion(
+            'B6',
+            'B6. Do you experience many fruits falling before harvest?',
+          ),
+          _buildRadioQuestion('B7', 'B7. What do you think causes fruit drop?'),
+          _buildRadioQuestion(
+            'B8',
+            'B8. How often do you water or irrigate your trees during flowering?',
+          ),
+          _buildRadioQuestion(
+            'B9',
+            'B9. Do you record weather conditions during flowering?',
+          ),
+          _buildRadioQuestion(
+            'B10',
+            'B10. What help do you need most during this stage?',
+          ),
+        ];
+      case 'C':
+        return [
+          _buildRadioQuestion(
+            'C1',
+            'C1. When do you usually start harvesting?',
+          ),
+          _buildRadioQuestion('C2', 'C2. Who helps you harvest?'),
+          _buildRadioQuestion(
+            'C3',
+            'C3. How do you decide when fruits are ready to harvest?',
+          ),
+          _buildRadioQuestion(
+            'C4',
+            'C4. What weather condition often affects your harvest?',
+          ),
+          _buildRadioQuestion(
+            'C5',
+            'C5. Do you record your total harvest (number or weight)?',
+          ),
+          _buildRadioQuestion(
+            'C6',
+            'C6. How do you keep your harvested fruits?',
+          ),
+          _buildRadioQuestion(
+            'C7',
+            'C7. Do you experience fruit damage or loss during harvest?',
+          ),
+          _buildRadioQuestion('C8', 'C8. What causes most harvest losses?'),
+          _buildRadioQuestion(
+            'C9',
+            'C9. Would it help if the app reminds you of ideal harvest dates?',
+          ),
+          _buildRadioQuestion(
+            'C10',
+            'C10. What support would make harvesting easier?',
+          ),
+        ];
+      case 'D':
+        return [
+          _buildRadioQuestion(
+            'D1',
+            'D1. How do you store your mangoes after harvest?',
+          ),
+          _buildRadioQuestion(
+            'D2',
+            'D2. Do you lose fruits due to spoilage before selling?',
+          ),
+          _buildRadioQuestion(
+            'D3',
+            'D3. How do you bring mangoes to the buyer or market?',
+          ),
+          _buildRadioQuestion(
+            'D4',
+            'D4. Where do you usually sell your mangoes?',
+          ),
+          _buildRadioQuestion(
+            'D5',
+            'D5. How do you know the current market price?',
+          ),
+          _buildRadioQuestion(
+            'D6',
+            'D6. What is your biggest selling problem?',
+          ),
+          _buildRadioQuestion(
+            'D7',
+            'D7. Do you record your sales and income per harvest?',
+          ),
+          _buildRadioQuestion(
+            'D8',
+            'D8. Would you use an app that shows daily mango prices?',
+          ),
+          _buildRadioQuestion(
+            'D9',
+            'D9. How often do you face price changes during harvest time?',
+          ),
+          _buildRadioQuestion(
+            'D10',
+            'D10. What kind of app feature would help you sell better?',
+          ),
+        ];
+      case 'E':
+        return [
+          _buildRadioQuestion(
+            'E1',
+            'E1. What is your biggest problem in mango farming right now?',
+          ),
+          _buildRadioQuestion(
+            'E2',
+            'E2. Which part of farming do you find hardest to manage?',
+          ),
+          _buildRadioQuestion(
+            'E3',
+            'E3. What do you think causes most of your farming losses?',
+          ),
+          _buildRadioQuestion(
+            'E4',
+            'E4. Where do you usually ask for help or advice when problems happen?',
+          ),
+          _buildRadioQuestion(
+            'E5',
+            'E5. What kind of help would improve your mango production the most?',
+          ),
+          _buildRadioQuestion(
+            'E6',
+            'E6. Have you received any support or training from government or organizations?',
+          ),
+          _buildRadioQuestion(
+            'E7',
+            'E7. Would you like more training about mango care and new farming methods?',
+          ),
+          _buildRadioQuestion(
+            'E8',
+            'E8. Do you think an app that gives alerts and guides could reduce your farming problems?',
+          ),
+          _buildRadioQuestion(
+            'E9',
+            'E9. What would make you trust a farming app like Sweet Insights more?',
+          ),
+          _buildRadioQuestion(
+            'E10',
+            'E10. If Sweet Insights helps you increase your income or reduce losses, would you continue using it every season?',
+          ),
+        ];
       default:
-        return const SizedBox.shrink();
+        return [];
     }
   }
 
-  // ---------- Animated results view with ring ----------
-  Widget _resultsView(BuildContext context) {
-    final theme = Theme.of(context);
-    final int pct = (score).clamp(0, 100);
-    Color clsColor = Colors.orange;
-    if (classification == 'Excellent') clsColor = Colors.green;
-    if (classification == 'Needs Improvement') clsColor = Colors.red;
-
-    // The animated ring value (0..1)
-    final double target = pct / 100.0;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
+  @override
+  Widget build(BuildContext context) {
+    final section = sections[currentSection];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Farmers Assessment')),
+      body: Stack(
         children: [
-          const SizedBox(height: 24),
-          // Animated ring using TweenAnimationBuilder
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: target),
-            duration: const Duration(milliseconds: 900),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              final display = (value * 100).toInt();
-              return Column(
+          // AbsorbPointer prevents interaction while submitting
+          AbsorbPointer(
+            absorbing: _isSubmitting,
+            child: Opacity(
+              opacity: _isSubmitting ? 0.6 : 1.0, // subtle dim while submitting
+              child: Column(
                 children: [
-                  SizedBox(
-                    width: 170,
-                    height: 170,
-                    child: Stack(
-                      alignment: Alignment.center,
+                  // Progress / section indicator
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
                       children: [
-                        // Background circle
-                        SizedBox(
-                          width: 170,
-                          height: 170,
-                          child: CircularProgressIndicator(
-                            value: 1,
-                            strokeWidth: 14,
-                            color: theme.colorScheme.surfaceVariant,
+                        Text(
+                          'Section ${section} (${currentSection + 1}/${sections.length})',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        // Animated progress
-                        SizedBox(
-                          width: 170,
-                          height: 170,
-                          child: CircularProgressIndicator(
-                            value: value,
-                            strokeWidth: 14,
-                            valueColor: AlwaysStoppedAnimation<Color>(clsColor),
-                          ),
-                        ),
-                        // Center text
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$display',
-                              style: theme.textTheme.headlineLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text('/100', style: theme.textTheme.titleMedium),
-                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  AnimatedOpacity(
-                    opacity: value > 0.02 ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 400),
-                    child: Chip(
-                      label: Text(
-                        classification,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: clsColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'Please answer the questions below. All questions are required.',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._sectionWidgets(section),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+
+                  // Navigation buttons
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        if (currentSection > 0)
+                          ElevatedButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => setState(() => currentSection--),
+                            child: const Text('Previous'),
+                          ),
+                        const Spacer(),
+                        if (currentSection < sections.length - 1)
+                          ElevatedButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () {
+                                    // simple validation per section before moving forward
+                                    if (!_validateSection(section)) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Please answer all questions in this section before continuing.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    setState(() => currentSection++);
+                                  },
+                            child: const Text('Next'),
+                          ),
+                        if (currentSection == sections.length - 1)
+                          // Submit button shows spinner when submitting
+                          ElevatedButton(
+                            onPressed: _isSubmitting ? null : _submitAll,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: _isSubmitting
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Submitting...'),
+                                    ],
+                                  )
+                                : const Text('Submit'),
+                          ),
+                      ],
                     ),
                   ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          // Recommendations with small animated entrance
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            child: recommendations.isEmpty
-                ? Text(
-                    'Walang specific recommendation.',
-                    key: const ValueKey('empty'),
-                  )
-                : Column(
-                    key: ValueKey(recommendations.join(',')),
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Recommendations',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...recommendations.map((r) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: clsColor.withOpacity(0.2),
-                              child: Icon(
-                                Icons.lightbulb_outline,
-                                color: clsColor,
-                              ),
-                            ),
-                            title: Text(r),
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-          ),
-          const SizedBox(height: 20),
-          // Raw answers saved to DB (informational)
-          // Card(
-          //   color: Colors.grey.shade50,
-          //   shape: RoundedRectangleBorder(
-          //     borderRadius: BorderRadius.circular(12),
-          //   ),
-          //   child: Padding(
-          //     padding: const EdgeInsets.all(12.0),
-          //     child: Column(
-          //       crossAxisAlignment: CrossAxisAlignment.start,
-          //       children: [
-          //         Text(
-          //           'Raw answers (saved to DB):',
-          //           style: theme.textTheme.bodyMedium,
-          //         ),
-          //         const SizedBox(height: 8),
-          //         Text('numFarms: $numFarms'),
-          //         Text('yieldKg: ${yieldKg.toInt()}'),
-          //         Text('weatherCheck: $weatherCheck'),
-          //         Text('pestMonitoring: $pestMonitoring'),
-          //         Text('irrigationScheduling: $irrigationScheduling'),
-          //         Text('dataRecording: $dataRecording'),
-          //         Text('attendsTraining: $attendsTraining'),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () {
-              // restart
-              setState(() {
-                showResults = false;
-                currentIndex = 0;
-                numFarms = 1;
-                yieldKg = 100;
-                weatherCheck = 'sometimes';
-                pestMonitoring = 'regularly';
-                irrigationScheduling = 'regularly';
-                dataRecording = 'yes';
-                attendsTraining = 'occasionally';
-                score = 0;
-                classification = '';
-                recommendations = [];
-              });
-              _pageController.jumpToPage(0);
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Gumawa ng bagong assessment'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  // ---------- Build ----------
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          showResults ? 'Resulta ng Assessment' : stepTitles[currentIndex],
-        ),
-        backgroundColor: theme.colorScheme.surface,
-        foregroundColor: theme.colorScheme.onSurface,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-        ),
-      ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        child: showResults
-            ? _resultsView(context)
-            : Column(
-                key: const ValueKey('formView'),
-                children: [
-                  _stepHeader(context),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: totalSteps,
-                      onPageChanged: (i) => setState(() => currentIndex = i),
-                      itemBuilder: (_, i) => Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8,
-                        ),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 2,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: _buildStepContent(i),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              if (i == 1)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                  ),
-                                  child: Text(
-                                    'Tip: Kung hindi sigurado, mag-estimate base sa huling harvest.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
+          // Full-screen modal progress indicator (centered)
+          if (_isSubmitting)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.25),
+                child: const Center(
+                  child: Card(
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
                     ),
-                  ),
-                  SafeArea(
-                    top: false,
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: EdgeInsets.all(18.0),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (currentIndex > 0)
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _prevPage,
-                                icon: const Icon(Icons.arrow_back_ios),
-                                label: const Text('Bago'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (currentIndex > 0) const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton.icon(
-                              onPressed: saving
-                                  ? null
-                                  : (currentIndex < totalSteps - 1
-                                        ? _nextPage
-                                        : () async {
-                                            // validate form (yield input)
-                                            if (currentIndex == 1) {
-                                              if (!_formKey.currentState!
-                                                  .validate()) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Pakiayos ang value ng ani.',
-                                                    ),
-                                                  ),
-                                                );
-                                                return;
-                                              }
-                                            }
-                                            await saveAssessment();
-                                          }),
-                              icon: saving
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.arrow_forward_ios),
-                              label: Text(
-                                saving
-                                    ? 'Saving...'
-                                    : (currentIndex < totalSteps - 1
-                                          ? 'Susunod'
-                                          : 'I-save'),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 14),
+                          Text(
+                            'Submitting assessment...',
+                            style: TextStyle(fontSize: 14),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
+            ),
+        ],
       ),
     );
   }
