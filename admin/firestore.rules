@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Security rules for the Sweet Insights project (sweet-insights-1e5f1).
+// Model: farmers ("users") own their own data; an admin (custom claim
+// `admin: true`) can manage everything. Default is DENY.
+//
+// IMPORTANT: test these in the Firebase Console "Rules Playground" or the
+// emulator before deploying — an over-strict rule will lock the apps out.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // --- User profiles: doc id == the user's uid ---
+    match /users/{userId} {
+      allow read, create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    // --- Farms (owned via ownerUid) and all nested data ---
+    match /farms/{farmId} {
+      allow read, update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isAdmin() ||
+        (isSignedIn() && request.resource.data.ownerUid == request.auth.uid);
+
+      // yields / irrigations / observations inherit the farm's ownership.
+      match /{document=**} {
+        allow read, write: if isAdmin() ||
+          (isSignedIn() &&
+           get(/databases/$(database)/documents/farms/$(farmId)).data.ownerUid
+             == request.auth.uid);
+      }
+    }
+
+    // --- Assessments submitted by farmers (farmer_id) ---
+    match /assessments/{assessmentId} {
+      allow read, update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.farmer_id == request.auth.uid);
+      allow create: if isSignedIn() &&
+        request.resource.data.farmer_id == request.auth.uid;
+    }
+
+    // --- Trainings: admin authors, any signed-in user reads ---
+    match /trainings/{trainingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /materials/{materialId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+
+      match /enrollments/{enrollmentId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin() ||
+          (isSignedIn() &&
+           request.resource.data.farmerId == request.auth.uid);
+      }
+    }
+
+    // --- Top-level enrollments (keyed by farmerId) ---
+    match /enrollments/{enrollmentId} {
+      allow read, update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.farmerId == request.auth.uid);
+      allow create: if isSignedIn() &&
+        request.resource.data.farmerId == request.auth.uid;
+    }
+
+    // --- Recordings: admin-only (client never touches these) ---
+    match /recordings/{recordingId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Everything else is denied by default (no catch-all allow).
+  }
+}

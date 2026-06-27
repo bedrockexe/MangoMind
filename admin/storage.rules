@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Cloud Storage rules for Sweet Insights.
+// Closes public access: only signed-in users can read; uploads are limited
+// to images under 10 MB; admins may write anything.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isImageUnder10MB() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // Training thumbnails: admin uploads, any signed-in user views.
+    match /trainings/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isSignedIn() && isImageUnder10MB());
+    }
+
+    // Everything else (e.g. farm images): signed-in read, image uploads only.
+    match /{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isSignedIn() && isImageUnder10MB());
+    }
+  }
+}

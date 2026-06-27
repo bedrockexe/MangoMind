@@ -1,0 +1,13 @@
+node_modules/
+*.local
+
+# Never commit credentials
+serviceAccountKey.json
+*serviceAccount*.json
+.env
+
+# Operational scripts (run locally; may contain admin credentials)
+change-admin.js
+delete-all-accounts.js
+reset-database.js
+setAdminClaim.js

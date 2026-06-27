@@ -1,16 +1,51 @@
-# insights
+# Sweet Insights / MangoFarming
 
-A new Flutter project.
+A mango-farming management platform with two Flutter apps backed by a shared
+Firebase project (`sweet-insights-1e5f1`).
 
-## Getting Started
+## Repository layout
 
-This project is a starting point for a Flutter application.
+```
+.
+├── client/   # Farmer-facing app (farms, records, assessments, AI disease detection)
+│   ├── lib/
+│   └── functions/        # Cloud Functions (imageAnalyzer)
+└── admin/    # Admin app (user/farm management, trainings)
+    ├── lib/
+    ├── functions/        # Cloud Functions (user/farm management)
+    ├── firestore.rules   # Firestore security rules (single source of truth)
+    └── storage.rules     # Cloud Storage security rules
+```
 
-A few resources to get you started if this is your first Flutter project:
+Both apps target the same Firebase project. Security rules live in `admin/`.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Getting started
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Each app is a standalone Flutter project. From either `client/` or `admin/`:
+
+```bash
+flutter pub get
+flutter run
+```
+
+Cloud Functions (inside each app's `functions/` folder):
+
+```bash
+npm install
+firebase deploy --only functions
+```
+
+## Configuration & secrets
+
+- The Gemini API key is stored in Secret Manager, not in source:
+  `firebase functions:secrets:set GEMINI_API_KEY`
+- Never commit `serviceAccountKey.json` or the admin operational scripts
+  (`change-admin.js`, etc.) — they are git-ignored.
+
+## Deploying security rules
+
+From `admin/`:
+
+```bash
+firebase deploy --only firestore:rules,storage
+```
