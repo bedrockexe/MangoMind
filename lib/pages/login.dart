@@ -76,21 +76,25 @@ class _LoginPageState extends State<LoginPage>
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_email.text.trim() == 'admin@email.com') {
-      setState(() => _errorText = 'Admin login is not allowed here.');
-      return;
-    }
-
     setState(() {
       _loading = true;
       _errorText = null;
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _email.text.trim(),
         password: _password.text,
       );
+
+      // Admin accounts (custom claim) must use the admin app, not this one.
+      final token = await cred.user?.getIdTokenResult(true);
+      if (token?.claims?['admin'] == true) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        setState(() => _errorText = 'Admin login is not allowed here.');
+        return;
+      }
 
       await SessionService.startSession();
 

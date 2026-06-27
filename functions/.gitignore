@@ -1,2 +1,7 @@
 node_modules/
 *.local
+
+# Never commit credentials
+serviceAccountKey.json
+*serviceAccount*.json
+.env
