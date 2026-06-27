@@ -39,7 +39,6 @@ Future<void> main() async {
     await NotificationsController.instance.init();
     await LocalNotifier.init();
   } catch (e, st) {
-    // If something goes wrong during init, show a minimal error UI
     runApp(_InitErrorApp(error: e, stack: st));
     return;
   }
