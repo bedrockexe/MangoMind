@@ -86,7 +86,7 @@ Firebase backend:
 
 | Home & Weather | Disease Detection | Farm Records | Yield Analytics |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/Weather.jpg" width="180"/> | <img src="docs/screenshots/Scan.jpg" width="180"/> | <img src="docs/screenshots/Farm.jpg" width="180"/> | <img src="docs/screenshots/Yields.jpg" width="180"/> |
+| <img src="docs/screenshots/weather.jpg" width="180"/> | <img src="docs/screenshots/scan.jpg" width="180"/> | <img src="docs/screenshots/farm.jpg" width="180"/> | <img src="docs/screenshots/yield.jpg" width="180"/> |
 
 ---
 
@@ -147,7 +147,7 @@ flowchart TD
 ## 📂 Repository Structure
 
 ```
-MangoFarming/
+MangoMind/
 ├── README.md
 ├── .gitignore                 # umbrella ignore rules
 │
@@ -180,8 +180,8 @@ MangoFarming/
 ### 1. Clone
 
 ```bash
-git clone https://github.com/bedrockexe/MangoFarming.git
-cd MangoFarming
+git clone https://github.com/bedrockexe/MangoMind.git
+cd MangoMind
 ```
 
 ### 2. Run the farmer app
