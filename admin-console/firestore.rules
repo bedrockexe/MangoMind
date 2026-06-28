@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Security rules for the Sweet Insights project (sweet-insights-1e5f1).
+// Security rules for the MangoMind project (sweet-insights-1e5f1).
 // Model: farmers ("users") own their own data; an admin (custom claim
 // `admin: true`) can manage everything. Default is DENY.
 //

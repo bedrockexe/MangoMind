@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Sweet Insights — Smart Mango Farming, powered by AI" width="100%"/>
+<img src="docs/banner.svg" alt="MangoMind — Smart Mango Farming, powered by AI" width="100%"/>
 
 <br/><br/>
 
@@ -31,7 +31,7 @@ console for management, training, and oversight.
 
 ## 🌱 About
 
-**Sweet Insights** is a mobile platform built to support small-scale mango
+**MangoMind** is a mobile platform built to support small-scale mango
 farmers. It pairs **on-device AI** and **cloud AI** to identify common mango
 diseases from a photo, then layers in practical farm-management tools —
 yield tracking, irrigation logs, weather-based recommendations, training

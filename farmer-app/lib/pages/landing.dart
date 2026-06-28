@@ -23,7 +23,7 @@ class Landing extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
                 Text(
-                  'Sweet Insights',
+                  'MangoMind',
                   style: GoogleFonts.poppins(
                     fontSize: 35,
                     fontWeight: FontWeight.w800,

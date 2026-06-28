@@ -39,7 +39,7 @@ class ReportService {
             pw.Header(
               level: 0,
               child: pw.Text(
-                'Sweet Insights - Farmer Assessment',
+                'MangoMind - Farmer Assessment',
                 style: pw.TextStyle(fontSize: 20),
               ),
             ),

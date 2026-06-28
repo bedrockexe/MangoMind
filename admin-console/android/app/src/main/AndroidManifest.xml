@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="Sweet Admin"
+        android:label="MangoMind Admin"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

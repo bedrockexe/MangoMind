@@ -301,7 +301,7 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            'Sweet Insights',
+                            'MangoMind',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,

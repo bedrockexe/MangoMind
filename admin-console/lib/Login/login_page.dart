@@ -155,7 +155,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Sweet Insights',
+                                          'MangoMind',
                                           style: GoogleFonts.poppins(
                                             color: Colors.white,
                                             fontSize: 20,
@@ -297,7 +297,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Text(
-                                '© ${DateTime.now().year} Sweet Insights',
+                                '© ${DateTime.now().year} MangoMind',
                                 style: GoogleFonts.poppins(
                                   fontSize: 11,
                                   color: Colors.grey[600],

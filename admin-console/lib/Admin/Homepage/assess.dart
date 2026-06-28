@@ -80,9 +80,9 @@ class _AssessmentState extends State<Assessment>
         'Would you like more training about mango care and new farming methods?',
     'E8':
         'Do you think an app that gives alerts and guides could reduce your farming problems?',
-    'E9': 'What would make you trust a farming app like Sweet Insights more?',
+    'E9': 'What would make you trust a farming app like MangoMind more?',
     'E10':
-        'If Sweet Insights helps you increase your income or reduce losses, would you continue using it every season?',
+        'If MangoMind helps you increase your income or reduce losses, would you continue using it every season?',
   };
 
   @override

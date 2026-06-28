@@ -79,9 +79,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
         'Would you like more training about mango care and new farming methods?',
     'E8':
         'Do you think an app that gives alerts and guides could reduce your farming problems?',
-    'E9': 'What would make you trust a farming app like Sweet Insights more?',
+    'E9': 'What would make you trust a farming app like MangoMind more?',
     'E10':
-        'If Sweet Insights helps you increase your income or reduce losses, would you continue using it every season?',
+        'If MangoMind helps you increase your income or reduce losses, would you continue using it every season?',
   };
 
   final Map<String, List<String>> options = {
@@ -525,11 +525,11 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           ),
           _buildRadioQuestion(
             'E9',
-            'E9. What would make you trust a farming app like Sweet Insights more?',
+            'E9. What would make you trust a farming app like MangoMind more?',
           ),
           _buildRadioQuestion(
             'E10',
-            'E10. If Sweet Insights helps you increase your income or reduce losses, would you continue using it every season?',
+            'E10. If MangoMind helps you increase your income or reduce losses, would you continue using it every season?',
           ),
         ];
       default:

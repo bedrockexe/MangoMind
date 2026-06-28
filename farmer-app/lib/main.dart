@@ -90,7 +90,7 @@ class SweetInsightsApp extends StatelessWidget {
 
         // At this point, Firebase is initialized already.
         return MaterialApp(
-          title: 'Sweet Insights',
+          title: 'MangoMind',
           debugShowCheckedModeBanner: false,
           themeMode: ThemeController.instance.mode,
           theme: light,

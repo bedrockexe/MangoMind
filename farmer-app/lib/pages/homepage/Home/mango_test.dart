@@ -65,7 +65,7 @@ class _MangoDetectorState extends State<MangoDetector> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
                       Text(
-                        'Sweet Insights',
+                        'MangoMind',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

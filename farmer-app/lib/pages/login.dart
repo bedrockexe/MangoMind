@@ -224,7 +224,7 @@ class _LoginPageState extends State<LoginPage>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Text(
-                                'Sweet Insights',
+                                'MangoMind',
                                 style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w800,

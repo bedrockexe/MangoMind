@@ -129,7 +129,7 @@ class _Home extends State<HomePage> {
               Icon(Icons.eco, color: Colors.white),
               const SizedBox(width: 8),
               Text(
-                "Sweet Insights",
+                "MangoMind",
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Cloud Storage rules for Sweet Insights.
+// Cloud Storage rules for MangoMind.
 // Least-privilege model: default DENY. Each known path family is scoped
 // explicitly; there is no blanket catch-all that exposes the whole bucket.
 //
