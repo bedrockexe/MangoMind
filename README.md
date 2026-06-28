@@ -84,11 +84,9 @@ Firebase backend:
 
 ## 📸 Screenshots
 
-> _Add your screenshots to a `docs/screenshots/` folder and update the links below._
-
 | Home & Weather | Disease Detection | Farm Records | Yield Analytics |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/home.png" width="180"/> | <img src="docs/screenshots/detect.png" width="180"/> | <img src="docs/screenshots/records.png" width="180"/> | <img src="docs/screenshots/yields.png" width="180"/> |
+| <img src="docs/screenshots/Weather.jpg" width="180"/> | <img src="docs/screenshots/Scan.jpg" width="180"/> | <img src="docs/screenshots/Farm.jpg" width="180"/> | <img src="docs/screenshots/Yields.jpg" width="180"/> |
 
 ---
 
