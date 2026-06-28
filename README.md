@@ -1,10 +1,8 @@
 <div align="center">
 
-<img src="client/assets/logo.png" alt="Sweet Insights logo" width="120"/>
+<img src="docs/banner.svg" alt="Sweet Insights — Smart Mango Farming, powered by AI" width="100%"/>
 
-# 🥭 Sweet Insights
-
-### Smart Mango Farming, powered by AI
+<br/><br/>
 
 A two-app platform that helps mango farmers detect plant diseases, track their
 farms, and make weather-smart irrigation decisions — with a companion admin
