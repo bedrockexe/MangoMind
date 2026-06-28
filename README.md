@@ -49,7 +49,7 @@ Firebase backend:
 
 ## ✨ Features
 
-### 📱 Farmer App (`client/`)
+### 📱 Farmer App (`farmer-app/`)
 
 - 🔬 **AI Mango Disease Detection** — snap a leaf/fruit photo and get an instant
   diagnosis. Primary analysis runs in the cloud via **Google Gemini** (rich
@@ -71,7 +71,7 @@ Firebase backend:
 - 🔔 **Smart Notifications** — local reminders for irrigation and tasks.
 - 🌙 **Dark Mode** & polished, animated UI.
 
-### 🛠️ Admin Console (`admin/`)
+### 🛠️ Admin Console (`admin-console/`)
 
 - 👥 **User Management** — create, update, and remove farmer accounts.
 - 🏤 **Farm Oversight** — manage farms and inspect their records and yields.
@@ -97,8 +97,8 @@ Firebase backend:
 ```mermaid
 flowchart TD
     subgraph Apps["📱 Flutter Apps"]
-        C["Farmer App<br/>(client/)"]
-        A["Admin Console<br/>(admin/)"]
+        C["Farmer App<br/>(farmer-app/)"]
+        A["Admin Console<br/>(admin-console/)"]
     end
 
     subgraph Firebase["🔥 Firebase (sweet-insights-1e5f1)"]
@@ -153,14 +153,14 @@ MangoFarming/
 ├── README.md
 ├── .gitignore                 # umbrella ignore rules
 │
-├── client/                    # 📱 Farmer-facing Flutter app
+├── farmer-app/                # 📱 Farmer-facing Flutter app
 │   ├── lib/
 │   │   ├── pages/             # auth, home, farm, records, assessments…
 │   │   └── ...
 │   ├── assets/                # model.tflite, images, icons
 │   └── functions/             # Cloud Function: imageAnalyzer (Gemini)
 │
-└── admin/                     # 🛠️ Admin Flutter app
+└── admin-console/             # 🛠️ Admin Flutter app
     ├── lib/
     ├── functions/             # user/farm management functions
     ├── firestore.rules        # Firestore security rules (source of truth)
@@ -189,7 +189,7 @@ cd MangoFarming
 ### 2. Run the farmer app
 
 ```bash
-cd client
+cd farmer-app
 flutter pub get
 flutter run
 ```
@@ -197,7 +197,7 @@ flutter run
 ### 3. Run the admin app
 
 ```bash
-cd ../admin
+cd ../admin-console
 flutter pub get
 flutter run
 ```
@@ -221,22 +221,22 @@ own project:
 ### Cloud Functions
 
 ```bash
-cd client/functions   # or admin/functions
+cd farmer-app/functions   # or admin-console/functions
 npm install
 firebase deploy --only functions
 ```
 
 | Function | App | Purpose |
 | --- | --- | --- |
-| `imageAnalyzer` | client | Analyze a mango image with Google Gemini |
-| `createUser` / `updateUser` / `deleteUser` | admin | Manage farmer accounts (admin-only) |
-| `listUsers` | admin | List farmer accounts |
-| `createFarm` / `updateFarm` / `deleteFarm` | admin | Manage farms (admin-only) |
+| `imageAnalyzer` | farmer-app | Analyze a mango image with Google Gemini |
+| `createUser` / `updateUser` / `deleteUser` | admin-console | Manage farmer accounts (admin-only) |
+| `listUsers` | admin-console | List farmer accounts |
+| `createFarm` / `updateFarm` / `deleteFarm` | admin-console | Manage farms (admin-only) |
 
 ### Deploy Security Rules
 
 ```bash
-cd admin
+cd admin-console
 firebase deploy --only firestore:rules,storage
 ```
 
@@ -280,7 +280,7 @@ Contributions, issues, and feature requests are welcome!
 
 ## 📄 License
 
-Distributed under the **Apache License 2.0**. See [`LICENSE`](client/LICENSE) for details.
+Distributed under the **Apache License 2.0**. See [`LICENSE`](farmer-app/LICENSE) for details.
 
 ---
 
