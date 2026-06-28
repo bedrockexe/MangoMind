@@ -88,7 +88,7 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 14,
                   offset: const Offset(0, 8),
                 ),
@@ -101,11 +101,11 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 6),
                       ),
@@ -137,7 +137,7 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
+                              color: Colors.white.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -164,7 +164,7 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                 ),
                 const SizedBox(width: 6),
                 // chevron
-                Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.9)),
+                Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.9)),
               ],
             ),
           ),

@@ -665,7 +665,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           if (_isSubmitting)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.25),
+                color: Colors.black.withValues(alpha: 0.25),
                 child: const Center(
                   child: Card(
                     elevation: 6,

@@ -1,8 +1,15 @@
 rules_version = '2';
 
 // Cloud Storage rules for Sweet Insights.
-// Closes public access: only signed-in users can read; uploads are limited
-// to images under 10 MB; admins may write anything.
+// Least-privilege model: default DENY. Each known path family is scoped
+// explicitly; there is no blanket catch-all that exposes the whole bucket.
+//
+// NOTE on farm images: uploads are namespaced as `farm_images/{ownerUid}/...`
+// (client addfarm.dart/editfarm.dart and admin editfarm.dart), so reads are now
+// scoped to the owner (or an admin) below. Legacy images uploaded before this
+// change live at the old flat path `farm_images/{farmId}.jpg` and are no longer
+// readable by path — but they still DISPLAY fine because the apps load them via
+// the tokenized download URL saved in Firestore, which bypasses these rules.
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -10,21 +17,32 @@ service firebase.storage {
     function isAdmin() {
       return isSignedIn() && request.auth.token.admin == true;
     }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
     function isImageUnder10MB() {
       return request.resource.size < 10 * 1024 * 1024 &&
              request.resource.contentType.matches('image/.*');
     }
 
-    // Training thumbnails: admin uploads, any signed-in user views.
-    match /trainings/{allPaths=**} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && isImageUnder10MB());
+    // User profile images: owner (or admin) only — no cross-user reads.
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isAdmin() || (isOwner(userId) && isImageUnder10MB());
     }
 
-    // Everything else (e.g. farm images): signed-in read, image uploads only.
-    match /{allPaths=**} {
+    // Training thumbnails/media: admin authors, any signed-in user views.
+    match /trainings/{allPaths=**} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && isImageUnder10MB());
+      allow write: if isAdmin();
     }
+
+    // Farm images: namespaced by owner uid — owner (or admin) only.
+    match /farm_images/{userId}/{allPaths=**} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isAdmin() || (isOwner(userId) && isImageUnder10MB());
+    }
+
+    // Everything else is denied by default (no catch-all allow).
   }
 }

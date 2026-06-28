@@ -41,7 +41,6 @@ dependencies:
   # State Management
   shared_preferences: ^2.5.3
   permission_handler: ^12.0.1
-  subscription_holder: ^2.2.0
 
   # UI Enhancements
   fl_chart: ^1.1.0
@@ -59,7 +58,6 @@ dependencies:
   flutter_animate: ^4.0.0
   shimmer: ^3.0.0
   geocoding: ^4.0.0
-  google_generative_ai: ^0.4.7
   file_picker: ^10.3.3
   timezone: ^0.10.1
 

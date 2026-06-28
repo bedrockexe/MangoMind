@@ -664,14 +664,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.3.2"
-  google_generative_ai:
-    dependency: "direct main"
-    description:
-      name: google_generative_ai
-      sha256: "71f613d0247968992ad87a0eb21650a566869757442ba55a31a81be6746e0d1f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.7"
   gsettings:
     dependency: transitive
     description:
@@ -1072,14 +1064,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.2"
-  rxdart:
-    dependency: transitive
-    description:
-      name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.28.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -1181,14 +1165,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
-  state_notifier:
-    dependency: transitive
-    description:
-      name: state_notifier
-      sha256: b8677376aa54f2d7c58280d5a007f9e8774f1968d1fb1c096adcb4792fba29bb
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   stream_channel:
     dependency: transitive
     description:
@@ -1213,14 +1189,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  subscription_holder:
-    dependency: "direct main"
-    description:
-      name: subscription_holder
-      sha256: aa3b7f0bc9260d99c8390d65f0e5242a5d87c97f57b6d69b771be5964e5da653
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.0"
   table_calendar:
     dependency: "direct main"
     description:

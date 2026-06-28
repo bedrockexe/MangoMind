@@ -52,8 +52,10 @@ Firebase backend:
 ### 📱 Farmer App (`client/`)
 
 - 🔬 **AI Mango Disease Detection** — snap a leaf/fruit photo and get an instant
-  diagnosis. Uses an **on-device TensorFlow Lite** model plus a **Google Gemini**
-  cloud analyzer for a second opinion.
+  diagnosis. Primary analysis runs in the cloud via **Google Gemini** (rich
+  report: disease, ripeness, recommendations). If the cloud is unreachable, an
+  **on-device TensorFlow Lite** model provides an offline fallback diagnosis,
+  and the app clearly flags the result as a limited on-device estimate.
   - Detects: `Anthracnose` · `Powdery Mildew` · `Healthy Mango` · `Not a Mango`
 - 🌾 **Farm Management** — create and manage multiple farms, with area, planting
   details, and disease/pest flags.
@@ -125,8 +127,9 @@ flowchart TD
   via a custom `admin: true` claim.
 - App data lives in **Cloud Firestore**, guarded by ownership-based
   **security rules** (a farmer can only touch their own data; admins manage all).
-- Image/disease analysis runs **on-device (TFLite)** and via a **Cloud Function**
-  that calls **Google Gemini** (the API key is stored in Secret Manager).
+- Image/disease analysis runs primarily via a **Cloud Function** that calls
+  **Google Gemini** (the API key is stored in Secret Manager); when the cloud is
+  unreachable the app falls back to the bundled **on-device TFLite** classifier.
 - Weather and irrigation advice come from the **Open-Meteo API** + device location.
 
 ---

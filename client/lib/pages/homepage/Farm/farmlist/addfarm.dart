@@ -106,6 +106,7 @@ class _AddFarmPageState extends State<AddFarmPage> {
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('farm_images')
+            .child(user.uid)
             .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
 
         await storageRef.putFile(File(_pickedImage!.path));

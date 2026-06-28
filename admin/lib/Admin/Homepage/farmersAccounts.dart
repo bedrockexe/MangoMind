@@ -50,7 +50,7 @@ class _FarmersListCardState extends State<FarmersListCard>
   Widget build(BuildContext context) {
     return Card(
       elevation: 8,
-      shadowColor: Colors.green.withOpacity(0.3),
+      shadowColor: Colors.green.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         decoration: BoxDecoration(

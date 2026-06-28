@@ -272,7 +272,7 @@ class _WeatherPanelState extends State<WeatherPanel>
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
             ),
             padding: const EdgeInsets.all(14),
             child: Icon(Icons.error_outline, color: Colors.white, size: 48),
@@ -290,7 +290,7 @@ class _WeatherPanelState extends State<WeatherPanel>
           Text(
             'Please check your connection or try again later.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
           ).animate().fadeIn(delay: 500.ms),
           const SizedBox(height: 14),
           // subtle retry action — non-blocking, caller can change behavior
@@ -301,7 +301,7 @@ class _WeatherPanelState extends State<WeatherPanel>
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.12),
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -324,7 +324,7 @@ class _WeatherPanelState extends State<WeatherPanel>
           Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
                 padding: const EdgeInsets.all(12),
                 child: Icon(
@@ -353,7 +353,7 @@ class _WeatherPanelState extends State<WeatherPanel>
           Text(
             'Data might be temporarily unavailable for your location.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
           ).animate().fadeIn(delay: 400.ms),
         ],
       ),

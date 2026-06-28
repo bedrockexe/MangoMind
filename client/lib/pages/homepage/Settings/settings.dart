@@ -228,7 +228,7 @@ class _Settings extends State<SettingsPage> {
               // ——— Logout ———
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.withOpacity(0.08),
+                  backgroundColor: Colors.red.withValues(alpha: 0.08),
                   foregroundColor: Colors.red,
                 ),
                 onPressed: () async {

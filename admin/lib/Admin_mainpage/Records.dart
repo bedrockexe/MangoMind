@@ -358,7 +358,7 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
                               label: Text(status),
                               backgroundColor: _chipColorForStatus(
                                 status,
-                              ).withOpacity(0.15),
+                              ).withValues(alpha: 0.15),
                               labelStyle: TextStyle(
                                 color: _chipColorForStatus(status),
                               ),

@@ -1,26 +1,35 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+/// Session policy: a signed-in user stays "active" for [_maxAge] after their
+/// last sign-in.
+///
+/// Validity is derived from Firebase's server-recorded `lastSignInTime` rather
+/// than a timestamp we store ourselves. That removes the previous weaknesses of
+/// the SharedPreferences approach (the window could be reset by clearing prefs,
+/// and was anchored to an arbitrary client-set value). The age comparison still
+/// uses the device clock for "now", so this is a client-side convenience gate,
+/// not a hard server-enforced expiry — true enforcement would require checking
+/// token age in a backend.
 class SessionService {
-  static const _kLoginAt = 'login_at_ms';
-  static const _kMaxAgeMs = 172800000;
+  static const Duration _maxAge = Duration(days: 2);
 
-  /// Call this right after a successful login/signup
-  static Future<void> startSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kLoginAt, DateTime.now().millisecondsSinceEpoch);
-  }
+  /// Retained for call sites right after login/signup. Sign-in time is tracked
+  /// by Firebase itself, so there is nothing to persist locally.
+  static Future<void> startSession() async {}
 
-  static Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kLoginAt);
-  }
+  /// Retained for symmetry; actual sign-out is done via
+  /// `FirebaseAuth.instance.signOut()` at the call sites.
+  static Future<void> clearSession() async {}
 
-  /// Returns true if the stored login time is within 2 days.
+  /// True if the current user signed in within [_maxAge].
   static Future<bool> isSessionValid() async {
-    final prefs = await SharedPreferences.getInstance();
-    final loginAt = prefs.getInt(_kLoginAt);
-    if (loginAt == null) return false;
-    final age = DateTime.now().millisecondsSinceEpoch - loginAt;
-    return age < _kMaxAgeMs;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final lastSignIn = user.metadata.lastSignInTime;
+    if (lastSignIn == null) return false;
+
+    final age = DateTime.now().toUtc().difference(lastSignIn.toUtc());
+    return age < _maxAge;
   }
 }

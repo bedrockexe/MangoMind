@@ -158,7 +158,7 @@ class _IrrigationPageState extends State<IrrigationPage>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -214,7 +214,7 @@ class _IrrigationPageState extends State<IrrigationPage>
                             'Deficit ${_advice!.waterDeficitMm.toStringAsFixed(1)} mm',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          backgroundColor: Colors.white.withOpacity(0.9),
+                          backgroundColor: Colors.white.withValues(alpha: 0.9),
                         ),
                       const SizedBox(width: 8),
                       if (_lastChecked != null)

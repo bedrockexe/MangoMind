@@ -280,11 +280,11 @@ class _CircularIcon extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [color.withOpacity(0.95), color.withOpacity(0.8)],
+          colors: [color.withValues(alpha: 0.95), color.withValues(alpha: 0.8)],
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.22),
+            color: color.withValues(alpha: 0.22),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),

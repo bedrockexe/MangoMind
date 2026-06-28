@@ -209,12 +209,20 @@ exports.updateFarm = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Missing farmId.");
   }
 
+  // Only write fields the caller actually provided. The Admin SDK throws on
+  // `undefined` values, so an omitted field must be left out of the update
+  // rather than passed through as undefined.
+  const updates = {};
+  if (name !== undefined) updates.name = name;
+  if (address !== undefined) updates.address = address;
+  if (areaHa !== undefined) updates.areaHa = areaHa;
+
+  if (Object.keys(updates).length === 0) {
+    throw new HttpsError("invalid-argument", "No fields to update.");
+  }
+
   try {
-    await db().collection("farms").doc(farmId).update({
-      name,
-      address,
-      areaHa,
-    });
+    await db().collection("farms").doc(farmId).update(updates);
     return {success: true, farmId};
   } catch (error) {
     logger.error("updateFarm failed", {code: error.code});

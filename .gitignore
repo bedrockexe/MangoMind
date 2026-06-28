@@ -24,3 +24,6 @@ downloads/
 # OS / editor
 .DS_Store
 *.swp
+
+# Local agent/tooling config
+.claude/

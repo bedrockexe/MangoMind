@@ -125,6 +125,7 @@ class _EditFarmState extends State<EditFarm>
     final ref = FirebaseStorage.instance
         .ref()
         .child("farm_images")
+        .child(widget.userId)
         .child("${widget.farmId}.jpg");
 
     await ref.putFile(_pickedImage!);

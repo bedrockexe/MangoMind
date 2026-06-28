@@ -163,9 +163,9 @@ class ObservationsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: c.withOpacity(0.12),
+        color: c.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: c.withOpacity(0.6)),
+        border: Border.all(color: c.withValues(alpha: 0.6)),
       ),
       child: Text(
         label,

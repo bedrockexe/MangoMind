@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:media_store_plus/media_store_plus.dart';
 
@@ -25,16 +26,23 @@ import 'notifications_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _bootstrap();
+}
 
-  if (Platform.isAndroid) {
-    await MediaStore.ensureInitialized();
-    MediaStore.appFolder = 'FarmReports';
-  }
-
+/// Runs one-time startup and launches the app, or the error screen on failure.
+/// Safe to call again (e.g. from a "Retry" button) — each step is guarded so a
+/// partial first run won't double-initialize.
+Future<void> _bootstrap() async {
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    if (Platform.isAndroid) {
+      await MediaStore.ensureInitialized();
+      MediaStore.appFolder = 'FarmReports';
+    }
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
     await ThemeController.init();
     await NotificationsController.instance.init();
     await LocalNotifier.init();
@@ -131,11 +139,19 @@ class _InitErrorApp extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text('$error', textAlign: TextAlign.center),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      exit(0);
-                    },
-                    child: const Text('Close'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => _bootstrap(),
+                        child: const Text('Retry'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton(
+                        onPressed: () => SystemNavigator.pop(),
+                        child: const Text('Close'),
+                      ),
+                    ],
                   ),
                 ],
               ),

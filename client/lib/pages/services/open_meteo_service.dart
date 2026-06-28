@@ -85,7 +85,6 @@ class OpenMeteoService {
 
     // Daily
     final daily = _as<Map<String, dynamic>>(fjson['daily'], {});
-    // print(daily);
     final et0 = _pickDaily(
       _as<List>(daily['et0_fao_evapotranspiration'], const []),
     );
@@ -159,7 +158,6 @@ class OpenMeteoService {
         }
       } else {
         // Non-fatal if nowcast is not available in region
-        // print('Nowcast ${ncRes.statusCode}: ${ncRes.body}');
       }
     } catch (_) {
       // swallow nowcast issues

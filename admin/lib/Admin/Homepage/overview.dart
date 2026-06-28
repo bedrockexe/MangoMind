@@ -140,9 +140,9 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
         children: [
@@ -227,7 +227,7 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 8,
-      shadowColor: Colors.green.withOpacity(0.3),
+      shadowColor: Colors.green.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         decoration: BoxDecoration(

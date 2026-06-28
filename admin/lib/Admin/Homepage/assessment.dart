@@ -401,7 +401,7 @@ class _AssessmentCardState extends State<_AssessmentCard> {
                   // Score circle
                   CircleAvatar(
                     radius: 26,
-                    backgroundColor: widget.color.withOpacity(0.12),
+                    backgroundColor: widget.color.withValues(alpha: 0.12),
                     child: Text(
                       '$score',
                       style: TextStyle(

@@ -1424,16 +1424,16 @@ class KpiCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [bg.withOpacity(0.96), bg.withOpacity(0.86)],
+          colors: [bg.withValues(alpha: 0.96), bg.withValues(alpha: 0.86)],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: onBg.withOpacity(0.06)),
+        border: Border.all(color: onBg.withValues(alpha: 0.06)),
       ),
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -1443,7 +1443,7 @@ class KpiCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1457,7 +1457,7 @@ class KpiCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: onBg.withOpacity(0.75),
+                    color: onBg.withValues(alpha: 0.75),
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -1478,7 +1478,7 @@ class KpiCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: onBg.withOpacity(0.6),
+                      color: onBg.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

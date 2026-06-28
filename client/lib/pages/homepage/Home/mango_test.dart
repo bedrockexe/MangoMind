@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:insights/pages/services/tflite_service.dart';
 
 class MangoDetector extends StatefulWidget {
   const MangoDetector({super.key});
@@ -14,16 +14,31 @@ class MangoDetector extends StatefulWidget {
 }
 
 class _MangoDetectorState extends State<MangoDetector> {
-  late final List<CameraDescription> cameras;
+  List<CameraDescription>? _cameras;
+  bool _loadingCameras = true;
+  String? _cameraError;
 
-  Future<void> initializeCameras() async {
-    cameras = await availableCameras();
+  Future<void> _initializeCameras() async {
+    try {
+      final cams = await availableCameras();
+      if (!mounted) return;
+      setState(() {
+        _cameras = cams;
+        _loadingCameras = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cameraError = 'Camera unavailable: $e';
+        _loadingCameras = false;
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    initializeCameras();
+    _initializeCameras();
   }
 
   @override
@@ -78,7 +93,7 @@ class _MangoDetectorState extends State<MangoDetector> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 12,
                             ),
                           ],
@@ -113,31 +128,57 @@ class _MangoDetectorState extends State<MangoDetector> {
                         ),
                         elevation: 6,
                       ),
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Scan now'),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            transitionDuration: const Duration(
-                              milliseconds: 650,
-                            ),
-                            pageBuilder: (context, a1, a2) =>
-                                CameraScanPage(cameras: cameras),
-                            transitionsBuilder:
-                                (context, animation, secondary, child) {
-                                  final fade = CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeInOut,
-                                  );
-                                  return FadeTransition(
-                                    opacity: fade,
-                                    child: child,
-                                  );
-                                },
-                          ),
-                        );
-                      },
+                      icon: _loadingCameras
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.camera_alt),
+                      label: Text(
+                        _loadingCameras ? 'Preparing camera…' : 'Scan now',
+                      ),
+                      // Disabled until cameras have loaded, preventing a
+                      // LateInitializationError if tapped too early.
+                      onPressed: (_cameras == null || _cameras!.isEmpty)
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                PageRouteBuilder(
+                                  transitionDuration: const Duration(
+                                    milliseconds: 650,
+                                  ),
+                                  pageBuilder: (context, a1, a2) =>
+                                      CameraScanPage(cameras: _cameras!),
+                                  transitionsBuilder:
+                                      (context, animation, secondary, child) {
+                                        final fade = CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeInOut,
+                                        );
+                                        return FadeTransition(
+                                          opacity: fade,
+                                          child: child,
+                                        );
+                                      },
+                                ),
+                              );
+                            },
                     ),
+                    if (_cameraError != null) ...[
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          _cameraError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -255,7 +296,7 @@ class _CameraScanPageState extends State<CameraScanPage>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withOpacity(0.15),
+                          Colors.black.withValues(alpha: 0.15),
                           Colors.transparent,
                         ],
                         begin: Alignment.topCenter,
@@ -276,7 +317,7 @@ class _CameraScanPageState extends State<CameraScanPage>
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 width: 3,
                               ),
                             ),
@@ -340,7 +381,7 @@ class _CameraScanPageState extends State<CameraScanPage>
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(
+                                            color: Colors.white.withValues(alpha: 
                                               0.9,
                                             ),
                                             width: 2,
@@ -441,7 +482,6 @@ class DetectionLoadingPage extends StatefulWidget {
 
 class _DetectionLoadingPageState extends State<DetectionLoadingPage>
     with SingleTickerProviderStateMixin {
-  Map<String, dynamic>? _parsed;
   String _error = '';
   bool _done = false;
 
@@ -520,10 +560,7 @@ END: Process the attached image and return the JSON object only.
 
       final parsed = _safeParseAndValidateJson(datafinal);
 
-      setState(() {
-        _parsed = parsed;
-        _done = true;
-      });
+      setState(() => _done = true);
 
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
@@ -534,11 +571,92 @@ END: Process the attached image and return the JSON object only.
         ),
       );
     } catch (e) {
-      setState(() {
-        _error = 'Analysis error: $e';
-        _done = true;
-      });
+      // Cloud (Gemini) analysis failed — fall back to the on-device model so
+      // the farmer still gets a (limited) result while offline.
+      try {
+        final tfl = await TfliteService.instance.classify(widget.imageFile);
+        final parsed = _fallbackParsedFromTflite(tfl);
+        if (!mounted) return;
+        setState(() => _done = true);
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => DetectionResultPage(
+              parsed: parsed,
+              imageFile: widget.imageFile,
+              usedFallback: true,
+            ),
+          ),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Analysis error: $e';
+          _done = true;
+        });
+      }
     }
+  }
+
+  /// Maps a 4-class on-device classification into the same result schema the
+  /// Gemini path produces, so [DetectionResultPage] can render it unchanged.
+  /// The model only knows disease/identity, so ripeness, bounding boxes and
+  /// explainers are left empty and the result is flagged as a fallback.
+  Map<String, dynamic> _fallbackParsedFromTflite(TfliteResult r) {
+    final ts = DateFormat(
+      "yyyy-MM-ddTHH:mm:ss'Z'",
+    ).format(DateTime.now().toUtc());
+
+    final isMango = r.label != 'Not_Mango';
+    String diseaseLabel;
+    switch (r.label) {
+      case 'Anthracnose':
+        diseaseLabel = 'Anthracnose';
+        break;
+      case 'Powdery_Mildew':
+        diseaseLabel = 'PowderyMildew';
+        break;
+      default: // Healthy_Mango or Not_Mango
+        diseaseLabel = 'Healthy';
+    }
+
+    final recs = <String>[];
+    if (diseaseLabel == 'Anthracnose') {
+      recs.addAll([
+        'Prune and destroy infected leaves and twigs.',
+        'Apply a copper-based or mancozeb fungicide.',
+        'Improve airflow and avoid overhead watering.',
+      ]);
+    } else if (diseaseLabel == 'PowderyMildew') {
+      recs.addAll([
+        'Apply a sulfur or potassium-bicarbonate fungicide.',
+        'Remove severely infected panicles and leaves.',
+        'Ensure good sunlight and spacing between trees.',
+      ]);
+    }
+
+    final conf = (r.confidence * 100).roundToDouble() / 100.0;
+    return {
+      "object_type": isMango ? "Leaf" : "Other",
+      "is_mango": isMango,
+      "disease_label": diseaseLabel,
+      "disease_confidence": conf,
+      "fruit_ripeness_pct": 0.00,
+      "ripeness_stage": "UNSURE",
+      "recommendations": recs,
+      "photo_tips": isMango
+          ? <String>[]
+          : <String>[
+              "Center the mango leaf or fruit in frame",
+              "Use bright, even daylight",
+              "Avoid blur and busy backgrounds",
+            ],
+      "bounding_boxes": <Map<String, dynamic>>[],
+      "explainers": <String>[],
+      "overall_confidence": conf,
+      "timestamp_utc": ts,
+    };
   }
 
   @override
@@ -562,7 +680,7 @@ END: Process the attached image and return the JSON object only.
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.green.withOpacity(0.12),
+                        color: Colors.green.withValues(alpha: 0.12),
                         blurRadius: 24,
                       ),
                     ],
@@ -620,10 +738,10 @@ END: Process the attached image and return the JSON object only.
       return {
         "object_type": "Other",
         "is_mango": false,
-        "disease_label": "HEALTHY",
+        "disease_label": "UNSURE",
         "disease_confidence": 0.00,
         "fruit_ripeness_pct": 0.00,
-        "ripeness_stage": "RIPE",
+        "ripeness_stage": "UNSURE",
         "recommendations": [],
         "photo_tips": [
           "Center mango in frame",
@@ -816,10 +934,16 @@ END: Process the attached image and return the JSON object only.
 class DetectionResultPage extends StatelessWidget {
   final Map<String, dynamic> parsed;
   final File imageFile;
+
+  /// True when this result came from the on-device model because the Gemini
+  /// cloud analysis was unavailable. Shows a notice and a simplified report.
+  final bool usedFallback;
+
   const DetectionResultPage({
     super.key,
     required this.parsed,
     required this.imageFile,
+    this.usedFallback = false,
   });
 
   @override
@@ -827,18 +951,11 @@ class DetectionResultPage extends StatelessWidget {
     final isMango = parsed['is_mango'] as bool;
     final objectType = parsed['object_type'] as String;
     final disease = parsed['disease_label'] as String;
-    print(disease);
-    final diseaseConf = (parsed['disease_confidence'] as num).toDouble();
     final ripeness = (parsed['fruit_ripeness_pct'] as num).toDouble();
     final ripenessStage = parsed['ripeness_stage'] as String;
     final recs = List<String>.from(parsed['recommendations'] as List);
     final tips = List<String>.from(parsed['photo_tips'] as List);
-    final boxes = List<Map<String, dynamic>>.from(
-      parsed['bounding_boxes'] as List,
-    );
     final explainers = List<String>.from(parsed['explainers'] as List);
-    final overall = (parsed['overall_confidence'] as num).toDouble();
-    final timestamp = parsed['timestamp_utc'] as String;
     final displayDisease = (disease.toUpperCase() == 'UNSURE')
         ? 'Healthy'
         : disease;
@@ -866,7 +983,11 @@ class DetectionResultPage extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Hero(tag: 'mango-logo', child: _imageCard(imageFile, boxes)),
+              if (usedFallback) ...[
+                _fallbackBanner(),
+                const SizedBox(height: 14),
+              ],
+              Hero(tag: 'mango-logo', child: _imageCard(imageFile)),
               const SizedBox(height: 14),
               Card(
                 elevation: 4,
@@ -1025,7 +1146,11 @@ class DetectionResultPage extends StatelessWidget {
     );
   }
 
-  Widget _imageCard(File file, List<Map<String, dynamic>> boxes) {
+  Widget _imageCard(File file) {
+    // Note: the model returns bounding boxes in image-pixel coordinates, but we
+    // don't know the source dimensions they were measured against, so they
+    // can't be mapped reliably onto the displayed widget. The overlay was
+    // removed rather than show misaligned boxes; just display the photo.
     return Container(
       width: double.infinity,
       height: 260,
@@ -1035,54 +1160,10 @@ class DetectionResultPage extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.file(file, fit: BoxFit.cover),
-            // overlay boxes if any
-            if (boxes.isNotEmpty)
-              ...boxes.map((b) {
-                final left = (b['x'] as int).toDouble();
-                final top = (b['y'] as int).toDouble();
-                final w = (b['w'] as int).toDouble();
-                final h = (b['h'] as int).toDouble();
-                // they are in pixel coordinates — here we fallback to showing a translucent box anchored to top-left
-                return Positioned(
-                  left:
-                      left /
-                      4, // best-effort scaling; for production we would map real pixel to widget size
-                  top: top / 4,
-                  width: w / 4,
-                  height: h / 4,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.redAccent, width: 2),
-                      color: Colors.redAccent.withOpacity(0.08),
-                    ),
-                  ),
-                );
-              }).toList(),
-          ],
-        ),
+        child: Image.file(file, fit: BoxFit.cover),
       ),
     );
   }
-
-  Widget _smallBadge(String text) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-    decoration: BoxDecoration(
-      color: Colors.green.shade50,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: Colors.green.shade700,
-        fontWeight: FontWeight.bold,
-        fontSize: 12,
-      ),
-    ),
-  );
 
   Widget _pill(String text) => Container(
     padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -1090,12 +1171,39 @@ class DetectionResultPage extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
       boxShadow: [
-        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6),
+        BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6),
       ],
     ),
     child: Text(
       text,
       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+    ),
+  );
+
+  Widget _fallbackBanner() => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF4E5),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: const Color(0xFFFFB74D)),
+    ),
+    child: Row(
+      children: const [
+        Icon(Icons.cloud_off, color: Color(0xFFE65100), size: 20),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Cloud analysis unavailable — showing a limited on-device estimate. '
+            'Reconnect to the internet for a full AI report.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF8A4B00),
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 
@@ -1110,24 +1218,4 @@ class DetectionResultPage extends StatelessWidget {
     ),
   );
 
-  Future<void> _shareOrSave(
-    BuildContext context,
-    Map<String, dynamic> parsed,
-    File imageFile,
-  ) async {
-    // Simple save: write JSON report to app documents and show confirmation.
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final ts = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-      final fJson = File('${dir.path}/mango_report_$ts.json');
-      await fJson.writeAsString(json.encode(parsed));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report saved to app documents.')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
-    }
-  }
 }

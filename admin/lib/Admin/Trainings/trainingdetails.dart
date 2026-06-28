@@ -154,7 +154,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                             fit: StackFit.expand,
                             children: [
                               Image.network(thumbnail, fit: BoxFit.cover),
-                              Container(color: Colors.black.withOpacity(0.28)),
+                              Container(color: Colors.black.withValues(alpha: 0.28)),
                             ],
                           )
                         : Container(color: Colors.green.shade700),

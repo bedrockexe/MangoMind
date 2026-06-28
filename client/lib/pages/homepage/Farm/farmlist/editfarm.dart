@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -73,9 +74,11 @@ class _EditFarmPageState extends State<EditFarmPage> {
   }
 
   Future<String?> uploadImage(File file) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
     final ref = FirebaseStorage.instance
         .ref()
         .child("farm_images")
+        .child(uid)
         .child("${widget.farmId}.jpg");
 
     await ref.putFile(file);
