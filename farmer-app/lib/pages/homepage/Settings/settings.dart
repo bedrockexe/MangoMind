@@ -82,7 +82,10 @@ class _Settings extends State<SettingsPage> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.blue, width: 3),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 3,
+                        ),
                       ),
                       child: CircleAvatar(
                         radius: 48,
@@ -91,10 +94,11 @@ class _Settings extends State<SettingsPage> {
                             ? NetworkImage(photoUrl)
                             : null,
                         child: (photoUrl == null || photoUrl.isEmpty)
-                            ? const Icon(
+                            ? Icon(
                                 Icons.person,
                                 size: 48,
-                                color: Colors.white70,
+                                color:
+                                    Theme.of(context).colorScheme.onSurfaceVariant,
                               )
                             : null,
                       ),
@@ -114,7 +118,10 @@ class _Settings extends State<SettingsPage> {
                     // Email
                     Text(
                       FirebaseAuth.instance.currentUser?.email ?? '',
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -228,8 +235,9 @@ class _Settings extends State<SettingsPage> {
               // ——— Logout ———
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.withValues(alpha: 0.08),
-                  foregroundColor: Colors.red,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.error.withValues(alpha: 0.08),
+                  foregroundColor: Theme.of(context).colorScheme.error,
                 ),
                 onPressed: () async {
                   final confirm = await showDialog<bool>(

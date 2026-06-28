@@ -43,12 +43,13 @@ class _MangoDetectorState extends State<MangoDetector> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFe6f7ea), Color(0xFFeaf9ff)],
+              colors: [scheme.surface, scheme.surfaceContainerHighest],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -59,7 +60,7 @@ class _MangoDetectorState extends State<MangoDetector> {
               const SizedBox(height: 20),
               Row(
                 children: [
-                  const Icon(Icons.eco, size: 36, color: Colors.green),
+                  Icon(Icons.eco, size: 36, color: scheme.primary),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +173,8 @@ class _MangoDetectorState extends State<MangoDetector> {
                         child: Text(
                           _cameraError!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
+                          style: TextStyle(
+                            color: scheme.error,
                             fontSize: 13,
                           ),
                         ),
@@ -285,7 +286,7 @@ class _CameraScanPageState extends State<CameraScanPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: _isReady && _controller != null
             ? Stack(
@@ -424,8 +425,8 @@ class _CameraScanPageState extends State<CameraScanPage>
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _scanning
-                                ? Colors.grey
-                                : Colors.green,
+                                ? Theme.of(context).colorScheme.outline
+                                : Theme.of(context).colorScheme.primary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 28,
                               vertical: 12,
@@ -661,8 +662,9 @@ END: Process the attached image and return the JSON object only.
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFf6fbf8),
+      backgroundColor: scheme.surface,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -676,20 +678,20 @@ END: Process the attached image and return the JSON object only.
                   width: 160,
                   height: 160,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: scheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.green.withValues(alpha: 0.12),
+                        color: scheme.primary.withValues(alpha: 0.12),
                         blurRadius: 24,
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.analytics_outlined,
                       size: 56,
-                      color: Colors.green,
+                      color: scheme.primary,
                     ),
                   ),
                 ),
@@ -714,7 +716,7 @@ END: Process the attached image and return the JSON object only.
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
                     _error,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: scheme.error),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -948,6 +950,7 @@ class DetectionResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isMango = parsed['is_mango'] as bool;
     final objectType = parsed['object_type'] as String;
     final disease = parsed['disease_label'] as String;
@@ -966,20 +969,20 @@ class DetectionResultPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         title: Text(
           'Detection',
-          style: TextStyle(color: Colors.green.shade700),
+          style: TextStyle(color: scheme.primary),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.green),
+          icon: Icon(Icons.arrow_back, color: scheme.primary),
           onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
         ),
       ),
       body: Container(
         padding: const EdgeInsets.all(16),
-        color: const Color(0xFFfbfefb),
+        color: scheme.surface,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -987,7 +990,7 @@ class DetectionResultPage extends StatelessWidget {
                 _fallbackBanner(),
                 const SizedBox(height: 14),
               ],
-              Hero(tag: 'mango-logo', child: _imageCard(imageFile)),
+              Hero(tag: 'mango-logo', child: _imageCard(context, imageFile)),
               const SizedBox(height: 14),
               Card(
                 elevation: 4,
@@ -1004,7 +1007,7 @@ class DetectionResultPage extends StatelessWidget {
                           Icon(
                             icon,
                             size: 28,
-                            color: isMango ? Colors.green : Colors.redAccent,
+                            color: isMango ? scheme.primary : scheme.error,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1029,10 +1032,10 @@ class DetectionResultPage extends StatelessWidget {
                       ] else ...[
                         Row(
                           children: [
-                            _pill('Type: $objectType'),
+                            _pill(context, 'Type: $objectType'),
                             const SizedBox(width: 8),
                             if (objectType == 'Fruit')
-                              _pill('Stage: $ripenessStage'),
+                              _pill(context, 'Stage: $ripenessStage'),
                             const SizedBox(width: 8),
                           ],
                         ),
@@ -1099,17 +1102,14 @@ class DetectionResultPage extends StatelessWidget {
                         children: [
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
                             ),
                             icon: const Icon(
                               Icons.camera_alt_outlined,
                               size: 16,
-                              color: Colors.white,
                             ),
-                            label: const Text(
-                              'Scan again',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            label: const Text('Scan again'),
                             onPressed: () async {
                               // get available cameras again and push CameraScanPage
                               try {
@@ -1146,7 +1146,7 @@ class DetectionResultPage extends StatelessWidget {
     );
   }
 
-  Widget _imageCard(File file) {
+  Widget _imageCard(BuildContext context, File file) {
     // Note: the model returns bounding boxes in image-pixel coordinates, but we
     // don't know the source dimensions they were measured against, so they
     // can't be mapped reliably onto the displayed widget. The overlay was
@@ -1156,7 +1156,7 @@ class DetectionResultPage extends StatelessWidget {
       height: 260,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade100,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -1165,10 +1165,10 @@ class DetectionResultPage extends StatelessWidget {
     );
   }
 
-  Widget _pill(String text) => Container(
+  Widget _pill(BuildContext context, String text) => Container(
     padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(18),
       boxShadow: [
         BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6),

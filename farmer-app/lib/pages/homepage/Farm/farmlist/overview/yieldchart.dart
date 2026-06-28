@@ -168,9 +168,11 @@ class _CompactYieldCardState extends State<CompactYieldCard> {
                         getTitlesWidget: (value, meta) {
                           return Text(
                             '${value.toInt()} kg',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: Colors.black54,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           );
                         },
@@ -191,9 +193,11 @@ class _CompactYieldCardState extends State<CompactYieldCard> {
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               label,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.black54,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           );
@@ -231,7 +235,10 @@ class _CompactYieldCardState extends State<CompactYieldCard> {
             // Total line
             Text(
               'Total: ${_currentSeasonMonths.map((m) => _kgPerMonth[m] ?? 0.0).reduce((a, b) => a + b).toStringAsFixed(0)} kg',
-              style: const TextStyle(fontSize: 15, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

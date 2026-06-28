@@ -189,7 +189,10 @@ class _OverviewPage extends State<OverviewPage> {
               onPressed: () => Navigator.pop(ctx),
             ),
             TextButton(
-              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+              child: Text(
+                "Delete",
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              ),
               onPressed: () async {
                 Navigator.pop(ctx);
                 await _deleteFarm(farmId, context);
@@ -1160,18 +1163,22 @@ class _OverviewPage extends State<OverviewPage> {
                                           Row(
                                             children: [
                                               if (isOverdue)
-                                                const Icon(
+                                                Icon(
                                                   Icons.warning_amber_rounded,
                                                   size: 16,
-                                                  color: Colors.red,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.error,
                                                 ),
                                               if (isOverdue)
                                                 const SizedBox(width: 4),
                                               Text(
                                                 dueStr,
                                                 style: isOverdue
-                                                    ? const TextStyle(
-                                                        color: Colors.red,
+                                                    ? TextStyle(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.error,
                                                         fontWeight:
                                                             FontWeight.w600,
                                                       )
@@ -1365,8 +1372,8 @@ class _OverviewPage extends State<OverviewPage> {
                 icon: const Icon(Icons.edit),
                 label: const Text('Edit Farm'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -1382,8 +1389,8 @@ class _OverviewPage extends State<OverviewPage> {
               icon: const Icon(Icons.delete),
               label: const Text('Delete Farm'),
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.red[700],
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),

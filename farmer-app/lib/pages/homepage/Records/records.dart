@@ -98,7 +98,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       SizedBox(width: 6),
                       Text(
                         "Download PDF",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
+                        style: TextStyle(fontSize: 16),
                       ),
                     ],
                   ),
@@ -866,7 +866,12 @@ class _ReportsPageState extends State<ReportsPage> {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
-        child: Text(msg, style: const TextStyle(color: Colors.black54)),
+        child: Text(
+          msg,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }

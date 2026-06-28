@@ -60,10 +60,10 @@ class _RegisterForm extends State<Signup> {
   }
 
   OutlineInputBorder _borderFor({required bool touched, required bool ok}) {
+    final scheme = Theme.of(context).colorScheme;
     final color = !touched
-        ? Colors
-              .grey // default
-        : (ok ? Colors.green : Colors.red);
+        ? scheme.outline // default
+        : (ok ? scheme.primary : scheme.error);
     return OutlineInputBorder(borderSide: BorderSide(color: color, width: 2));
   }
 
@@ -146,9 +146,9 @@ class _RegisterForm extends State<Signup> {
               Padding(
                 padding: const EdgeInsets.only(left: 8.0, top: 8.0),
                 child: IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.arrow_back_ios_new,
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: () {
                     Navigator.pop(context);
@@ -294,8 +294,8 @@ class _RegisterForm extends State<Signup> {
                                     (!RegExp(
                                       r'^.{6,}$',
                                     ).hasMatch(_password.text))
-                                    ? Colors.red
-                                    : Colors.green,
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
                               ),
 
                             // See Password Icon
@@ -356,8 +356,8 @@ class _RegisterForm extends State<Signup> {
                                     ? Icons.check_circle
                                     : Icons.error,
                                 color: _isConfirmValid
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.error,
                               ),
                             IconButton(
                               icon: Icon(
@@ -394,8 +394,8 @@ class _RegisterForm extends State<Signup> {
               width: double.infinity,
               child: TextButton(
                 style: TextButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 40,
                     vertical: 16,

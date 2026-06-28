@@ -265,7 +265,6 @@ class _PasswordForm extends State<ChangePassword> {
 
                 const SizedBox(height: 20),
                 FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: Colors.green),
                   onPressed: _loading ? null : _handleChange,
                   child: _loading
                       ? const SizedBox(

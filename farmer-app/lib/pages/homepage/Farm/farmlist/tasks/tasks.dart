@@ -281,7 +281,7 @@ class _TasksPage extends State<TasksPage> {
             style: isDone
                 ? Theme.of(context).textTheme.bodyLarge?.copyWith(
                     decoration: TextDecoration.lineThrough,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   )
                 : Theme.of(context).textTheme.bodyLarge,
           ),
@@ -292,8 +292,8 @@ class _TasksPage extends State<TasksPage> {
               Text(
                 'Due: ${dueStr ?? '—'}',
                 style: isOverdue
-                    ? const TextStyle(
-                        color: Colors.red,
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.error,
                         fontWeight: FontWeight.w600,
                       )
                     : null,
@@ -301,17 +301,17 @@ class _TasksPage extends State<TasksPage> {
               if (isOverdue) ...[
                 const SizedBox(height: 2),
                 Row(
-                  children: const [
+                  children: [
                     Icon(
                       Icons.warning_amber_rounded,
                       size: 16,
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Text(
                       'Overdue',
                       style: TextStyle(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

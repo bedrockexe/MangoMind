@@ -194,7 +194,9 @@ class _AddFarmPageState extends State<AddFarmPage> {
                     width: double.infinity,
                     height: 180,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.image, size: 60),

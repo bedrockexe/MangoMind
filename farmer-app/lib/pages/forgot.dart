@@ -81,9 +81,9 @@ class _ForgotState extends State<Forgot> {
               Padding(
                 padding: const EdgeInsets.only(left: 8.0, top: 8.0),
                 child: IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.arrow_back_ios_new,
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -100,7 +100,7 @@ class _ForgotState extends State<Forgot> {
                   style: GoogleFonts.poppins(
                     fontSize: 30,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const Text(
@@ -127,15 +127,15 @@ class _ForgotState extends State<Forgot> {
                       errorText: (_emailError == null) ? null : _emailError,
                       errorStyle: const TextStyle(height: 0, fontSize: 0),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                          color: Colors.red,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.error,
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                          color: Colors.red,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.error,
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(8),
@@ -177,7 +177,7 @@ class _ForgotState extends State<Forgot> {
               padding: const EdgeInsets.symmetric(horizontal: 15),
               child: Text(
                 _globalError!,
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
             const SizedBox(height: 8),
@@ -187,8 +187,8 @@ class _ForgotState extends State<Forgot> {
             padding: const EdgeInsets.all(15),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

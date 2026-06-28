@@ -75,8 +75,8 @@ class FarmListPage extends StatelessWidget {
               return Container(
   padding: const EdgeInsets.all(16),
   decoration: BoxDecoration(
-    color: Colors.white,
-    border: Border.all(color: Colors.green, width: 2),
+    color: Theme.of(context).colorScheme.surface,
+    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
     borderRadius: BorderRadius.circular(12),
   ),
 
@@ -148,12 +148,12 @@ Row(
 
             // SHIMMER PLACEHOLDER
             return Shimmer.fromColors(
-              baseColor: Colors.grey.shade300,
-              highlightColor: Colors.grey.shade100,
+              baseColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              highlightColor: Theme.of(context).colorScheme.surfaceContainer,
               child: Container(
                 width: 110,
                 height: 110,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
             );
           },
@@ -161,8 +161,12 @@ Row(
       : Container(
           width: 110,
           height: 110,
-          color: Colors.grey[300],
-          child: const Icon(Icons.image, size: 50, color: Colors.grey),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Icon(
+            Icons.image,
+            size: 50,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
 )
     ],
@@ -179,8 +183,8 @@ Row(
                 icon: const Icon(Icons.build),
                 label: const Text('Manage Farm'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -222,7 +226,11 @@ class _EmptyFarms extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.agriculture, size: 64, color: Colors.green),
+            Icon(
+              Icons.agriculture,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 12),
             const Text(
               'No farms yet',

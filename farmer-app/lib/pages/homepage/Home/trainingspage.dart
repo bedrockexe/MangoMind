@@ -148,27 +148,28 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
   }
 
   Widget _buildSearchBar() {
+    final scheme = Theme.of(context).colorScheme;
     return TextField(
       controller: _searchCtrl,
       decoration: InputDecoration(
         hintText: 'Search trainings by title...',
-        prefixIcon: const Icon(Icons.search, color: Colors.green),
+        prefixIcon: Icon(Icons.search, color: scheme.primary),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear, color: Colors.red),
+                icon: Icon(Icons.clear, color: scheme.error),
                 onPressed: () => _searchCtrl.clear(),
               )
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.green.shade300),
+          borderSide: BorderSide(color: scheme.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.green.shade500, width: 2),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: scheme.surfaceContainerHighest,
         contentPadding: const EdgeInsets.symmetric(
           vertical: 15,
           horizontal: 15,
@@ -189,6 +190,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
     final thumbnail = data['thumbnailUrl'] as String?;
     final trainingId = doc.id;
     final isEnrolled = _enrolledMap.containsKey(trainingId);
+    final scheme = Theme.of(context).colorScheme;
 
     return FadeTransition(
       opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -231,13 +233,13 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
+                              color: scheme.primaryContainer,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.school,
                               size: 40,
-                              color: Colors.green,
+                              color: scheme.onPrimaryContainer,
                             ),
                           ),
                   ),
@@ -249,10 +251,10 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -260,7 +262,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                         formattedDate,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                       if (venue.isNotEmpty)
@@ -268,7 +270,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                           'Venue: $venue',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade600,
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       const SizedBox(height: 8),
@@ -277,8 +279,8 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                         style: TextStyle(
                           fontSize: 14,
                           color: isEnrolled
-                              ? Colors.green.shade700
-                              : Colors.grey.shade600,
+                              ? scheme.primary
+                              : scheme.onSurfaceVariant,
                           fontWeight:
                               FontWeight.w500, // Make it stand out as a label
                         ),
@@ -293,8 +295,8 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                       ElevatedButton(
                         onPressed: () => _enroll(trainingId),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
+                          backgroundColor: scheme.primary,
+                          foregroundColor: scheme.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -309,7 +311,8 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                       OutlinedButton(
                         onPressed: () => _cancelEnrollment(trainingId),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red.shade300),
+                          side: BorderSide(color: scheme.error),
+                          foregroundColor: scheme.error,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -318,10 +321,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                             vertical: 8,
                           ),
                         ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                        child: const Text('Cancel'),
                       ),
                   ],
                 ),
@@ -345,7 +345,8 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Trainings'),
-        backgroundColor: Colors.green, // Modern app bar color
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
       body: SafeArea(
         child: Column(

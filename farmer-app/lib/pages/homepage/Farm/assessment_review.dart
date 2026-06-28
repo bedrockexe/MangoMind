@@ -128,13 +128,17 @@ class ReviewPage extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               email.toString(),
-                              style: TextStyle(color: Colors.grey[700]),
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Submitted: $submittedText',
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color:
+                                    Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),

@@ -166,7 +166,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                 SliverAppBar(
                   pinned: true,
                   expandedHeight: 220,
-                  backgroundColor: Colors.green.shade700,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back_ios),
                     onPressed: () => Navigator.pop(context),
@@ -188,7 +189,9 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                               ),
                             ],
                           )
-                        : Container(color: Colors.green.shade700),
+                        : Container(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                   ),
                 ),
                 SliverPadding(
@@ -218,7 +221,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                             children: [
                               Icon(
                                 Icons.calendar_month,
-                                color: Colors.green.shade800,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -238,10 +241,12 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.center,
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.place,
                                             size: 16,
-                                            color: Colors.grey,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                           const SizedBox(width: 6),
                                           Expanded(

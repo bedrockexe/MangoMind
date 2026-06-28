@@ -137,6 +137,7 @@ class _IrrigationPageState extends State<IrrigationPage>
 
   Widget _buildStatusCard() {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final recommend = _advice?.recommend ?? false;
 
     return AnimatedContainer(
@@ -146,12 +147,12 @@ class _IrrigationPageState extends State<IrrigationPage>
       decoration: BoxDecoration(
         gradient: recommend
             ? LinearGradient(
-                colors: [Colors.orange.shade200, Colors.orange.shade50],
+                colors: [scheme.tertiaryContainer, scheme.surface],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : LinearGradient(
-                colors: [Colors.blueGrey.shade50, Colors.green.shade50],
+                colors: [scheme.primaryContainer, scheme.surface],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -175,11 +176,11 @@ class _IrrigationPageState extends State<IrrigationPage>
             ),
             child: CircleAvatar(
               radius: 30,
-              backgroundColor: recommend ? Colors.orange : Colors.green,
+              backgroundColor: recommend ? scheme.tertiary : scheme.primary,
               child: Icon(
                 recommend ? Icons.water_drop : Icons.check_rounded,
                 size: 32,
-                color: Colors.white,
+                color: recommend ? scheme.onTertiary : scheme.onPrimary,
               ),
             ),
           ),
@@ -214,7 +215,7 @@ class _IrrigationPageState extends State<IrrigationPage>
                             'Deficit ${_advice!.waterDeficitMm.toStringAsFixed(1)} mm',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.9),
+                          backgroundColor: scheme.surface.withValues(alpha: 0.9),
                         ),
                       const SizedBox(width: 8),
                       if (_lastChecked != null)
@@ -307,18 +308,21 @@ class _IrrigationPageState extends State<IrrigationPage>
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: theme.colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
+                    Icon(
+                      Icons.error_outline,
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _error!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.red,
+                          color: theme.colorScheme.onErrorContainer,
                         ),
                       ),
                     ),

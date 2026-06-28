@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -55,10 +56,18 @@ class _AccountEditPageState extends State<AccountEditPage> {
         return;
       }
 
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      DocumentSnapshot<Map<String, dynamic>> snap;
+      try {
+        // Prefer fresh data, but don't hang forever when the network is slow
+        // or unreachable.
+        snap = await ref.get().timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Offline / server unreachable — fall back to the locally cached
+        // profile so the page still loads instead of spinning indefinitely.
+        snap = await ref.get(const GetOptions(source: Source.cache));
+      }
 
       final data = snap.data() ?? {};
 

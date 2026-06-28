@@ -123,15 +123,19 @@ class _Home extends State<HomePage> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          backgroundColor: Colors.green,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           title: Row(
             children: [
-              Icon(Icons.eco, color: Colors.white),
+              Icon(
+                Icons.eco,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
               const SizedBox(width: 8),
               Text(
                 "MangoMind",
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),

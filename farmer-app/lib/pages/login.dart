@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:insights/pages/services/session.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:insights/pages/landing.dart';
+import 'package:insights/theme/app_theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -129,7 +130,7 @@ class _LoginPageState extends State<LoginPage>
             labelStyle: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[800],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             border: OutlineInputBorder(),
             suffixIcon: (label == "Password")
@@ -177,7 +178,7 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: const Color(0xFF07A824),
+      backgroundColor: AppTheme.brandGreen,
       body: SafeArea(
         child: Stack(
           children: [
@@ -210,7 +211,7 @@ class _LoginPageState extends State<LoginPage>
                           margin: EdgeInsets.only(top: screen.height * 0.08),
                           padding: const EdgeInsets.fromLTRB(22, 80, 22, 26),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(28),
                             boxShadow: const [
                               BoxShadow(
@@ -266,7 +267,9 @@ class _LoginPageState extends State<LoginPage>
                                                 ? Icons.visibility
                                                 : Icons.visibility_off,
                                             size: 22,
-                                            color: Colors.black54,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -293,7 +296,9 @@ class _LoginPageState extends State<LoginPage>
                                   child: Text(
                                     'Forgot Password?',
                                     style: TextStyle(
-                                      color: Colors.grey.shade700,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -321,9 +326,9 @@ class _LoginPageState extends State<LoginPage>
                             child: Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 border: Border.all(
-                                  color: Colors.green.shade800,
+                                  color: AppTheme.brandGreen,
                                   width: 4,
                                 ),
                                 boxShadow: const [
@@ -337,15 +342,17 @@ class _LoginPageState extends State<LoginPage>
                               padding: const EdgeInsets.all(8),
                               child: CircleAvatar(
                                 radius: 42,
-                                backgroundColor: Colors.white,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.surface,
                                 child: ClipOval(
                                   child: Image.asset(
                                     'assets/logo.png',
                                     fit: BoxFit.cover,
-                                    errorBuilder: (c, e, s) => const Icon(
+                                    errorBuilder: (c, e, s) => Icon(
                                       Icons.local_grocery_store,
                                       size: 48,
-                                      color: Colors.orange,
+                                      color:
+                                          Theme.of(context).colorScheme.tertiary,
                                     ),
                                   ),
                                 ),
@@ -366,9 +373,7 @@ class _LoginPageState extends State<LoginPage>
               child: Container(
                 height: 40,
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF07A824), Color(0xFF07A824)],
-                  ),
+                  color: AppTheme.brandGreen,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                 ),
               ),

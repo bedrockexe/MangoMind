@@ -181,7 +181,8 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         child: Row(
           children: [
-            if (icon != null) Icon(icon, size: 18, color: Colors.green),
+            if (icon != null)
+              Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
             if (icon != null) const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -197,7 +198,10 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                   const SizedBox(height: 4),
                   Text(
                     label,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -230,8 +234,8 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Welcome, Farmer'),
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,
         actions: [
           IconButton(
@@ -278,7 +282,7 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
           ),
         ],
       ),
-      backgroundColor: Colors.green.shade50,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -299,20 +303,20 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             'MangoMind',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
                             'Get personalized farming guidance and keep track of your assessments.',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -387,9 +391,9 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
                     padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.lightbulb_outline,
-                          color: Colors.amber,
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -522,7 +526,7 @@ class _SmallStatRowState extends State<_SmallStatRow> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -532,9 +536,12 @@ class _SmallStatRowState extends State<_SmallStatRow> {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Submissions',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

@@ -158,7 +158,9 @@ class _EditFarmPageState extends State<EditFarmPage> {
                             : Container(
                                 width: 150,
                                 height: 150,
-                                color: Colors.grey[300],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 child: const Icon(Icons.image, size: 60),
                               ),
                   ),

@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:media_store_plus/media_store_plus.dart';
 
 // Firebase
@@ -11,6 +10,7 @@ import 'firebase_options.dart';
 
 // Theme controller (For Dark Mode)
 import 'theme_controller.dart';
+import 'theme/app_theme.dart';
 
 // Pages
 import 'pages/login.dart';
@@ -63,38 +63,13 @@ class SweetInsightsApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: ThemeController.instance,
       builder: (context, _) {
-        final inputTheme = InputDecorationTheme(
-          labelStyle: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-          hintStyle: GoogleFonts.poppins(fontSize: 14),
-          border: const OutlineInputBorder(),
-        );
-
-        final light = ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.light,
-          colorSchemeSeed: Colors.green,
-          textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
-          inputDecorationTheme: inputTheme,
-        );
-
-        final dark = ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.dark,
-          colorSchemeSeed: Colors.green,
-          textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-          inputDecorationTheme: inputTheme,
-        );
-
         // At this point, Firebase is initialized already.
         return MaterialApp(
           title: 'MangoMind',
           debugShowCheckedModeBanner: false,
           themeMode: ThemeController.instance.mode,
-          theme: light,
-          darkTheme: dark,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
           home: const AppGate(),
 
           // Named routes for easy navigation

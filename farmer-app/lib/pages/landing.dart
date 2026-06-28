@@ -7,6 +7,7 @@ class Landing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -27,7 +28,7 @@ class Landing extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 35,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    color: scheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -36,7 +37,7 @@ class Landing extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -52,8 +53,8 @@ class Landing extends StatelessWidget {
                   margin: const EdgeInsets.all(12),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                      backgroundColor: scheme.primary,
+                      foregroundColor: scheme.onPrimary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 40,
                         vertical: 16,
@@ -81,15 +82,15 @@ class Landing extends StatelessWidget {
                   margin: const EdgeInsets.all(12),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
+                      backgroundColor: scheme.surface,
+                      foregroundColor: scheme.onSurface,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 40,
                         vertical: 16,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Colors.green, width: 1),
+                        side: BorderSide(color: scheme.primary, width: 1),
                       ),
                       elevation: 0,
                     ),
