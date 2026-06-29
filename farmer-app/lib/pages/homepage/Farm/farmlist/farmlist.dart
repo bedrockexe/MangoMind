@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+// theme
+import 'package:insights/theme/transitions.dart';
+import 'package:insights/theme/skeletons.dart';
 
 // pages
 import 'package:insights/pages/homepage/Farm/farmlist/addfarm.dart';
@@ -34,7 +38,7 @@ class FarmListPage extends StatelessWidget {
         stream: query.snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const FarmListSkeleton();
           }
 
           if (snap.hasError) {
@@ -176,9 +180,7 @@ Row(
               child: FilledButton.icon(
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => FarmDetailsPage(farmId: doc.id),
-                  ),
+                  appRoute(FarmDetailsPage(farmId: doc.id)),
                 ),
                 icon: const Icon(Icons.build),
                 label: const Text('Manage Farm'),
@@ -193,9 +195,19 @@ Row(
               ),
             ),
   ],)
-  
-  
-);
+)
+    .animate()
+    .fadeIn(
+      delay: (i * 70).ms,
+      duration: 350.ms,
+      curve: Curves.easeOut,
+    )
+    .slideY(
+      begin: 0.12,
+      delay: (i * 70).ms,
+      duration: 350.ms,
+      curve: Curves.easeOutCubic,
+    );
 
             },
           );
@@ -203,10 +215,7 @@ Row(
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddFarmPage()),
-          );
+          Navigator.push(context, appRoute(const AddFarmPage()));
         },
         icon: const Icon(Icons.add),
         label: const Text('Add Farm'),

@@ -6,6 +6,7 @@ import 'package:insights/pages/homepage/Settings/change.dart';
 import 'package:insights/pages/homepage/Settings/editprofile.dart';
 import 'package:insights/theme_controller.dart';
 import 'package:insights/notifications_controller.dart';
+import 'package:insights/theme/transitions.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -142,9 +143,7 @@ class _Settings extends State<SettingsPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AccountEditPage(),
-                          ),
+                          appRoute(const AccountEditPage()),
                         );
                       },
                     ),
@@ -156,7 +155,7 @@ class _Settings extends State<SettingsPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ChangePassword()),
+                          appRoute(const ChangePassword()),
                         );
                       },
                     ),

@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:insights/theme/transitions.dart';
+import 'package:insights/theme/skeletons.dart';
 import 'trainingdetails.dart';
 
 class FarmerTrainingsPage extends StatefulWidget {
@@ -12,8 +15,7 @@ class FarmerTrainingsPage extends StatefulWidget {
   State<FarmerTrainingsPage> createState() => _FarmerTrainingsPageState();
 }
 
-class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
-    with TickerProviderStateMixin {
+class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -21,7 +23,6 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
   String _searchQuery = '';
   final Map<String, String> _enrolledMap = {};
   StreamSubscription<QuerySnapshot<Object?>>? _enrollSub;
-  late AnimationController _animationController;
 
   @override
   void initState() {
@@ -30,10 +31,6 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
       setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
     });
     _listenToMyEnrollments();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..forward();
   }
 
   @override
@@ -178,7 +175,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
     );
   }
 
-  Widget _buildTrainingCard(DocumentSnapshot doc) {
+  Widget _buildTrainingCard(DocumentSnapshot doc, int index) {
     final data = doc.data() as Map<String, dynamic>;
     final title = data['title'] ?? 'Untitled';
     final venue = data['venue'] ?? '';
@@ -192,17 +189,11 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
     final isEnrolled = _enrolledMap.containsKey(trainingId);
     final scheme = Theme.of(context).colorScheme;
 
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-      ),
-      child: GestureDetector(
+    return GestureDetector(
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => TrainingDetailsPage(trainingId: trainingId),
-            ),
+            appRoute(TrainingDetailsPage(trainingId: trainingId)),
           );
         },
         child: Card(
@@ -329,13 +320,23 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
             ),
           ),
         ),
-      ),
-    );
+      )
+        .animate()
+        .fadeIn(
+          delay: (index * 70).ms,
+          duration: 350.ms,
+          curve: Curves.easeOut,
+        )
+        .slideY(
+          begin: 0.12,
+          delay: (index * 70).ms,
+          duration: 350.ms,
+          curve: Curves.easeOutCubic,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
     final trainingsStream = _firestore
         .collection('trainings')
         .where('published', isEqualTo: true)
@@ -363,7 +364,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                     return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const TrainingListSkeleton();
                   }
 
                   final docs = snapshot.data!.docs.toList();
@@ -389,7 +390,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage>
                       ),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
-                        return _buildTrainingCard(filtered[index]);
+                        return _buildTrainingCard(filtered[index], index);
                       },
                     ),
                   );

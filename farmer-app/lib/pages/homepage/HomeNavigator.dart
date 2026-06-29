@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:insights/pages/homepage/Home/weather_widget.dart';
 import 'package:insights/pages/homepage/Home/irrigation_reco.dart';
 import 'package:insights/pages/homepage/Home/mango_test.dart';
@@ -77,7 +78,7 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
   void _openFeature(BuildContext context, _Feature feature) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: feature.destinationBuilder));
+    ).push(appRoute(Builder(builder: feature.destinationBuilder)));
   }
 
   Future<void> _onRefresh() async {
