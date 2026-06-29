@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:insights/theme/transitions.dart';
 import 'assessment_page.dart';
 import 'assessment_history.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -51,14 +52,14 @@ class _FarmerOverviewPageState extends State<FarmerOverviewPage>
     HapticFeedback.selectionClick();
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const QuestionnairePage()));
+    ).push(appRoute(const QuestionnairePage()));
   }
 
   void _openHistory() {
     HapticFeedback.selectionClick();
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const MySubmissionsPage()));
+    ).push(appRoute(const MySubmissionsPage()));
   }
 
   Widget _buildHeroCard({

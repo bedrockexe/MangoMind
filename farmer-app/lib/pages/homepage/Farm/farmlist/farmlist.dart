@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 // theme
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
+import 'package:insights/theme/interactions.dart';
 
 // pages
 import 'package:insights/pages/homepage/Farm/farmlist/addfarm.dart';
@@ -76,7 +77,12 @@ class FarmListPage extends StatelessWidget {
               final hasAnthracnose = disease['anthracnose'] == true;
               final hasPowderyMildew = disease['powderyMildew'] == true;
 
-              return Container(
+              return Pressable(
+                onTap: () => Navigator.push(
+                  context,
+                  appRoute(FarmDetailsPage(farmId: doc.id)),
+                ),
+                child: Container(
   padding: const EdgeInsets.all(16),
   decoration: BoxDecoration(
     color: Theme.of(context).colorScheme.surface,
@@ -195,7 +201,7 @@ Row(
               ),
             ),
   ],)
-)
+))
     .animate()
     .fadeIn(
       delay: (i * 70).ms,

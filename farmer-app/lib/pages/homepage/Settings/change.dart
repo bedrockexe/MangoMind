@@ -1,5 +1,6 @@
 // lib/pages/settings_page.dart
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:insights/pages/homepage/Settings/forgotpass.dart';
 
@@ -253,9 +254,7 @@ class _PasswordForm extends State<ChangePassword> {
                   child: TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PasswordResetPage(),
-                        ),
+                        appRoute(const PasswordResetPage()),
                       );
                     },
 

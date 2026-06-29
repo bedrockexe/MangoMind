@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:insights/theme/skeletons.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'assessment_review.dart';
 
@@ -122,8 +123,8 @@ class MySubmissionsPage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ReviewPage(
+                    appRoute(
+                      ReviewPage(
                         docId: d.id,
                         answers: data['answers'],
                         questionBank: QUESTION_BANK,

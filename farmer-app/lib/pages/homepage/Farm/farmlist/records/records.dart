@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/transitions.dart';
 
 // Import your existing pages
 import 'package:insights/pages/homepage/Farm/farmlist/records/irrigations/irrigations.dart';
@@ -27,9 +28,7 @@ class RecordsPage extends StatelessWidget {
                   color: Colors.teal.shade700,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => IrrigationsPage(farmRef: farmRef),
-                    ),
+                    appRoute(IrrigationsPage(farmRef: farmRef)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -39,9 +38,7 @@ class RecordsPage extends StatelessWidget {
                   color: Colors.amber.shade700,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => ObservationsPage(farmRef: farmRef),
-                    ),
+                    appRoute(ObservationsPage(farmRef: farmRef)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -51,9 +48,7 @@ class RecordsPage extends StatelessWidget {
                   color: Colors.green.shade700,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => YieldsHomePage(farmRef: farmRef),
-                    ),
+                    appRoute(YieldsHomePage(farmRef: farmRef)),
                   ),
                 ),
               ],

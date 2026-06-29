@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
+import 'package:insights/theme/interactions.dart';
 import 'trainingdetails.dart';
 
 class FarmerTrainingsPage extends StatefulWidget {
@@ -189,7 +190,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
     final isEnrolled = _enrolledMap.containsKey(trainingId);
     final scheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
+    return Pressable(
         onTap: () {
           Navigator.push(
             context,

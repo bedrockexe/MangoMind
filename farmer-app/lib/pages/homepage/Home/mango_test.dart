@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:insights/pages/services/tflite_service.dart';
@@ -277,9 +278,7 @@ class _CameraScanPageState extends State<CameraScanPage>
     // pass to analysis page
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => DetectionLoadingPage(imageFile: File(raw.path)),
-      ),
+      appRoute(DetectionLoadingPage(imageFile: File(raw.path))),
     );
   }
 
@@ -566,9 +565,8 @@ END: Process the attached image and return the JSON object only.
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              DetectionResultPage(parsed: parsed, imageFile: widget.imageFile),
+        appRoute(
+          DetectionResultPage(parsed: parsed, imageFile: widget.imageFile),
         ),
       );
     } catch (e) {
@@ -582,8 +580,8 @@ END: Process the attached image and return the JSON object only.
         await Future.delayed(const Duration(milliseconds: 600));
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => DetectionResultPage(
+          appRoute(
+            DetectionResultPage(
               parsed: parsed,
               imageFile: widget.imageFile,
               usedFallback: true,
@@ -1117,10 +1115,7 @@ class DetectionResultPage extends StatelessWidget {
                                 // replace current page with a fresh camera scan page
                                 if (!Navigator.of(context).mounted) return;
                                 Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        CameraScanPage(cameras: cams),
-                                  ),
+                                  appRoute(CameraScanPage(cameras: cams)),
                                 );
                               } catch (e) {
                                 // fallback: go back to first route (welcome) if camera init fails

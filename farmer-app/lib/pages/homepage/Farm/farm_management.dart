@@ -1,5 +1,6 @@
 // Flutter packages
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 
 // Pages
 import 'package:insights/pages/homepage/Farm/mangoprice/mangowidget.dart';
@@ -45,9 +46,7 @@ class _FarmListState extends State<FarmList> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const FarmListPage(),
-                      ),
+                      appRoute(const FarmListPage()),
                     );
                   },
                   child: Padding(

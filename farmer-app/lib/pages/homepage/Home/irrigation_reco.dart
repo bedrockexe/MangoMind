@@ -1,5 +1,6 @@
 // lib/features/irrigation/irrigation_page.dart
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'package:insights/pages/services/open_meteo_service.dart';
 import 'package:insights/pages/services/irrigation_advisor.dart';
@@ -132,7 +133,7 @@ class _IrrigationPageState extends State<IrrigationPage>
   void _goToFarms() {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (context) => FarmListPage()));
+    ).push(appRoute(FarmListPage()));
   }
 
   Widget _buildStatusCard() {

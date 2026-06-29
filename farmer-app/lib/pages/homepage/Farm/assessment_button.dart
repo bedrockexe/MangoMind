@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'assessment_overview.dart';
 
 class AssessmentButton extends StatelessWidget {
@@ -21,7 +22,7 @@ class AssessmentButton extends StatelessWidget {
       onPressed: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => FarmerOverviewPage()),
+          appRoute(FarmerOverviewPage()),
         );
       },
     );

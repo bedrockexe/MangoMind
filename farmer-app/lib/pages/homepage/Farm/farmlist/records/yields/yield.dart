@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -114,8 +115,8 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => MonthYieldsPage(
+                              appRoute(
+                                MonthYieldsPage(
                                   farmRef: widget.farmRef,
                                   year: year,
                                   month: month,
