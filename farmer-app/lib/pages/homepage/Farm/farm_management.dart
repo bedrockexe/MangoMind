@@ -16,6 +16,15 @@ class FarmList extends StatefulWidget {
 class _FarmListState extends State<FarmList> {
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Photo-backed cards: a translucent scrim keeps text legible over the
+    // image, flipping from light (with dark text) to dark (with light text)
+    // along with the app theme so they no longer stay bright in dark mode.
+    final scrimColor = (isDark ? Colors.black : Colors.white)
+        .withValues(alpha: isDark ? 0.55 : 0.6);
+    final onScrim = isDark ? Colors.white : Colors.black;
+    final onScrimVariant = isDark ? Colors.white70 : Colors.black54;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Farm Management')),
       body: ListView(
@@ -38,7 +47,7 @@ class _FarmListState extends State<FarmList> {
                   height: 100,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: scrimColor,
                   ),
                 ),
                 InkWell(
@@ -60,19 +69,23 @@ class _FarmListState extends State<FarmList> {
                         color: Color.fromARGB(255, 62, 142, 63),
                         size: 64,
                       ),
-                      title: const Text(
+                      title: Text(
                         "My Farms",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: onScrim,
                         ),
                       ),
                       subtitle: Text(
                         "View and manage your farm list",
-                        style: TextStyle(color: Colors.grey[800]),
+                        style: TextStyle(color: onScrimVariant),
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18,
+                        color: onScrim,
+                      ),
                     ),
                   ),
                 ),
@@ -93,7 +106,7 @@ class _FarmListState extends State<FarmList> {
             ),
 
             child: Card(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: scrimColor,
               child: Padding(
                 padding: EdgeInsets.all(15),
                 child: Column(
@@ -112,7 +125,7 @@ class _FarmListState extends State<FarmList> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: onScrim,
                           ),
                         ),
                         const Spacer(),
@@ -126,7 +139,7 @@ class _FarmListState extends State<FarmList> {
                           "Based on DA \"Bantay Presyo\"",
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[700],
+                            color: onScrimVariant,
                           ),
                         ),
                       ),

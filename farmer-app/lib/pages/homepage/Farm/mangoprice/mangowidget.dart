@@ -28,6 +28,12 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
 
   @override
   Widget build(BuildContext context) {
+    // This tile is rendered over the photo-backed price card's scrim, which
+    // flips light/dark with the theme — so its text must flip too.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onScrim = isDark ? Colors.white : Colors.black;
+    final onScrimVariant = isDark ? Colors.white70 : Colors.black54;
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<(List<MangoPrice>, bool)>(
@@ -96,7 +102,7 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: onScrim,
                               ),
                             ),
                           ],
@@ -109,7 +115,7 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
                             fontSize: 15,
                             fontFamily: "Poppins",
                             fontFamilyFallback: ["Roboto", "sans-serif"],
-                            color: Colors.grey[800],
+                            color: onScrimVariant,
                           ),
                         ),
                       ),
@@ -120,7 +126,7 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
               ),
               Text(
                 "Prices are updated as of $fetched",
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: onScrimVariant),
               ),
             ],
           );
