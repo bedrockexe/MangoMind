@@ -7,6 +7,7 @@ import 'package:insights/pages/homepage/Settings/editprofile.dart';
 import 'package:insights/theme_controller.dart';
 import 'package:insights/notifications_controller.dart';
 import 'package:insights/theme/transitions.dart';
+import 'package:insights/theme/skeletons.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -54,7 +55,7 @@ class _Settings extends State<SettingsPage> {
       stream: docRef.snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ProfileSkeleton();
         }
         if (snap.hasError) {
           return Center(child: Text('Failed to load: ${snap.error}'));

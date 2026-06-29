@@ -157,3 +157,91 @@ class TrainingListSkeleton extends StatelessWidget {
     );
   }
 }
+
+/// Generic skeleton for simple record lists (observations, irrigations, tasks,
+/// submissions…): a leading square, two text lines, and a trailing chevron
+/// block, repeated as outlined rows.
+class ListSkeleton extends StatelessWidget {
+  const ListSkeleton({super.key, this.itemCount = 6});
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _Shimmer(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: itemCount,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, _) {
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const SkeletonBox(width: 44, height: 44, radius: 10),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SkeletonBox(width: 160, height: 15),
+                      SizedBox(height: 8),
+                      SkeletonBox(width: 100),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const SkeletonBox(width: 20, height: 20, radius: 6),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Skeleton for a profile header (avatar circle + name + email lines), used
+/// while the Settings and Edit-account screens load the user document.
+class ProfileSkeleton extends StatelessWidget {
+  const ProfileSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _Shimmer(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            // Avatar
+            Container(
+              width: 104,
+              height: 104,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const SkeletonBox(width: 160, height: 18),
+            const SizedBox(height: 10),
+            const SkeletonBox(width: 200),
+            const SizedBox(height: 28),
+            // A couple of card-like blocks below the header.
+            const SkeletonBox(width: double.infinity, height: 64, radius: 12),
+            const SizedBox(height: 12),
+            const SkeletonBox(width: double.infinity, height: 64, radius: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}

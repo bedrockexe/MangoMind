@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/skeletons.dart';
 
 class ObservationsPage extends StatelessWidget {
   const ObservationsPage({super.key, required this.farmRef});
@@ -319,7 +320,7 @@ class ObservationsPage extends StatelessWidget {
         builder: (context, snap) {
           if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
 
           final docs = snap.data?.docs ?? [];

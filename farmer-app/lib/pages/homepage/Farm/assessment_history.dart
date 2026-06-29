@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:insights/theme/skeletons.dart';
 import 'package:intl/intl.dart';
 import 'assessment_review.dart';
 
@@ -100,7 +101,7 @@ class MySubmissionsPage extends StatelessWidget {
         builder: (context, snap) {
           if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
           if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {

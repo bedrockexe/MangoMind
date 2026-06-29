@@ -1,6 +1,7 @@
 // Flutter Material
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/skeletons.dart';
 
 class TasksPage extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> farmRef;
@@ -378,7 +379,7 @@ class _TasksPage extends State<TasksPage> {
                 return Center(child: Text('Error: ${snap.error}'));
               }
               if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const ListSkeleton();
               }
               final docs = snap.data?.docs ?? [];
               if (docs.isEmpty) {

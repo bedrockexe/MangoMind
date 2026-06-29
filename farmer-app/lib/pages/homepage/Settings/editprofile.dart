@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:insights/theme/skeletons.dart';
 
 class AccountEditPage extends StatefulWidget {
   const AccountEditPage({super.key});
@@ -225,8 +226,8 @@ class _AccountEditPageState extends State<AccountEditPage> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('Edit Account')),
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(title: const Text('Edit Account')),
+        body: const ProfileSkeleton(),
       );
     }
 

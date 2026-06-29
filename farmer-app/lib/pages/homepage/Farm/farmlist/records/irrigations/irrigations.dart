@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/skeletons.dart';
 
 class IrrigationsPage extends StatefulWidget {
   const IrrigationsPage({super.key, required this.farmRef});
@@ -369,7 +370,7 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
             return Center(child: Text('Error: ${snap.error}'));
           }
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
 
           final docs = snap.data?.docs ?? [];
