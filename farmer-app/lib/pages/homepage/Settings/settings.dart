@@ -8,6 +8,7 @@ import 'package:insights/theme_controller.dart';
 import 'package:insights/notifications_controller.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
+import 'package:insights/theme/components.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -131,8 +132,7 @@ class _Settings extends State<SettingsPage> {
 
               const SizedBox(height: 16),
 
-              Text('Account'),
-              const SizedBox(height: 8),
+              const SectionHeader('Account'),
               // Account Settings
               Card(
                 child: Column(
@@ -167,8 +167,7 @@ class _Settings extends State<SettingsPage> {
               const SizedBox(height: 16),
 
               // ——— App section (UI examples) ———
-              Text('App', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
+              const SectionHeader('App'),
               Card(
                 child: Column(
                   children: [

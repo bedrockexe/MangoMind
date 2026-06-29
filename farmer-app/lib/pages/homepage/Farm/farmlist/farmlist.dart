@@ -8,7 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 // theme
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
-import 'package:insights/theme/interactions.dart';
+import 'package:insights/theme/components.dart';
 
 // pages
 import 'package:insights/pages/homepage/Farm/farmlist/addfarm.dart';
@@ -48,13 +48,17 @@ class FarmListPage extends StatelessWidget {
 
           final docs = snap.data?.docs ?? [];
           if (docs.isEmpty) {
-            return const _EmptyFarms();
+            return const EmptyState(
+              icon: Icons.agriculture,
+              title: 'No farms yet',
+              message: 'Tap "Add Farm" to create your first farm.',
+            );
           }
 
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final doc = docs[i];
               final data = doc.data();
@@ -77,20 +81,13 @@ class FarmListPage extends StatelessWidget {
               final hasAnthracnose = disease['anthracnose'] == true;
               final hasPowderyMildew = disease['powderyMildew'] == true;
 
-              return Pressable(
+              return AppCard(
                 onTap: () => Navigator.push(
                   context,
                   appRoute(FarmDetailsPage(farmId: doc.id)),
                 ),
-                child: Container(
-  padding: const EdgeInsets.all(16),
-  decoration: BoxDecoration(
-    color: Theme.of(context).colorScheme.surface,
-    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
-    borderRadius: BorderRadius.circular(12),
-  ),
-
-  child: Column(children: [
+                selected: true,
+                child: Column(children: [
 Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -111,25 +108,26 @@ Row(
             if (areaHa != null)
               Text('🌾 ${areaHa.toStringAsFixed(2)} hectares'),
 
-            Row(
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
               children: [
-                _Chip('Soil: ${soilType ?? "-"}'),
-                const SizedBox(width: 6),
-                if (soilPh is num) _Chip('pH: ${soilPh.toString()}'),
-              ],
-            ),
-
-            Row(
-              children: [
-                _Chip('Irrigation: ${irrigationType ?? "-"}'),
-              ],
-            ),
-
-            Row(
-              children: [
-                if (hasAnthracnose) const _WarnChip('Anthracnose'),
-                const SizedBox(width: 8),
-                if (hasPowderyMildew) const _WarnChip('Powdery Mildew'),
+                AppStatusChip('Soil: ${soilType ?? "-"}'),
+                if (soilPh is num) AppStatusChip('pH: ${soilPh.toString()}'),
+                AppStatusChip('Irrigation: ${irrigationType ?? "-"}'),
+                if (hasAnthracnose)
+                  const AppStatusChip(
+                    'Anthracnose',
+                    tone: StatusTone.danger,
+                    icon: Icons.warning_amber_rounded,
+                  ),
+                if (hasPowderyMildew)
+                  const AppStatusChip(
+                    'Powdery Mildew',
+                    tone: StatusTone.danger,
+                    icon: Icons.warning_amber_rounded,
+                  ),
               ],
             ),
 
@@ -201,7 +199,7 @@ Row(
               ),
             ),
   ],)
-))
+)
     .animate()
     .fadeIn(
       delay: (i * 70).ms,
@@ -225,97 +223,6 @@ Row(
         },
         icon: const Icon(Icons.add),
         label: const Text('Add Farm'),
-      ),
-    );
-  }
-}
-
-class _EmptyFarms extends StatelessWidget {
-  const _EmptyFarms();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.agriculture,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'No farms yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Tap "Add Farm" to create your first farm.',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip(this.text);
-  final String text;
-  // final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Text(text, style: const TextStyle(fontSize: 12))],
-      ),
-    );
-  }
-}
-
-class _WarnChip extends StatelessWidget {
-  const _WarnChip(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            size: 14,
-            color: scheme.onErrorContainer,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(fontSize: 12, color: scheme.onErrorContainer),
-          ),
-        ],
       ),
     );
   }
