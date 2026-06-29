@@ -86,15 +86,24 @@ class _WeatherPanelState extends State<WeatherPanel>
     );
   }
 
-  // ---------- Loading (upgraded shimmer skeleton) ----------
+  // ---------- Loading (compact shimmer skeleton) ----------
+  Widget _skeletonBlock({double? width, double height = 14, double radius = 8}) =>
+      Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      );
+
   Widget _buildLoadingPanel() => Container(
-    height: 500,
     decoration: BoxDecoration(
       image: DecorationImage(
-        image: AssetImage("assets/weather2.jpg"),
+        image: const AssetImage("assets/weather_bg.jpg"),
         fit: BoxFit.cover,
         colorFilter: ColorFilter.mode(
-          Colors.black.withValues(alpha: 0.3),
+          Colors.black.withValues(alpha: 0.4),
           BlendMode.darken,
         ),
       ),
@@ -108,153 +117,27 @@ class _WeatherPanelState extends State<WeatherPanel>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // header row skeleton
+            _skeletonBlock(width: 160, height: 16),
+            const SizedBox(height: 8),
+            _skeletonBlock(width: 110),
+            const SizedBox(height: 18),
+            _skeletonBlock(width: 120, height: 48, radius: 12),
+            const SizedBox(height: 18),
             Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 160,
-                        height: 18,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 120,
-                        height: 14,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ],
-                  ),
-                ),
+                Expanded(child: _skeletonBlock(height: 48, radius: 14)),
+                const SizedBox(width: 10),
+                Expanded(child: _skeletonBlock(height: 48, radius: 14)),
               ],
             ),
-            const SizedBox(height: 16),
-
-            // big card skeleton for temperature
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 22,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 120,
-                        height: 14,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _skeletonBlock(height: 48, radius: 14)),
+                const SizedBox(width: 10),
+                Expanded(child: _skeletonBlock(height: 48, radius: 14)),
+              ],
             ),
-            const SizedBox(height: 18),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 22,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 120,
-                        height: 14,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 22,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 120,
-                        height: 14,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
           ],
         ),
       ),
@@ -361,140 +244,177 @@ class _WeatherPanelState extends State<WeatherPanel>
   );
 
   Widget _buildWeatherPanel(OpenMeteoData data, String location) {
+    final humidity = double.parse(data.dailyHumidity.toString()).toInt();
     return _coloredContainer(
       Colors.green.shade400,
       Colors.green.shade900,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Location + condition
           Row(
-            children: const [
-              Icon(Icons.wb_sunny, color: Colors.white, size: 32),
-              SizedBox(width: 10),
-              Text(
-                'Today’s Field Weather',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+            children: [
+              const Icon(Icons.location_on, color: Colors.white, size: 18),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  location.trim().isEmpty ? 'Your location' : location,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const Icon(Icons.wb_sunny, color: Colors.white, size: 26),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
-            'San Nicolas, Batangas',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
-          ).animate().fadeIn(duration: 600.ms),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
+            'Today’s field weather',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 12.5,
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.thermostat, color: Colors.white, size: 40),
-                const SizedBox(width: 16),
-                Column(
+          ),
+          const SizedBox(height: 16),
+          // Headline temperature
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${data.dailyTempMax.toStringAsFixed(0)}°',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 56,
+                  fontWeight: FontWeight.w700,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${data.dailyTempMax.toStringAsFixed(1)}°C / '
-                      '${data.dailyTempMin.toStringAsFixed(1)}°C',
-                      style: const TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                      'High / Low',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
                       ),
                     ),
                     Text(
-                      'Max / Min Temperature',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
+                      '${data.dailyTempMax.toStringAsFixed(0)}° / '
+                      '${data.dailyTempMin.toStringAsFixed(0)}°',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ).animate().slideY(begin: 0.5, duration: 700.ms),
-          const SizedBox(height: 20),
-          _buildAnimatedTile(
-            Icons.water_drop,
-            'Precipitation (mm)',
-            data.dailyPrecip.toStringAsFixed(1),
+              ),
+            ],
+          ).animate().fadeIn(duration: 500.ms),
+          const SizedBox(height: 18),
+          // Metric pills (2x2)
+          Row(
+            children: [
+              _metricPill(Icons.opacity, '$humidity%', 'Humidity'),
+              const SizedBox(width: 10),
+              _metricPill(
+                Icons.air,
+                data.maxWindToday.toStringAsFixed(0),
+                'km/h wind',
+              ),
+            ],
           ),
-          _buildAnimatedTile(
-            Icons.wind_power,
-            'Max Wind',
-            '${data.maxWindToday.toStringAsFixed(1)} km/h',
-          ),
-          _buildAnimatedTile(
-            Icons.cloud_queue,
-            'Chance of Rain (Next 24 h)',
-            '${data.maxPrecipProbNext24h}%',
-          ),
-          _buildAnimatedTile(
-            Icons.opacity,
-            'Humidity',
-            '${double.parse(data.dailyHumidity.toString()).toInt().toString()}%',
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _metricPill(
+                Icons.umbrella,
+                '${data.maxPrecipProbNext24h}%',
+                'Rain (24h)',
+              ),
+              const SizedBox(width: 10),
+              _metricPill(
+                Icons.water_drop,
+                data.dailyPrecip.toStringAsFixed(1),
+                'mm precip',
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedTile(IconData icon, String label, String value) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+  Widget _metricPill(IconData icon, String value, String label) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ).animate().fadeIn(duration: 500.ms).slideX(begin: -0.3);
+    );
   }
 
   // ---------- Utility containers ----------
   Widget _coloredContainer(Color base1, Color base2, {required Widget child}) {
     return Container(
-      height: 500,
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage("assets/weather2.jpg"),
+          image: const AssetImage("assets/weather_bg.jpg"),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(
-            Colors.black.withValues(alpha: 0.3),
+            Colors.black.withValues(alpha: 0.4),
             BlendMode.darken,
           ),
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 18,
             offset: const Offset(0, 10),
           ),
         ],

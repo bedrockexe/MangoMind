@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
+
+import 'package:insights/theme/app_theme.dart';
 import 'package:insights/theme/transitions.dart';
+import 'package:insights/theme/components.dart';
+import 'package:insights/theme/interactions.dart';
 import 'package:insights/pages/homepage/Home/weather_widget.dart';
 import 'package:insights/pages/homepage/Home/irrigation_reco.dart';
 import 'package:insights/pages/homepage/Home/mango_test.dart';
@@ -11,25 +19,25 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeRootState();
 }
 
-class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final List<Animation<double>> _itemanimations;
+class _HomeRootState extends State<Home> {
   int _refreshToken = 0;
 
-  final List<_Feature> features = [
-    _Feature(
-      id: 'disease',
-      title: 'Disease Checker',
-      subtitle: 'Detect mango diseases using Image Detector',
-      cta: 'Scan Now',
-      icon: Icons.bug_report,
-      color: const Color(0xFFEF6C6C),
-      destinationBuilder: (ctx) => const MangoDetector(),
-    ),
+  // The flagship action gets a spotlight; the rest become tool tiles.
+  late final _Feature _spotlight = _Feature(
+    id: 'disease',
+    title: 'Scan your mango',
+    subtitle: 'Detect diseases & ripeness instantly with on-device AI',
+    cta: 'Scan now',
+    icon: Icons.center_focus_strong,
+    color: AppTheme.brandGreen,
+    destinationBuilder: (ctx) => const MangoDetector(),
+  );
+
+  late final List<_Feature> _tools = [
     _Feature(
       id: 'irrigation',
       title: 'Smart Irrigation',
-      subtitle: 'Get accurate watering recommendations',
+      subtitle: 'Watering advice',
       cta: 'Get Advice',
       icon: Icons.water_drop,
       color: const Color(0xFF18A0C1),
@@ -40,8 +48,8 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
     ),
     _Feature(
       id: 'training',
-      title: 'Training Programs',
-      subtitle: 'Learn modern farming techniques',
+      title: 'Training',
+      subtitle: 'Learn techniques',
       cta: 'Start Learning',
       icon: Icons.school,
       color: const Color(0xFF8E6DF5),
@@ -49,33 +57,7 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
     ),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _itemanimations = List.generate(features.length, (i) {
-      final start = i * 0.12;
-      final end = (start + 0.55).clamp(0.0, 1.0);
-      return CurvedAnimation(
-        parent: _controller,
-        curve: Interval(start, end, curve: Curves.easeOut),
-      );
-    });
-
-    // entrance
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _openFeature(BuildContext context, _Feature feature) {
+  void _openFeature(_Feature feature) {
     Navigator.of(
       context,
     ).push(appRoute(Builder(builder: feature.destinationBuilder)));
@@ -87,51 +69,277 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final isLarge = mq.size.width > 900;
-    final bottomInset = mq.viewPadding.bottom + mq.viewInsets.bottom;
+    final bottomInset =
+        MediaQuery.of(context).viewPadding.bottom +
+        MediaQuery.of(context).viewInsets.bottom;
 
     return RefreshIndicator.adaptive(
       onRefresh: _onRefresh,
-      child: SafeArea(
-        bottom: true,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
-          children: [
-            // Title
-            const Text(
-              "Home",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          const _HeroHeader(),
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + bottomInset),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SpotlightCard(
+                  feature: _spotlight,
+                  onTap: () => _openFeature(_spotlight),
+                ).animate().fadeIn(duration: 350.ms).slideY(
+                  begin: 0.12,
+                  duration: 350.ms,
+                  curve: Curves.easeOutCubic,
+                ),
+                const SizedBox(height: 22),
+                const SectionHeader('Your Tools'),
+                const SizedBox(height: 4),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _tools.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: 150,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                      ),
+                  itemBuilder: (context, index) {
+                    final f = _tools[index];
+                    return _ToolTile(feature: f, onTap: () => _openFeature(f))
+                        .animate()
+                        .fadeIn(delay: (120 + index * 90).ms, duration: 350.ms)
+                        .slideY(
+                          begin: 0.15,
+                          delay: (120 + index * 90).ms,
+                          duration: 350.ms,
+                          curve: Curves.easeOutCubic,
+                        );
+                  },
+                ),
+                const SizedBox(height: 26),
+                const SectionHeader('Field Weather'),
+                const SizedBox(height: 8),
+                WeatherPanel(key: ValueKey(_refreshToken)),
+              ],
             ),
-            const SizedBox(height: 16),
-            WeatherPanel(key: ValueKey(_refreshToken)),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: features.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isLarge ? 2 : 1,
-                mainAxisExtent: 150,
-                mainAxisSpacing: 18,
-                crossAxisSpacing: 18,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Full-bleed gradient header with the farmer's avatar, a time-of-day greeting
+/// + name, and today's date. Reads the user doc live (shimmer-free graceful
+/// fallback while loading / offline).
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader();
+
+  String _greetingWord() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final dateLabel = DateFormat('EEEE, MMMM d').format(DateTime.now());
+
+    final stream = user == null
+        ? null
+        : FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots();
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.brandGreen, AppTheme.brandGreenDeep],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: stream == null
+              ? _content(context, name: '', photoUrl: null, dateLabel: dateLabel)
+              : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: stream,
+                  builder: (context, snap) {
+                    final data = snap.data?.data() ?? {};
+                    return _content(
+                      context,
+                      name: (data['first_name'] ?? '').toString(),
+                      photoUrl: (data['photo_url'] ?? data['profilePath'])
+                          ?.toString(),
+                      dateLabel: dateLabel,
+                    );
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(
+    BuildContext context, {
+    required String name,
+    required String? photoUrl,
+    required String dateLabel,
+  }) {
+    final who = name.trim().isEmpty ? 'there' : name.trim();
+    final initial = who.isNotEmpty ? who[0].toUpperCase() : 'U';
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
+          ),
+          child: CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                ? NetworkImage(photoUrl)
+                : null,
+            child: (photoUrl == null || photoUrl.isEmpty)
+                ? Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _greetingWord(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 14,
+                ),
               ),
-              itemBuilder: (context, index) {
-                return FadeTransition(
-                  opacity: _itemanimations[index],
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.08),
-                      end: Offset.zero,
-                    ).animate(_itemanimations[index]),
-                    child: FeatureCard(
-                      feature: features[index],
-                      onTap: () => _openFeature(context, features[index]),
+              const SizedBox(height: 2),
+              Text(
+                '$who 🌱',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                dateLabel,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The flagship call-to-action — a bold gradient card spotlighting the mango
+/// scanner.
+class _SpotlightCard extends StatelessWidget {
+  const _SpotlightCard({required this.feature, this.onTap});
+  final _Feature feature;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.brandGreen, AppTheme.brandGreenDeep],
+          ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.brandGreen.withValues(alpha: 0.30),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: Icon(feature.icon, color: Colors.white, size: 30),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    feature.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 4),
+                  Text(
+                    feature.subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
             ),
           ],
         ),
@@ -140,164 +348,66 @@ class _HomeRootState extends State<Home> with SingleTickerProviderStateMixin {
   }
 }
 
-class FeatureCard extends StatefulWidget {
+/// A compact vertical feature tile for the tools grid.
+class _ToolTile extends StatelessWidget {
+  const _ToolTile({required this.feature, this.onTap});
   final _Feature feature;
   final VoidCallback? onTap;
 
-  const FeatureCard({required this.feature, this.onTap, super.key});
-
-  @override
-  State<FeatureCard> createState() => _FeatureCardState();
-}
-
-class _FeatureCardState extends State<FeatureCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pressController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 120),
-      lowerBound: 0,
-      upperBound: 0.04,
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final f = widget.feature;
-
-    return GestureDetector(
-      onTapDown: (_) => _pressController.forward(),
-      onTapUp: (_) {
-        _pressController.reverse();
-        widget.onTap?.call();
-      },
-      onTapCancel: () => _pressController.reverse(),
-      child: AnimatedBuilder(
-        animation: _pressController,
-        builder: (context, child) {
-          final scale = 1 - _pressController.value;
-          return Transform.scale(scale: scale, child: child);
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: feature.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            child: Icon(feature.icon, color: feature.color, size: 26),
           ),
-          padding: const EdgeInsets.all(18),
-          child: Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CircularIcon(color: f.color, icon: f.icon),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      f.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      f.subtitle,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: widget.onTap,
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                f.cta,
-                                style: TextStyle(
-                                  color: f.color,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.arrow_forward,
-                                size: 16,
-                                color: f.color,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              Text(
+                feature.title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                feature.subtitle,
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12.5,
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CircularIcon extends StatelessWidget {
-  final Color color;
-  final IconData icon;
-  const _CircularIcon({required this.color, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color.withValues(alpha: 0.95), color.withValues(alpha: 0.8)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+          Row(
+            children: [
+              Text(
+                feature.cta,
+                style: TextStyle(
+                  color: feature.color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_forward, size: 14, color: feature.color),
+            ],
           ),
         ],
       ),
-      child: Center(child: Icon(icon, color: Colors.white, size: 26)),
     );
   }
 }
