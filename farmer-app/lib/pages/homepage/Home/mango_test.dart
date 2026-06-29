@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:insights/theme/transitions.dart';
+import 'package:insights/theme/components.dart';
+import 'package:insights/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:insights/pages/services/tflite_service.dart';
@@ -948,7 +951,6 @@ class DetectionResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isMango = parsed['is_mango'] as bool;
     final objectType = parsed['object_type'] as String;
     final disease = parsed['disease_label'] as String;
@@ -957,186 +959,277 @@ class DetectionResultPage extends StatelessWidget {
     final recs = List<String>.from(parsed['recommendations'] as List);
     final tips = List<String>.from(parsed['photo_tips'] as List);
     final explainers = List<String>.from(parsed['explainers'] as List);
+
+    final hasDisease =
+        disease != 'Healthy' && disease.toUpperCase() != 'UNSURE';
     final displayDisease = (disease.toUpperCase() == 'UNSURE')
         ? 'Healthy'
         : disease;
 
-    // choose icon + label
-    final mainLabel = isMango ? 'Mango detected' : 'Not a mango';
-    final icon = isMango ? Icons.check_circle_outline : Icons.block;
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: scheme.surface,
-        elevation: 0,
-        title: Text(
-          'Detection',
-          style: TextStyle(color: scheme.primary),
-        ),
+        title: const Text('Detection Result'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: scheme.primary),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
         ),
       ),
-      body: Container(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        color: scheme.surface,
-        child: SingleChildScrollView(
-          child: Column(
+        children: [
+          if (usedFallback) ...[
+            _fallbackBanner(context),
+            const SizedBox(height: 14),
+          ],
+
+          // Scanned photo
+          Hero(tag: 'mango-logo', child: _imageCard(context, imageFile)),
+          const SizedBox(height: 16),
+
+          // Verdict hero — the headline result, revealed with a soft animation.
+          _verdictCard(
+            context,
+            isMango: isMango,
+            objectType: objectType,
+            displayDisease: displayDisease,
+            hasDisease: hasDisease,
+          ).animate().fadeIn(duration: 400.ms).slideY(
+            begin: 0.1,
+            duration: 400.ms,
+            curve: Curves.easeOutCubic,
+          ),
+
+          // Ripeness (fruit only)
+          if (isMango && objectType == 'Fruit') ...[
+            const SizedBox(height: 14),
+            _ripenessCard(context, ripeness, ripenessStage),
+          ],
+
+          // Recommendations / healthy note (mango only)
+          if (isMango) ...[
+            const SizedBox(height: 14),
+            if (hasDisease)
+              _bulletCard(
+                context,
+                title: 'Recommendations',
+                icon: Icons.medical_services_outlined,
+                bullets: recs,
+              )
+            else
+              _bulletCard(
+                context,
+                title: 'Looking good',
+                icon: Icons.verified_outlined,
+                bullets: [
+                  objectType == 'Fruit'
+                      ? 'Fruit appears healthy. Consider harvesting at ripe stage.'
+                      : 'Leaf looks healthy. Keep monitoring regularly.',
+                ],
+              ),
+          ],
+
+          // Photo tips (when not a mango)
+          if (!isMango && tips.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _bulletCard(
+              context,
+              title: 'Photo tips',
+              icon: Icons.photo_camera_outlined,
+              bullets: tips,
+            ),
+          ],
+
+          // Explainers
+          if (explainers.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _bulletCard(
+              context,
+              title: 'Why this result?',
+              icon: Icons.help_outline,
+              bullets: explainers,
+            ),
+          ],
+
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.camera_alt_outlined),
+              label: const Text('Scan again'),
+              onPressed: () async {
+                try {
+                  final cams = await availableCameras();
+                  if (!Navigator.of(context).mounted) return;
+                  Navigator.of(
+                    context,
+                  ).pushReplacement(appRoute(CameraScanPage(cameras: cams)));
+                } catch (e) {
+                  if (!Navigator.of(context).mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not start camera: $e')),
+                  );
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  /// The headline verdict card with a colored accent badge and status chips.
+  Widget _verdictCard(
+    BuildContext context, {
+    required bool isMango,
+    required String objectType,
+    required String displayDisease,
+    required bool hasDisease,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    // Accent reflects the most important signal: not-a-mango / disease are
+    // alarming (error), a clean mango is reassuring (primary green).
+    final Color accent = !isMango
+        ? scheme.error
+        : (hasDisease ? scheme.error : scheme.primary);
+    final IconData badge = !isMango
+        ? Icons.block
+        : (hasDisease ? Icons.warning_amber_rounded : Icons.check_circle);
+    final String title = isMango ? 'Mango detected' : 'Not a mango';
+    final String subtitle = isMango
+        ? (hasDisease ? 'Condition needs attention' : 'No issues detected')
+        : 'Try another photo for a reading';
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              if (usedFallback) ...[
-                _fallbackBanner(),
-                const SizedBox(height: 14),
-              ],
-              Hero(tag: 'mango-logo', child: _imageCard(context, imageFile)),
-              const SizedBox(height: 14),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            icon,
-                            size: 28,
-                            color: isMango ? scheme.primary : scheme.error,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              mainLabel,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                child: Icon(badge, color: accent, size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 12),
-                      if (!isMango) ...[
-                        const Text(
-                          'Photo tips',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 8),
-                        for (final t in tips) _smallBullet(t),
-                      ] else ...[
-                        Row(
-                          children: [
-                            _pill(context, 'Type: $objectType'),
-                            const SizedBox(width: 8),
-                            if (objectType == 'Fruit')
-                              _pill(context, 'Stage: $ripenessStage'),
-                            const SizedBox(width: 8),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (objectType == 'Fruit') ...[
-                          Text(
-                            'Ripeness: ${ripeness.toStringAsFixed(2)}%',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: (ripeness / 100).clamp(0.0, 1.0),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Condition: $displayDisease',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 12),
-                          if (disease != 'Healthy' && disease != 'UNSURE') ...[
-                            const Text(
-                              'Recommendations',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            for (final r in recs) _smallBullet(r),
-                          ] else if (disease == 'Healthy') ...[
-                            _smallBullet(
-                              'Fruit appears healthy. Consider harvesting at ripe stage.',
-                            ),
-                          ],
-                        ] else if (objectType == 'Leaf') ...[
-                          Text(
-                            'Leaf Condition: $displayDisease',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 12),
-                          if (disease != 'Healthy' && disease != 'UNSURE') ...[
-                            const Text(
-                              'Recommendations',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            for (final r in recs) _smallBullet(r),
-                          ] else ...[
-                            _smallBullet(
-                              'Leaf looks healthy. Keep monitoring regularly.',
-                            ),
-                          ],
-                        ],
-                      ],
-                      const SizedBox(height: 10),
-                      if (explainers.isNotEmpty) ...[
-                        const Text(
-                          'Why this result?',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        for (final e in explainers) _smallBullet(e),
-                      ],
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: scheme.primary,
-                              foregroundColor: scheme.onPrimary,
-                            ),
-                            icon: const Icon(
-                              Icons.camera_alt_outlined,
-                              size: 16,
-                            ),
-                            label: const Text('Scan again'),
-                            onPressed: () async {
-                              // get available cameras again and push CameraScanPage
-                              try {
-                                final cams = await availableCameras();
-                                // replace current page with a fresh camera scan page
-                                if (!Navigator.of(context).mounted) return;
-                                Navigator.of(context).pushReplacement(
-                                  appRoute(CameraScanPage(cameras: cams)),
-                                );
-                              } catch (e) {
-                                // fallback: go back to first route (welcome) if camera init fails
-                                if (!Navigator.of(context).mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Could not start camera: $e'),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 13,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+          if (isMango) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                AppStatusChip(objectType, icon: Icons.category_outlined),
+                AppStatusChip(
+                  displayDisease,
+                  tone: hasDisease ? StatusTone.danger : StatusTone.success,
+                  icon: hasDisease
+                      ? Icons.coronavirus_outlined
+                      : Icons.eco_outlined,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Ripeness gauge for fruit results.
+  Widget _ripenessCard(BuildContext context, double ripeness, String stage) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Ripeness',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+              AppStatusChip(stage, tone: StatusTone.warning),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: (ripeness / 100).clamp(0.0, 1.0),
+              minHeight: 10,
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${ripeness.toStringAsFixed(0)}% ripe',
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A titled card listing bullet points.
+  Widget _bulletCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<String> bullets,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final b in bullets) _smallBullet(b),
+        ],
       ),
     );
   }
@@ -1160,47 +1253,34 @@ class DetectionResultPage extends StatelessWidget {
     );
   }
 
-  Widget _pill(BuildContext context, String text) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6),
-      ],
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-    ),
-  );
-
-  Widget _fallbackBanner() => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF4E5),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFFFFB74D)),
-    ),
-    child: Row(
-      children: const [
-        Icon(Icons.cloud_off, color: Color(0xFFE65100), size: 20),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'Cloud analysis unavailable — showing a limited on-device estimate. '
-            'Reconnect to the internet for a full AI report.',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF8A4B00),
-              height: 1.3,
+  Widget _fallbackBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off, color: scheme.onTertiaryContainer, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Cloud analysis unavailable — showing a limited on-device estimate. '
+              'Reconnect to the internet for a full AI report.',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: scheme.onTertiaryContainer,
+                height: 1.3,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 
   Widget _smallBullet(String txt) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
