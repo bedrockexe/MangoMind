@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -97,19 +99,32 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
                         ).format(DateTime(year, month));
                         final agg =
                             byMonth[_MonthKey(year, month)] ?? _MonthAgg();
+                        final scheme = Theme.of(context).colorScheme;
+                        final hasRecords = agg.count > 0;
 
                         return ListTile(
                           leading: CircleAvatar(
+                            backgroundColor: hasRecords
+                                ? scheme.primaryContainer
+                                : scheme.surfaceContainerHighest,
                             child: Text(
                               DateFormat(
                                 'MMM',
                               ).format(DateTime(year, month)).toUpperCase(),
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: hasRecords
+                                    ? scheme.onPrimaryContainer
+                                    : scheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                           title: Text('$label $year'),
                           subtitle: Text(
-                            '${_fmtKg(agg.total)} total • ${agg.count} record(s)',
+                            hasRecords
+                                ? '${_fmtKg(agg.total)} total • ${agg.count} record(s)'
+                                : 'No records',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
@@ -484,48 +499,68 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
             children: [
               // ---------------- Calendar (locked to month) ----------------
               Padding(
-                padding: const EdgeInsets.all(12),
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                    child: ValueListenableBuilder<DateTime>(
-                      valueListenable: _selectedDayVN,
-                      builder: (context, selectedDay, _) {
-                        return TableCalendar<_YieldRecord>(
-                          firstDay: _firstDay,
-                          lastDay: _lastDay,
-                          focusedDay:
-                              selectedDay.isBefore(_firstDay) ||
-                                  selectedDay.isAfter(_lastDay)
-                              ? _firstDay
-                              : selectedDay,
-                          calendarFormat: CalendarFormat.month,
-                          availableCalendarFormats: const {
-                            CalendarFormat.month: 'Month',
-                          },
-                          availableGestures: AvailableGestures.none, // lock nav
-                          headerStyle: const HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                            leftChevronVisible: false,
-                            rightChevronVisible: false,
+                padding: const EdgeInsets.all(AppTheme.space4),
+                child: AppCard(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                  child: ValueListenableBuilder<DateTime>(
+                    valueListenable: _selectedDayVN,
+                    builder: (context, selectedDay, _) {
+                      final scheme = Theme.of(context).colorScheme;
+                      return TableCalendar<_YieldRecord>(
+                        firstDay: _firstDay,
+                        lastDay: _lastDay,
+                        focusedDay:
+                            selectedDay.isBefore(_firstDay) ||
+                                selectedDay.isAfter(_lastDay)
+                            ? _firstDay
+                            : selectedDay,
+                        calendarFormat: CalendarFormat.month,
+                        availableCalendarFormats: const {
+                          CalendarFormat.month: 'Month',
+                        },
+                        availableGestures: AvailableGestures.none, // lock nav
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          leftChevronVisible: false,
+                          rightChevronVisible: false,
+                          titleTextStyle: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700) ??
+                              const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        calendarStyle: CalendarStyle(
+                          outsideDaysVisible: false,
+                          markersMaxCount: 1,
+                          todayDecoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
                           ),
-                          startingDayOfWeek: StartingDayOfWeek.monday,
-                          selectedDayPredicate: (day) =>
-                              _isSameDay(day, selectedDay),
-                          eventLoader: (day) =>
-                              events[_dayOnly(day)] ?? const [],
-                          onDaySelected: (day, _) {
-                            // 🔒 No setState here → no StreamBuilder rebuild.
-                            if (!mounted) return;
-                            _selectedDayVN.value = _dayOnly(day);
-                          },
-                        );
-                      },
-                    ),
+                          todayTextStyle: TextStyle(color: scheme.onSurface),
+                          selectedDecoration: BoxDecoration(
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          selectedTextStyle: TextStyle(
+                            color: scheme.onPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          markerDecoration: BoxDecoration(
+                            color: scheme.tertiary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        startingDayOfWeek: StartingDayOfWeek.monday,
+                        selectedDayPredicate: (day) =>
+                            _isSameDay(day, selectedDay),
+                        eventLoader: (day) =>
+                            events[_dayOnly(day)] ?? const [],
+                        onDaySelected: (day, _) {
+                          // 🔒 No setState here → no StreamBuilder rebuild.
+                          if (!mounted) return;
+                          _selectedDayVN.value = _dayOnly(day);
+                        },
+                      );
+                    },
                   ),
                 ),
               ),
@@ -550,12 +585,29 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
                       ), // smoother scrolling
                       padding: const EdgeInsets.only(bottom: 12),
                       children: [
-                        ListTile(
-                          title: Text(
-                            selLabel,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppTheme.space4,
+                            AppTheme.space1,
+                            AppTheme.space4,
+                            AppTheme.space2,
                           ),
-                          subtitle: Text('${_fmtKg(selTotal)} total'),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  selLabel,
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              if (recs.isNotEmpty)
+                                AppStatusChip(
+                                  '${_fmtKg(selTotal)} total',
+                                  tone: StatusTone.success,
+                                ),
+                            ],
+                          ),
                         ),
 
                         AnimatedSwitcher(
@@ -580,25 +632,30 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
                                     message: 'No yields on this day.',
                                   ),
                                 )
-                              : Card(
+                              : Padding(
                                   key: ValueKey(
                                     '${dayKey.toIso8601String()}-${recs.length}',
                                   ),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppTheme.space4,
+                                    vertical: AppTheme.space2,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      for (final r in recs) ...[
-                                        ListTile(
-                                          dense: true,
-                                          leading: const Icon(
-                                            Icons.local_mall_outlined,
-                                          ),
+                                  child: AppCard(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppTheme.space2,
+                                      vertical: AppTheme.space1,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        for (final r in recs) ...[
+                                          ListTile(
+                                            dense: true,
+                                            leading: Icon(
+                                              Icons.local_mall_outlined,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
                                           title: Text(_fmtKg(r.kg)),
                                           subtitle: Text(
                                             [
@@ -660,6 +717,7 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
                                     ],
                                   ),
                                 ),
+                              ),
                         ),
                       ],
                     );

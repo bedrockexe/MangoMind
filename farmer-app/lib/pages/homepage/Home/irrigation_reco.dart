@@ -1,5 +1,8 @@
 // lib/features/irrigation/irrigation_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
 import 'package:insights/pages/services/open_meteo_service.dart';
@@ -140,100 +143,102 @@ class _IrrigationPageState extends State<IrrigationPage>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final recommend = _advice?.recommend ?? false;
+    final accent = recommend ? scheme.tertiary : scheme.primary;
+    final bg = recommend ? scheme.tertiaryContainer : scheme.primaryContainer;
+    final onBg = recommend
+        ? scheme.onTertiaryContainer
+        : scheme.onPrimaryContainer;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: recommend
-            ? LinearGradient(
-                colors: [scheme.tertiaryContainer, scheme.surface],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : LinearGradient(
-                colors: [scheme.primaryContainer, scheme.surface],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppTheme.space4),
+      decoration: BoxDecoration(color: bg, borderRadius: AppTheme.cardRadius),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ScaleTransition(
-            scale: Tween(begin: 0.95, end: 1.05).animate(
-              CurvedAnimation(
-                parent: _pulseController,
-                curve: Curves.easeInOut,
-              ),
-            ),
-            child: CircleAvatar(
-              radius: 30,
-              backgroundColor: recommend ? scheme.tertiary : scheme.primary,
-              child: Icon(
-                recommend ? Icons.water_drop : Icons.check_rounded,
-                size: 32,
-                color: recommend ? scheme.onTertiary : scheme.onPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  recommend
-                      ? 'Irrigation recommended'
-                      : 'Irrigation not recommended',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              ScaleTransition(
+                scale: Tween(begin: 0.95, end: 1.05).animate(
+                  CurvedAnimation(
+                    parent: _pulseController,
+                    curve: Curves.easeInOut,
                   ),
                 ),
-                const SizedBox(height: 6),
-                if (_advice != null)
-                  Text(
-                    _advice!.reason,
-                    style: theme.textTheme.bodyMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: accent,
+                  child: Icon(
+                    recommend ? Icons.water_drop : Icons.check_rounded,
+                    size: 30,
+                    color: recommend ? scheme.onTertiary : scheme.onPrimary,
                   ),
-                if (_advice != null) const SizedBox(height: 8),
-                if (_advice != null)
-                  Column(
-                    children: [
-                      if (recommend)
-                        Chip(
-                          label: Text(
-                            'Deficit ${_advice!.waterDeficitMm.toStringAsFixed(1)} mm',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          backgroundColor: scheme.surface.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(width: AppTheme.space4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recommend
+                          ? 'Irrigation recommended'
+                          : 'Irrigation not recommended',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: onBg,
+                      ),
+                    ),
+                    if (_advice != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _advice!.reason,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: onBg.withValues(alpha: 0.85),
                         ),
-                      const SizedBox(width: 8),
-                      if (_lastChecked != null)
-                        Text(
-                          'Last: ${DateFormat.yMd().add_jm().format(_lastChecked!)}',
-                          style: theme.textTheme.bodySmall,
-                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
+                    if (_advice == null && !_loading) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Press "Check now" to evaluate irrigation for this location.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: onBg.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_advice != null && (recommend || _lastChecked != null)) ...[
+            const SizedBox(height: AppTheme.space3),
+            Wrap(
+              spacing: AppTheme.space2,
+              runSpacing: AppTheme.space2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (recommend)
+                  AppStatusChip(
+                    'Deficit ${_advice!.waterDeficitMm.toStringAsFixed(1)} mm',
+                    tone: StatusTone.warning,
+                    icon: Icons.water_drop,
                   ),
-                if (_advice == null && !_loading)
+                if (_lastChecked != null)
                   Text(
-                    'Press "Check now" to evaluate irrigation for this location.',
-                    style: theme.textTheme.bodySmall,
+                    'Last checked ${DateFormat.yMd().add_jm().format(_lastChecked!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: onBg.withValues(alpha: 0.75),
+                    ),
                   ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -243,7 +248,7 @@ class _IrrigationPageState extends State<IrrigationPage>
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
+          child: FilledButton.icon(
             onPressed: _loading ? null : () => _runCheck(notify: true),
             icon: _loading
                 ? const SizedBox(
@@ -256,25 +261,13 @@ class _IrrigationPageState extends State<IrrigationPage>
                   )
                 : const Icon(Icons.refresh),
             label: Text(_loading ? 'Checking...' : 'Check now'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.space3),
         OutlinedButton.icon(
           onPressed: _goToFarms,
           icon: const Icon(Icons.agriculture),
           label: const Text('Farms'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
         ),
       ],
     );
@@ -295,113 +288,79 @@ class _IrrigationPageState extends State<IrrigationPage>
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-        child: Column(
-          children: [
-            // Header card with quick summary
-            _buildStatusCard(),
-            const SizedBox(height: 18),
+      body: ListView(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        children: [
+          // Header card with quick summary
+          _buildStatusCard().animate().fadeIn(duration: 350.ms),
+          const SizedBox(height: AppTheme.space4),
 
-            // Error message
-            if (_error != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: theme.colorScheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onErrorContainer,
-                        ),
+          // Error message
+          if (_error != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppTheme.space3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: AppTheme.cardRadius,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: AppTheme.space2),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 12),
-
-            // Controls
-            _buildControls(),
-
-            const SizedBox(height: 16),
-
-            // Scheduling switch and short explanation
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Daily automatic check at 6:00 AM',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                    Switch(
-                      value: _scheduled,
-                      onChanged: (v) => _toggleSchedule(v),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 14),
-
-            // Detailed info / explanation area
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'What this means',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This tool fetches recent weather & soil moisture estimates, then applies the irrigation advisor rules to decide if irrigation is recommended. '
-                      'If irrigation is recommended, it also calculates an estimated water deficit (mm).',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          // quick tip: run a manual immediate notification call path
-                          _runCheck(notify: true);
-                        },
-                        child: const Text('Run check & send notification'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: AppTheme.space3),
           ],
-        ),
+
+          // Controls
+          _buildControls(),
+          const SizedBox(height: AppTheme.space5),
+
+          // Scheduling switch
+          const SectionHeader('Automation'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.space3,
+              vertical: AppTheme.space1,
+            ),
+            child: SwitchListTile(
+              value: _scheduled,
+              onChanged: (v) => _toggleSchedule(v),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Daily automatic check'),
+              subtitle: const Text('Runs every day at 6:00 AM'),
+            ),
+          ),
+          const SizedBox(height: AppTheme.space5),
+
+          // Detailed info / explanation
+          const SectionHeader('What this means'),
+          AppCard(
+            child: Text(
+              'This tool fetches recent weather & soil moisture estimates, then '
+              'applies the irrigation advisor rules to decide if irrigation is '
+              'recommended. If it is, it also calculates an estimated water '
+              'deficit (mm).',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
