@@ -99,7 +99,7 @@ flowchart TD
         A["Admin Console<br/>(admin-console/)"]
     end
 
-    subgraph Firebase["🔥 Firebase (sweet-insights-1e5f1)"]
+    subgraph Firebase["🔥 Firebase"]
         Auth["Authentication<br/>(email + custom claims)"]
         FS["Cloud Firestore<br/>(farms, records, assessments…)"]
         ST["Cloud Storage<br/>(photos, training media)"]
