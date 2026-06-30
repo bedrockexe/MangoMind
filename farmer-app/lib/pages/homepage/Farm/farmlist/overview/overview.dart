@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:insights/pages/homepage/Farm/farmlist/overview/yieldchart.dart';
 import 'package:insights/pages/homepage/Farm/farmlist/editfarm.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
+import 'package:insights/theme/transitions.dart';
 
 class OverviewPage extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> farmRef;
@@ -916,6 +920,7 @@ class _OverviewPage extends State<OverviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: farmRef.snapshots(),
       builder: (context, snap) {
@@ -926,8 +931,8 @@ class _OverviewPage extends State<OverviewPage> {
           return const Center(child: CircularProgressIndicator());
         }
         final data = snap.data?.data() ?? {};
-        final name = data['name'] ?? 'Farm';
-        final address = data['address'] ?? '';
+        final name = (data['name'] ?? 'Farm') as String;
+        final address = (data['address'] ?? '') as String;
         final areaHa = data['areaHa'];
         final dp = Map<String, dynamic>.from(data['diseasePest'] ?? {});
         final lastObs = dp['lastObserved'] as Timestamp?;
@@ -936,8 +941,8 @@ class _OverviewPage extends State<OverviewPage> {
         final DateTime? lastDiseaseDt = lastObs?.toDate();
         final String lastDiseaseValue = lastDiseaseDt == null
             ? '—'
-            : DateFormat('yyyy-MM-dd').format(lastDiseaseDt);
-        // Color logic: orange if in last 14 days, green otherwise
+            : DateFormat('MMM d, yyyy').format(lastDiseaseDt);
+        // Color logic: amber if in last 14 days, green otherwise
         final bool recent =
             lastDiseaseDt != null &&
             DateTime.now().difference(lastDiseaseDt).inDays <= 14;
@@ -948,458 +953,557 @@ class _OverviewPage extends State<OverviewPage> {
             ? Icons.warning_amber_rounded
             : Icons.verified_rounded;
         final String caption = recent
-            ? 'Recent issue—monitor closely'
+            ? 'Recent issue — monitor closely'
             : 'No recent disease flags';
+
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppTheme.space4),
           children: [
-            // Farm Title Card
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+            // ----- Farm header -----
+            _farmHeader(context, name: name, address: address),
+            const SizedBox(height: AppTheme.space4),
+
+            // ----- At-a-glance stats -----
+            const SectionHeader('At a glance'),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _statCard(
+                      context,
+                      icon: Icons.straighten,
+                      color: const Color(0xFF18A0C1),
+                      value: areaHa == null ? '—' : '$areaHa',
+                      label: areaHa == null ? 'Area' : 'Hectares',
                     ),
-                    Text(
-                      address,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    if (areaHa != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Area: ${areaHa.toString()} hectares',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            //
-            const Divider(height: 5),
-            //
-            const SizedBox(height: 12),
-            // Yields Chart Card
-            CompactYieldCard(farmRef: farmRef),
-            //
-            const SizedBox(height: 12),
-            // Task List Card
-            InkWell(
-              onTap: () => tabController.animateTo(1),
-              borderRadius: BorderRadius.circular(12),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: farmRef
-                        .collection('tasks')
-                        .where('isDone', isEqualTo: false) // only open tasks
-                        .orderBy('dueDate', descending: false) // soonest first
-                        .orderBy('createdAt', descending: true) // tie-breaker
-                        .limit(20) // pull a few, we’ll pick 3
-                        .snapshots(),
-                    builder: (context, snap) {
-                      if (snap.hasError) {
-                        return const Text('Open Tasks');
-                      }
-                      if (snap.connectionState == ConnectionState.waiting) {
-                        return Row(
-                          children: const [
-                            Expanded(child: Text('Open Tasks')),
-                            SizedBox(width: 8),
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ],
-                        );
-                      }
-
-                      final docs = snap.data?.docs ?? [];
-                      // Group by due date
-                      final now = DateTime.now();
-                      final today = DateTime(now.year, now.month, now.day);
-
-                      final overdue =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                      final todayList =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                      final upcoming =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                      final noDue =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-                      for (final d in docs) {
-                        final t = d.data();
-                        final dueTs = t['dueDate'] as Timestamp?;
-                        if (dueTs == null) {
-                          noDue.add(d);
-                          continue;
-                        }
-                        final dt = dueTs.toDate();
-                        final dueOnly = DateTime(dt.year, dt.month, dt.day);
-                        if (dueOnly.isBefore(today)) {
-                          overdue.add(d);
-                        } else if (dueOnly.isAtSameMomentAs(today)) {
-                          todayList.add(d);
-                        } else {
-                          upcoming.add(d);
-                        }
-                      }
-
-                      // Pick up to 3 tasks: Overdue → Today → Upcoming → No Due
-                      final picked =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                      void take(
-                        List<QueryDocumentSnapshot<Map<String, dynamic>>> src,
-                      ) {
-                        for (final x in src) {
-                          if (picked.length < 3) picked.add(x);
-                        }
-                      }
-
-                      take(overdue);
-                      take(todayList);
-                      take(upcoming);
-                      take(noDue);
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header
-                          Row(
-                            children: [
-                              const Icon(Icons.checklist, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Open Tasks',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  tabController.animateTo(1);
-                                },
-                                child: const Text('See all'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          if (picked.isEmpty) ...[
-                            Center(
-                              child: Column(
-                                children: [
-                                  const Text('All caught up 👏'),
-                                  const SizedBox(height: 8),
-                                  OutlinedButton.icon(
-                                    onPressed: _addTaskSheet,
-                                    icon: const Icon(Icons.add),
-                                    label: const Text('Add Task'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ] else
-                            ...picked.map((doc) {
-                              final t = doc.data();
-                              final title = (t['title'] ?? '') as String;
-                              final status =
-                                  (t['status'] as String?) ?? 'Pending';
-                              final dueTs = t['dueDate'] as Timestamp?;
-                              final dueStr = dueTs == null
-                                  ? 'No due date'
-                                  : dueTs
-                                        .toDate()
-                                        .toLocal()
-                                        .toString()
-                                        .split(' ')
-                                        .first;
-
-                              // Overdue marker (red) if not done and due date is in the past
-                              bool isOverdue = false;
-                              if (dueTs != null && status != 'Done') {
-                                final d = dueTs.toDate();
-                                final dd = DateTime(d.year, d.month, d.day);
-                                isOverdue = dd.isBefore(today);
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Title + due
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodyLarge,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            children: [
-                                              if (isOverdue)
-                                                Icon(
-                                                  Icons.warning_amber_rounded,
-                                                  size: 16,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.error,
-                                                ),
-                                              if (isOverdue)
-                                                const SizedBox(width: 4),
-                                              Text(
-                                                dueStr,
-                                                style: isOverdue
-                                                    ? TextStyle(
-                                                        color: Theme.of(
-                                                          context,
-                                                        ).colorScheme.error,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      )
-                                                    : Theme.of(
-                                                        context,
-                                                      ).textTheme.bodySmall,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    _statusPillSmall(status, context),
-                                  ],
-                                ),
-                              );
-                            }),
-                        ],
-                      );
-                    },
                   ),
-                ),
+                  const SizedBox(width: AppTheme.space3),
+                  Expanded(child: _openTasksStat(context)),
+                  const SizedBox(width: AppTheme.space3),
+                  Expanded(child: _yieldStat(context)),
+                ],
+              ),
+            ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+            const SizedBox(height: AppTheme.space3),
+
+            // ----- Health / disease status -----
+            KpiCard(
+              title: 'Last Disease',
+              value: lastDiseaseValue,
+              caption: caption,
+              color: accent,
+              icon: icon,
+            ),
+            if (anth || pm) ...[
+              const SizedBox(height: AppTheme.space2),
+              Wrap(
+                spacing: AppTheme.space2,
+                runSpacing: AppTheme.space2,
+                children: [
+                  if (anth)
+                    const AppStatusChip(
+                      'Anthracnose',
+                      tone: StatusTone.danger,
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                  if (pm)
+                    const AppStatusChip(
+                      'Powdery Mildew',
+                      tone: StatusTone.danger,
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: AppTheme.space5),
+
+            // ----- Yield -----
+            const SectionHeader('Yield'),
+            CompactYieldCard(farmRef: farmRef),
+            const SizedBox(height: AppTheme.space5),
+
+            // ----- Tasks -----
+            SectionHeader(
+              'Tasks',
+              trailing: TextButton(
+                onPressed: () => tabController.animateTo(1),
+                child: const Text('See all'),
               ),
             ),
-            const SizedBox(height: 12),
-            // Yield and Disease
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: farmRef
-                  .collection('yields')
-                  .orderBy('date', descending: true)
-                  .limit(500)
-                  .snapshots(),
-              builder: (context, ysnap) {
-                if (ysnap.hasData) {
-                  final docs = ysnap.data!.docs;
+            _tasksCard(context),
+            const SizedBox(height: AppTheme.space5),
 
-                  // Sum weights per seasonKey "YYYY-Season"
-                  final Map<String, double> totals = {};
-                  for (final d in docs) {
-                    final m = d.data();
-                    final season =
-                        (m['season'] ?? '') as String; // 'Wet' | 'Dry'
-                    final seasonYear =
-                        (m['seasonYear'] ?? 0) as int; // e.g., 2026
-                    final w = (m['weightKg'] is int)
-                        ? (m['weightKg'] as int).toDouble()
-                        : (m['weightKg'] as num?)?.toDouble() ?? 0.0;
-
-                    if ((season == 'Wet' || season == 'Dry') &&
-                        seasonYear > 0) {
-                      final key = '$seasonYear-$season';
-                      totals[key] = (totals[key] ?? 0) + w;
-                    }
-                  }
-
-                  // Pick the latest season: higher seasonYear wins; for same year Wet > Dry
-                  int? bestYear;
-                  String? bestSeason;
-
-                  for (final key in totals.keys) {
-                    final parts = key.split('-'); // [year, season]
-                    if (parts.length != 2) continue;
-                    final yr = int.tryParse(parts[0]) ?? 0;
-                    final ssn = parts[1]; // 'Wet' or 'Dry'
-
-                    bool isBetter = false;
-                    if (bestYear == null) {
-                      isBetter = true;
-                    } else if (yr > bestYear) {
-                      isBetter = true;
-                    } else if (yr == bestYear) {
-                      // Within same seasonYear, Wet is later than Dry
-                      final currentRank = (ssn == 'Wet') ? 2 : 1;
-                      final bestRank = (bestSeason == 'Wet') ? 2 : 1;
-                      if (currentRank > bestRank) isBetter = true;
-                    }
-
-                    if (isBetter) {
-                      bestYear = yr;
-                      bestSeason = ssn;
-                    }
-                  }
-                }
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: KpiCard(
-                        title: 'Last Disease',
-                        value: lastDiseaseValue,
-                        caption: caption,
-                        color: accent,
-                        icon: icon,
-                      ),
-                    ),
-                  ],
-                );
-              },
+            // ----- Log activity -----
+            const SectionHeader('Log activity'),
+            _logRow(
+              context,
+              icon: Icons.coronavirus,
+              color: scheme.error,
+              title: 'Disease observation',
+              subtitle: 'Record an anthracnose or mildew sighting',
+              onTap: _addObservationSheet,
             ),
-            const SizedBox(height: 12),
-            // Record Disease Observation
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.coronavirus, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Disease flags: '
-                        '${anth ? 'Anthracnose ' : ''}'
-                        '${pm ? (anth ? '& Powdery Mildew' : 'Powdery Mildew') : (anth ? '' : 'None')}',
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _addObservationSheet,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Record'),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: AppTheme.space2),
+            _logRow(
+              context,
+              icon: Icons.water_drop,
+              color: const Color(0xFF18A0C1),
+              title: 'Irrigation',
+              subtitle: 'Log a recent watering activity',
+              onTap: () => _addIrrigationSheet(),
             ),
-            const SizedBox(height: 12),
-            // Record Irrigations
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.water_drop, size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Irrigation: log a recent activity'),
-                    ),
-                    TextButton.icon(
-                      onPressed: _addIrrigationSheet,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Log'),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: AppTheme.space2),
+            _logRow(
+              context,
+              icon: Icons.local_florist,
+              color: scheme.primary,
+              title: 'Yield',
+              subtitle: 'Add latest season totals',
+              onTap: _addYieldSheet,
             ),
-            const SizedBox(height: 12),
-            // Record Yields
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.local_florist, size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Yield: add latest season totals'),
-                    ),
-                    TextButton.icon(
-                      onPressed: _addYieldSheet,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: AppTheme.space5),
 
-            const SizedBox(height: 12),
-
+            // ----- Manage -----
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditFarmPage(farmId: snap.data!.id),
-                    ),
-                  );
-                },
+                onPressed: () => Navigator.push(
+                  context,
+                  appRoute(EditFarmPage(farmId: snap.data!.id)),
+                ),
                 icon: const Icon(Icons.edit),
                 label: const Text('Edit Farm'),
+              ),
+            ),
+            const SizedBox(height: AppTheme.space3),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _confirmDelete(context, snap.data!.id),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete Farm'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: scheme.errorContainer,
+                  foregroundColor: scheme.onErrorContainer,
                 ),
               ),
             ),
-
-            const SizedBox(height: 12),
-
-            SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => _confirmDelete(context, snap.data!.id),
-              icon: const Icon(Icons.delete),
-              label: const Text('Delete Farm'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
-
           ],
         );
       },
+    );
+  }
+
+  // ---------- Overview building blocks ----------
+
+  /// Gradient hero header showing the farm name and address.
+  Widget _farmHeader(
+    BuildContext context, {
+    required String name,
+    required String address,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.space5),
+      decoration: BoxDecoration(
+        borderRadius: AppTheme.cardRadius,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.brandGreen, AppTheme.brandGreenDeep],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.brandGreen.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+                child: const Icon(Icons.agriculture, color: Colors.white),
+              ),
+              const SizedBox(width: AppTheme.space3),
+              Expanded(
+                child: Text(
+                  name,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (address.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space3),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    address,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ).animate().fadeIn(duration: 350.ms);
+  }
+
+  /// A compact stat tile (icon + big value + label) for the glance row.
+  Widget _statCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: const EdgeInsets.all(AppTheme.space3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Live count of open (not-done) tasks, rendered as a stat tile.
+  Widget _openTasksStat(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: farmRef
+          .collection('tasks')
+          .where('isDone', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snap) {
+        final count = snap.data?.docs.length;
+        return _statCard(
+          context,
+          icon: Icons.checklist,
+          color: AppTheme.brandAmber,
+          value: count == null ? '—' : '$count',
+          label: 'Open tasks',
+        );
+      },
+    );
+  }
+
+  /// Total recorded yield (kg, or tonnes when large), rendered as a stat tile.
+  Widget _yieldStat(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: farmRef
+          .collection('yields')
+          .orderBy('date', descending: true)
+          .limit(500)
+          .snapshots(),
+      builder: (context, snap) {
+        double total = 0;
+        if (snap.hasData) {
+          for (final d in snap.data!.docs) {
+            final w = d.data()['weightKg'];
+            if (w is num) total += w.toDouble();
+          }
+        }
+        final value = !snap.hasData
+            ? '—'
+            : total >= 1000
+            ? '${(total / 1000).toStringAsFixed(1)}t'
+            : '${total.toStringAsFixed(0)}kg';
+        return _statCard(
+          context,
+          icon: Icons.local_florist,
+          color: scheme.primary,
+          value: value,
+          label: 'Total yield',
+        );
+      },
+    );
+  }
+
+  /// The "next 3 open tasks" preview card (overdue → today → upcoming → no-due).
+  Widget _tasksCard(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space3,
+        vertical: AppTheme.space2,
+      ),
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: farmRef
+            .collection('tasks')
+            .where('isDone', isEqualTo: false) // only open tasks
+            .orderBy('dueDate', descending: false) // soonest first
+            .orderBy('createdAt', descending: true) // tie-breaker
+            .limit(20) // pull a few, we’ll pick 3
+            .snapshots(),
+        builder: (context, snap) {
+          if (snap.hasError) {
+            return const Padding(
+              padding: EdgeInsets.all(AppTheme.space2),
+              child: Text('Open Tasks'),
+            );
+          }
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.space3),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+
+          final docs = snap.data?.docs ?? [];
+          // Group by due date
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+
+          final overdue = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+          final todayList = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+          final upcoming = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+          final noDue = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+          for (final d in docs) {
+            final t = d.data();
+            final dueTs = t['dueDate'] as Timestamp?;
+            if (dueTs == null) {
+              noDue.add(d);
+              continue;
+            }
+            final dt = dueTs.toDate();
+            final dueOnly = DateTime(dt.year, dt.month, dt.day);
+            if (dueOnly.isBefore(today)) {
+              overdue.add(d);
+            } else if (dueOnly.isAtSameMomentAs(today)) {
+              todayList.add(d);
+            } else {
+              upcoming.add(d);
+            }
+          }
+
+          // Pick up to 3 tasks: Overdue → Today → Upcoming → No Due
+          final picked = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+          void take(List<QueryDocumentSnapshot<Map<String, dynamic>>> src) {
+            for (final x in src) {
+              if (picked.length < 3) picked.add(x);
+            }
+          }
+
+          take(overdue);
+          take(todayList);
+          take(upcoming);
+          take(noDue);
+
+          if (picked.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.space3),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Text('All caught up 👏'),
+                    const SizedBox(height: AppTheme.space2),
+                    OutlinedButton.icon(
+                      onPressed: _addTaskSheet,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Task'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < picked.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 1,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                _taskRow(context, picked[i], today),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// A single task row inside [_tasksCard].
+  Widget _taskRow(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    DateTime today,
+  ) {
+    final t = doc.data();
+    final title = (t['title'] ?? '') as String;
+    final status = (t['status'] as String?) ?? 'Pending';
+    final dueTs = t['dueDate'] as Timestamp?;
+    final dueStr = dueTs == null
+        ? 'No due date'
+        : dueTs.toDate().toLocal().toString().split(' ').first;
+
+    // Overdue marker (red) if not done and due date is in the past
+    bool isOverdue = false;
+    if (dueTs != null && status != 'Done') {
+      final d = dueTs.toDate();
+      final dd = DateTime(d.year, d.month, d.day);
+      isOverdue = dd.isBefore(today);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    if (isOverdue) ...[
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      dueStr,
+                      style: isOverdue
+                          ? TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            )
+                          : Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTheme.space2),
+          _statusPillSmall(status, context),
+        ],
+      ),
+    );
+  }
+
+  /// A tappable "log activity" row used in the Log activity section.
+  Widget _logRow(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppTheme.space3 + 2),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.add_circle_outline, color: color),
+        ],
+      ),
     );
   }
 }
