@@ -10,6 +10,8 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 
 class ReportsPage extends StatefulWidget {
   final String? farmId;
@@ -600,25 +602,17 @@ class _ReportsPageState extends State<ReportsPage> {
       body: RefreshIndicator(
         onRefresh: _initFarms,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppTheme.space4),
           children: [
+            const SectionHeader('Farm'),
             _farmPicker(),
-            if (_loadingFarms) ...[
-              const ListTile(
-                leading: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                title: Text('Loading farms…'),
-              ),
-              const SizedBox(height: 12),
-            ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space4),
+            const SectionHeader('Date range'),
             _rangeChips(range),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space4),
+            const SectionHeader('Summary'),
             _summaryCards(),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTheme.space5),
             _section(
               title: 'Yields (${_yields.length})',
               child: _simpleList(
@@ -665,56 +659,67 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Widget _farmPicker() {
     if (_loadingFarms) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('Loading farms...'),
-            ],
-          ),
+      return const AppCard(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: AppTheme.space3),
+            Text('Loading farms...'),
+          ],
         ),
       );
     }
 
     if (_farms.isEmpty) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.agriculture),
-          title: const Text('No farms found'),
-          subtitle: const Text('Add a farm first, then come back here.'),
+      return const AppCard(
+        child: Row(
+          children: [
+            Icon(Icons.agriculture),
+            SizedBox(width: AppTheme.space3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No farms found',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  SizedBox(height: 2),
+                  Text('Add a farm first, then come back here.'),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: DropdownButtonFormField<String>(
-          value: _farmId,
-          decoration: const InputDecoration(
-            labelText: 'Choose farm',
-            prefixIcon: Icon(Icons.agriculture),
-            border: OutlineInputBorder(),
-          ),
-          isExpanded: true,
-          items: _farms
-              .map((f) => DropdownMenuItem(value: f.id, child: Text(f.name)))
-              .toList(),
-          onChanged: (val) async {
-            if (val == null) return;
-            setState(() {
-              _farmId = val;
-            });
-            await _loadData(); // reload data for the selected farm
-          },
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space3,
+        vertical: AppTheme.space3,
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _farmId,
+        decoration: const InputDecoration(
+          labelText: 'Choose farm',
+          prefixIcon: Icon(Icons.agriculture),
         ),
+        isExpanded: true,
+        items: _farms
+            .map((f) => DropdownMenuItem(value: f.id, child: Text(f.name)))
+            .toList(),
+        onChanged: (val) async {
+          if (val == null) return;
+          setState(() {
+            _farmId = val;
+          });
+          await _loadData(); // reload data for the selected farm
+        },
       ),
     );
   }
@@ -765,49 +770,81 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _summaryCards() {
-    return Column(
-      children: [
-        _metricCard('Total Yield', '$_totalKg kg', Icons.scale),
-
-        const SizedBox(width: 8),
-
-        _metricCard(
-          'Irrigations',
-          '$_irrigCount (${_irrigLiters > 0 ? "${_irrigLiters} L" : "count"})',
-          Icons.opacity,
-        ),
-
-        const SizedBox(width: 8),
-
-        _metricCard('Observations', '$_obsCount', Icons.remove_red_eye),
-      ],
+    final scheme = Theme.of(context).colorScheme;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _statTile(
+              icon: Icons.scale,
+              color: scheme.primary,
+              value: '$_totalKg',
+              label: 'Total kg',
+            ),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: _statTile(
+              icon: Icons.opacity,
+              color: const Color(0xFF18A0C1),
+              value: '$_irrigCount',
+              label: _irrigLiters > 0 ? '$_irrigLiters L' : 'Irrigations',
+            ),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: _statTile(
+              icon: Icons.remove_red_eye,
+              color: AppTheme.brandAmber,
+              value: '$_obsCount',
+              label: 'Observations',
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _metricCard(String title, String value, IconData icon) {
-    return Card(
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            CircleAvatar(radius: 18, child: Icon(icon, size: 18)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(value, style: const TextStyle(fontSize: 16)),
-                ],
-              ),
+  Widget _statTile({
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: const EdgeInsets.all(AppTheme.space3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
@@ -908,16 +945,19 @@ class _ExpandableCardState extends State<_ExpandableCard>
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppTheme.cardRadius,
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Column(
         children: [
           // ---------------- HEADER ----------------
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppTheme.radiusMd),
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
@@ -925,8 +965,8 @@ class _ExpandableCardState extends State<_ExpandableCard>
                   Text(
                     widget.title,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
