@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/skeletons.dart';
 
 class IrrigationsPage extends StatefulWidget {
@@ -375,11 +376,10 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
 
           final docs = snap.data?.docs ?? [];
           if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [const Text('No irrigation logs yet.')],
-              ),
+            return const EmptyState(
+              icon: Icons.water_drop_outlined,
+              title: 'No irrigation logs yet',
+              message: 'Tap “Add Irrigation” to record a watering activity.',
             );
           }
 
@@ -403,14 +403,8 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    padding: const EdgeInsets.only(top: 14, bottom: 2),
+                    child: SectionHeader(label),
                   ),
                   ...items.map((doc) {
                     final m = doc.data();

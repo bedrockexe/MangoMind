@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/skeletons.dart';
 
 class ObservationsPage extends StatelessWidget {
@@ -145,44 +146,16 @@ class ObservationsPage extends StatelessWidget {
   // ────────────────────────────────────────────────────────────────────────────
   // UI helpers
   // ────────────────────────────────────────────────────────────────────────────
-  Color _sevColor(String sev) {
-    switch (sev.toLowerCase()) {
-      case 'high':
-        return Colors.red;
-      case 'med':
-        return Colors.orange;
-      case 'low':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _sevPill(String sev) {
-    final c = _sevColor(sev);
-    final label = sev.isEmpty ? '—' : sev.toUpperCase();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: c.withValues(alpha: 0.6)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12),
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-    );
+  Widget _sevChip(String sev) {
+    final s = sev.toLowerCase();
+    final tone = s == 'high'
+        ? StatusTone.danger
+        : s == 'med'
+        ? StatusTone.warning
+        : s == 'low'
+        ? StatusTone.success
+        : StatusTone.neutral;
+    return AppStatusChip(sev.isEmpty ? '—' : sev.toUpperCase(), tone: tone);
   }
 
   Widget _obsCard(
@@ -213,7 +186,7 @@ class ObservationsPage extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              _sevPill(sev),
+              _sevChip(sev),
             ],
           ),
           subtitle: Text(type.replaceAll('_', ' ').toUpperCase()),
@@ -325,7 +298,11 @@ class ObservationsPage extends StatelessWidget {
 
           final docs = snap.data?.docs ?? [];
           if (docs.isEmpty) {
-            return const Center(child: Text('No observations yet.'));
+            return const EmptyState(
+              icon: Icons.coronavirus_outlined,
+              title: 'No observations yet',
+              message: 'Record a disease or pest sighting to track it here.',
+            );
           }
 
           final anth = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
@@ -346,7 +323,7 @@ class ObservationsPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _sectionHeader('ANTHRACNOSE'),
+              const SectionHeader('Anthracnose'),
               if (anth.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(left: 16, bottom: 8),
@@ -360,7 +337,7 @@ class ObservationsPage extends StatelessWidget {
 
               const SizedBox(height: 8),
 
-              _sectionHeader('POWDERY MILDEW'),
+              const SectionHeader('Powdery Mildew'),
               if (pm.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(left: 16, bottom: 8),
@@ -374,7 +351,7 @@ class ObservationsPage extends StatelessWidget {
 
               if (other.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                _sectionHeader('OTHER'),
+                const SectionHeader('Other'),
                 ...other.map((d) => _obsCard(context, d)),
               ],
             ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/transitions.dart';
 
 // Import your existing pages
@@ -15,43 +17,40 @@ class RecordsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.all(AppTheme.space4),
         children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.water_drop_outlined,
-                  label: 'Irrigations',
-                  color: Colors.teal.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    appRoute(IrrigationsPage(farmRef: farmRef)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.visibility_outlined,
-                  label: 'Observations',
-                  color: Colors.amber.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    appRoute(ObservationsPage(farmRef: farmRef)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.scale_outlined,
-                  label: 'Yields',
-                  color: Colors.green.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    appRoute(YieldsHomePage(farmRef: farmRef)),
-                  ),
-                ),
-              ],
+          const SectionHeader('Records'),
+          _RecordTile(
+            icon: Icons.water_drop_outlined,
+            color: const Color(0xFF18A0C1),
+            title: 'Irrigations',
+            subtitle: 'Watering logs and water use',
+            onTap: () => Navigator.push(
+              context,
+              appRoute(IrrigationsPage(farmRef: farmRef)),
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          _RecordTile(
+            icon: Icons.coronavirus_outlined,
+            color: AppTheme.brandAmber,
+            title: 'Observations',
+            subtitle: 'Disease and pest sightings',
+            onTap: () => Navigator.push(
+              context,
+              appRoute(ObservationsPage(farmRef: farmRef)),
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          _RecordTile(
+            icon: Icons.scale_outlined,
+            color: AppTheme.brandGreen,
+            title: 'Yields',
+            subtitle: 'Harvest weights by month',
+            onTap: () => Navigator.push(
+              context,
+              appRoute(YieldsHomePage(farmRef: farmRef)),
             ),
           ),
         ],
@@ -60,50 +59,61 @@ class RecordsPage extends StatelessWidget {
   }
 }
 
-class _RecordsBigButton extends StatelessWidget {
-  const _RecordsBigButton({
+class _RecordTile extends StatelessWidget {
+  const _RecordTile({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
     required this.color,
   });
 
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.white24,
-              child: Icon(icon, color: Colors.white),
+      padding: const EdgeInsets.all(AppTheme.space3 + 2),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right, color: Colors.white),
-          ],
-        ),
+          ),
+          Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+        ],
       ),
     );
   }
