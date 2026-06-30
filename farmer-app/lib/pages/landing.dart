@@ -1,115 +1,107 @@
 // packages
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:insights/theme/app_theme.dart';
 
 class Landing extends StatelessWidget {
   const Landing({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.brandGreen, AppTheme.brandGreenDeep],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.space5),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/logo.png',
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.contain,
-                ),
-                Text(
-                  'MangoMind',
-                  style: GoogleFonts.poppins(
-                    fontSize: 35,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.onSurface,
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Image.asset(
+                              'assets/logo.png',
+                              width: 104,
+                              height: 104,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(duration: 500.ms)
+                          .scale(
+                            begin: const Offset(0.85, 0.85),
+                            end: const Offset(1, 1),
+                            duration: 600.ms,
+                            curve: Curves.easeOutBack,
+                          ),
+                      const SizedBox(height: AppTheme.space5),
+                      Text(
+                        'MangoMind',
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+                      const SizedBox(height: AppTheme.space2),
+                      Text(
+                        'Your #1 Mango Farming Guide',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your #1 Mango Farming Guide App',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppTheme.brandGreen,
+                        ),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/signup'),
+                        child: const Text('Create account'),
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white70),
+                        ),
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
+                        child: const Text('Log in'),
+                      ),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.2, end: 0),
+                const SizedBox(height: AppTheme.space2),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Sign Up
-                Container(
-                  margin: const EdgeInsets.all(12),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: scheme.primary,
-                      foregroundColor: scheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/signup');
-                    },
-                    child: const Text(
-                      "Sign Up",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Log In
-                Container(
-                  margin: const EdgeInsets.all(12),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: scheme.surface,
-                      foregroundColor: scheme.onSurface,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: scheme.primary, width: 1),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/login');
-                    },
-                    child: const Text(
-                      "Log In",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

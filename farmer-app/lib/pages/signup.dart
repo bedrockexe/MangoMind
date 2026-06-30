@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/pages/auth_header.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -64,7 +66,10 @@ class _RegisterForm extends State<Signup> {
     final color = !touched
         ? scheme.outline // default
         : (ok ? scheme.primary : scheme.error);
-    return OutlineInputBorder(borderSide: BorderSide(color: color, width: 2));
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      borderSide: BorderSide(color: color, width: 2),
+    );
   }
 
   @override
@@ -138,51 +143,29 @@ class _RegisterForm extends State<Signup> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: ListView(
+      body: Column(
         children: [
-          Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0, top: 8.0),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ),
-            ],
+          AuthHeader(
+            title: 'Create account',
+            subtitle: 'Join MangoMind to get started',
+            onBack: () => Navigator.of(context).maybePop(),
           ),
-
-          // Title Header
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Text(
-              'Hi! Create an account to get started',
-              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-            ),
-          ),
-
-          // Forms
-          Padding(
-            padding: EdgeInsets.all(15),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  // First Name
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.space5),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
                       controller: _firstname,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: const InputDecoration(
                         labelText: 'First Name',
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_outline),
                       ),
                       validator: (v) => regexValidator(
                         label: 'First Name',
@@ -191,17 +174,13 @@ class _RegisterForm extends State<Signup> {
                         hint: 'Name contains invalid characters',
                       ),
                     ),
-                  ),
-
-                  // Last Name
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _lastname,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: const InputDecoration(
                         labelText: 'Last Name',
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_outline),
                       ),
                       validator: (v) => regexValidator(
                         label: 'Last Name',
@@ -210,17 +189,14 @@ class _RegisterForm extends State<Signup> {
                         hint: 'Name contains invalid characters',
                       ),
                     ),
-                  ),
-
-                  // Contact Number
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _contact,
+                      keyboardType: TextInputType.phone,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: const InputDecoration(
                         labelText: 'Contact Number',
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.phone_outlined),
                       ),
                       validator: (v) => regexValidator(
                         label: 'Contact Number',
@@ -229,17 +205,13 @@ class _RegisterForm extends State<Signup> {
                         hint: 'number should be in PH Format. Ex. 0933-',
                       ),
                     ),
-                  ),
-
-                  // Address
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _address,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: const InputDecoration(
                         labelText: 'Home Address',
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on_outlined),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -248,17 +220,14 @@ class _RegisterForm extends State<Signup> {
                         return null;
                       },
                     ),
-                  ),
-
-                  // Email Address
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _email,
+                      keyboardType: TextInputType.emailAddress,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: const InputDecoration(
                         labelText: 'Email Address',
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email_outlined),
                       ),
                       validator: (v) => regexValidator(
                         label: 'Email Address',
@@ -267,25 +236,19 @@ class _RegisterForm extends State<Signup> {
                         hint: 'Invalid email address',
                       ),
                     ),
-                  ),
-
-                  // Password
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _password,
                       obscureText: !_showPassword,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: InputDecoration(
                         labelText: "Password",
                         hintText: "Enter strong password",
-                        border: const OutlineInputBorder(),
-                        // Icons in form fields
+                        prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (_password.text.isNotEmpty)
-                              // Check or Error Icon
                               Icon(
                                 (!RegExp(r'^.{6,}$').hasMatch(_password.text))
                                     ? Icons.error
@@ -294,22 +257,18 @@ class _RegisterForm extends State<Signup> {
                                     (!RegExp(
                                       r'^.{6,}$',
                                     ).hasMatch(_password.text))
-                                    ? Theme.of(context).colorScheme.error
-                                    : Theme.of(context).colorScheme.primary,
+                                    ? scheme.error
+                                    : scheme.primary,
                               ),
-
-                            // See Password Icon
                             IconButton(
                               icon: Icon(
                                 _showPassword
                                     ? Icons.visibility_off
                                     : Icons.visibility,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _showPassword = !_showPassword;
-                                });
-                              },
+                              onPressed: () => setState(
+                                () => _showPassword = !_showPassword,
+                              ),
                             ),
                           ],
                         ),
@@ -321,19 +280,15 @@ class _RegisterForm extends State<Signup> {
                         hint: 'Password should contain atleast 6 characters',
                       ),
                     ),
-                  ),
-
-                  // Confirm Password
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
                       controller: _confirmpass,
                       obscureText: !_showConfirm,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: InputDecoration(
                         labelText: "Confirm Password",
                         hintText: "Re-enter password",
-                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock_outline),
                         enabledBorder: _borderFor(
                           touched: _confirmpass.text.isNotEmpty,
                           ok: _isConfirmValid,
@@ -343,10 +298,7 @@ class _RegisterForm extends State<Signup> {
                           ok: _isConfirmValid,
                         ),
                         errorBorder: _borderFor(touched: true, ok: false),
-                        focusedErrorBorder: _borderFor(
-                          touched: true,
-                          ok: false,
-                        ),
+                        focusedErrorBorder: _borderFor(touched: true, ok: false),
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -356,8 +308,8 @@ class _RegisterForm extends State<Signup> {
                                     ? Icons.check_circle
                                     : Icons.error,
                                 color: _isConfirmValid
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.error,
+                                    ? scheme.primary
+                                    : scheme.error,
                               ),
                             IconButton(
                               icon: Icon(
@@ -381,43 +333,45 @@ class _RegisterForm extends State<Signup> {
                         return null;
                       },
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Create Account button
-          Padding(
-            padding: EdgeInsets.all(15),
-            child: SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: _loading ? null : _register,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    const SizedBox(height: AppTheme.space5),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _loading ? null : _register,
+                        child: _loading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Create Account'),
                       ),
+                    ),
+                    const SizedBox(height: AppTheme.space5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(context, '/login'),
+                          child: Text(
+                            'Log in',
+                            style: TextStyle(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

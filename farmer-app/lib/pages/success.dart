@@ -1,58 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:insights/theme/app_theme.dart';
 
 class SuccessPage extends StatelessWidget {
   const SuccessPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Center(
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(AppTheme.space5),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset("assets/confetti.gif", height: 200),
-              const SizedBox(height: 30),
-
-              // Success Text
-              Text(
-                "Account Successfully Created!",
-                style: GoogleFonts.poppins(
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Image.asset(
+                          "assets/confetti.gif",
+                          height: 200,
+                          errorBuilder: (c, e, s) => const SizedBox(height: 40),
+                        ),
+                        Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: scheme.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 56,
+                                color: scheme.onPrimaryContainer,
+                              ),
+                            )
+                            .animate()
+                            .scale(
+                              begin: const Offset(0.5, 0.5),
+                              end: const Offset(1, 1),
+                              duration: 500.ms,
+                              curve: Curves.easeOutBack,
+                            )
+                            .fadeIn(),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.space5),
+                    Text(
+                      "Account created!",
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ).animate().fadeIn(delay: 200.ms),
+                    const SizedBox(height: AppTheme.space2),
+                    Text(
+                      "Your MangoMind account is ready. Log in to start managing your farm.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ).animate().fadeIn(delay: 350.ms),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-
-              // Button to proceed
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  child: const Text('Proceed to login'),
                 ),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: Text(
-                  "Proceed to Login",
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-              ),
+              ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.2, end: 0),
+              const SizedBox(height: AppTheme.space2),
             ],
           ),
         ),

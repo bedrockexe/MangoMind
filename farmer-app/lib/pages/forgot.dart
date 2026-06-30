@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/pages/auth_header.dart';
 
 class Forgot extends StatefulWidget {
   const Forgot({super.key});
@@ -73,141 +74,117 @@ class _ForgotState extends State<Forgot> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: ListView(
+      body: Column(
         children: [
-          Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0, top: 8.0),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ],
+          AuthHeader(
+            title: 'Account recovery',
+            subtitle: 'We’ll email you a reset link',
+            onBack: () => Navigator.of(context).maybePop(),
           ),
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Account Recovery',
-                  style: GoogleFonts.poppins(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const Text(
-                  'Enter your email and click on the password reset link',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: "Email",
-                      hintText: "What is your email?",
-                      border: const OutlineInputBorder(),
-                      errorText: (_emailError == null) ? null : _emailError,
-                      errorStyle: const TextStyle(height: 0, fontSize: 0),
-                      errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.error,
-                          width: 2,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.space5),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Enter the email linked to your account and tap the reset '
+                      'link we send you.',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: AppTheme.space4),
+                    TextFormField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: "Email",
+                        hintText: "What is your email?",
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        errorText: _emailError,
+                        errorStyle: const TextStyle(height: 0, fontSize: 0),
+                      ),
+                      validator: (v) {
+                        final email = v?.trim() ?? '';
+                        if (email.isEmpty) return ' ';
+                        final ok = RegExp(
+                          r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                        ).hasMatch(email);
+                        if (!ok) return ' ';
+                        return null;
+                      },
+                      onChanged: (_) {
+                        if (_emailError != null) {
+                          setState(() => _emailError = null);
+                        }
+                        if (_globalError != null) {
+                          setState(() => _globalError = null);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppTheme.space2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
                         ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.error,
-                          width: 2,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            "If you don't see the link, check your spam folder.",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(8),
+                      ],
+                    ),
+                    if (_globalError != null) ...[
+                      const SizedBox(height: AppTheme.space3),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 18,
+                            color: scheme.error,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _globalError!,
+                              style: TextStyle(color: scheme.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: AppTheme.space5),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _loading ? null : _sendReset,
+                        icon: _loading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.send_outlined),
+                        label: Text(_loading ? 'Sending…' : 'Send reset link'),
                       ),
                     ),
-                    validator: (v) {
-                      final email = v?.trim() ?? '';
-                      if (email.isEmpty) return ' ';
-                      final ok = RegExp(
-                        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                      ).hasMatch(email);
-                      if (!ok) return ' ';
-                      return null;
-                    },
-                    onChanged: (_) {
-                      if (_emailError != null) {
-                        setState(() => _emailError = null);
-                      }
-                      if (_globalError != null) {
-                        setState(() => _globalError = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Tip: If you are unable to see the reset link, check your spam folder.",
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          if (_globalError != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Text(
-                _globalError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  ],
                 ),
-                elevation: 0,
               ),
-              onPressed: _loading ? null : _sendReset,
-              child: _loading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text(
-                      'Send reset link',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
           ),
         ],
