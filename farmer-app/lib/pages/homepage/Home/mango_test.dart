@@ -45,156 +45,200 @@ class _MangoDetectorState extends State<MangoDetector> {
     _initializeCameras();
   }
 
+  void _openCamera() {
+    final cams = _cameras;
+    if (cams == null || cams.isEmpty) return;
+    Navigator.of(context).push(appRoute(CameraScanPage(cameras: cams)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final cameraReady = _cameras != null && _cameras!.isNotEmpty;
     return Scaffold(
-      body: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [scheme.surface, scheme.surfaceContainerHighest],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Icon(Icons.eco, size: 36, color: scheme.primary),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'MangoMind',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text('Mango Detector', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Hero(
-                      tag: 'mango-logo',
-                      child: Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFD473), Color(0xFFFFB347)],
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.food_bank,
-                            size: 64,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        'Scan a mango leaf or fruit to get instant disease and ripeness insights — powered by on-device camera & AI.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 15, height: 1.4),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 28,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 6,
-                      ),
-                      icon: _loadingCameras
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.camera_alt),
-                      label: Text(
-                        _loadingCameras ? 'Preparing camera…' : 'Scan now',
-                      ),
-                      // Disabled until cameras have loaded, preventing a
-                      // LateInitializationError if tapped too early.
-                      onPressed: (_cameras == null || _cameras!.isEmpty)
-                          ? null
-                          : () {
-                              Navigator.of(context).push(
-                                PageRouteBuilder(
-                                  transitionDuration: const Duration(
-                                    milliseconds: 650,
-                                  ),
-                                  pageBuilder: (context, a1, a2) =>
-                                      CameraScanPage(cameras: _cameras!),
-                                  transitionsBuilder:
-                                      (context, animation, secondary, child) {
-                                        final fade = CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeInOut,
-                                        );
-                                        return FadeTransition(
-                                          opacity: fade,
-                                          child: child,
-                                        );
-                                      },
-                                ),
-                              );
-                            },
-                    ),
-                    if (_cameraError != null) ...[
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          _cameraError!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: scheme.error,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Tip: Good daylight and single object in frame gives best results',
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Mango Scanner'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [scheme.surface, scheme.surfaceContainerHighest],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space5,
+              AppTheme.space2,
+              AppTheme.space5,
+              AppTheme.space5,
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Glowing mango disc — the focal point of the screen.
+                      Hero(
+                            tag: 'mango-logo',
+                            child: Container(
+                              width: 180,
+                              height: 180,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFFD473), Color(0xFFFFB347)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFFFB347,
+                                    ).withValues(alpha: 0.4),
+                                    blurRadius: 32,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.center_focus_strong,
+                                  size: 72,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          )
+                          .animate(onPlay: (c) => c.repeat(reverse: true))
+                          .scale(
+                            begin: const Offset(1, 1),
+                            end: const Offset(1.04, 1.04),
+                            duration: 1800.ms,
+                            curve: Curves.easeInOut,
+                          ),
+                      const SizedBox(height: AppTheme.space5),
+                      Text(
+                        'Scan your mango',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: AppTheme.space2),
+                      Text(
+                        'Point your camera at a mango leaf or fruit for an '
+                        'instant disease and ripeness reading — powered by '
+                        'on-device camera & AI.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ).animate().fadeIn(duration: 400.ms),
+                ),
+
+                // For-best-results tips.
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.tips_and_updates_outlined,
+                            size: 18,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'For best results',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.space2),
+                      _tipRow(
+                        context,
+                        Icons.wb_sunny_outlined,
+                        'Use bright, even daylight',
+                      ),
+                      _tipRow(
+                        context,
+                        Icons.center_focus_weak,
+                        'Keep a single leaf or fruit in frame',
+                      ),
+                      _tipRow(
+                        context,
+                        Icons.blur_off,
+                        'Avoid blur and busy backgrounds',
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_cameraError != null) ...[
+                  const SizedBox(height: AppTheme.space3),
+                  Text(
+                    _cameraError!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: scheme.error, fontSize: 13),
+                  ),
+                ],
+
+                const SizedBox(height: AppTheme.space4),
+                SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        // Disabled until cameras have loaded, preventing a
+                        // LateInitializationError if tapped too early.
+                        onPressed: cameraReady ? _openCamera : null,
+                        icon: _loadingCameras
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.camera_alt_outlined),
+                        label: Text(
+                          _loadingCameras ? 'Preparing camera…' : 'Scan now',
+                        ),
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 400.ms)
+                    .slideY(begin: 0.2, end: 0),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tipRow(BuildContext context, IconData icon, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
       ),
     );
   }
