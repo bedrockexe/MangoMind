@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
+import 'package:insights/theme/interactions.dart';
 
 class AddFarmPage extends StatefulWidget {
   const AddFarmPage({super.key});
@@ -163,161 +166,148 @@ class _AddFarmPageState extends State<AddFarmPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pad8 = const SizedBox(height: 8);
-    final pad16 = const SizedBox(height: 16);
-
     return Scaffold(
       appBar: AppBar(title: const Text('Add Farm')),
       body: IgnorePointer(
         ignoring: _saving,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppTheme.space4),
           child: Form(
             key: _formKey,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ---------------------------
-                // IMAGE PREVIEW + BUTTON
-                // ---------------------------
-                if (_pickedImage != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      File(_pickedImage!.path),
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
+                // Photo
+                _photoField(context),
+                const SizedBox(height: AppTheme.space5),
+
+                // Basic info
+                const SectionHeader('Basic info'),
+                AppCard(
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _name,
+                        decoration: const InputDecoration(
+                          labelText: 'Farm Name *',
+                          prefixIcon: Icon(Icons.agriculture_outlined),
+                        ),
+                        validator: _req,
+                      ),
+                      const SizedBox(height: AppTheme.space3),
+                      TextFormField(
+                        controller: _address,
+                        decoration: const InputDecoration(
+                          labelText: 'Address / Barangay *',
+                          prefixIcon: Icon(Icons.location_on_outlined),
+                        ),
+                        validator: _req,
+                      ),
+                      const SizedBox(height: AppTheme.space3),
+                      TextFormField(
+                        controller: _areaHa,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Area (hectares)',
+                          helperText: 'Example: 1.5',
+                          prefixIcon: Icon(Icons.straighten),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space4),
+
+                // Soil
+                const SectionHeader('Soil'),
+                AppCard(
+                  child: Column(
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: _soilType,
+                        items: _soilTypes
+                            .map(
+                              (t) =>
+                                  DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _soilType = v),
+                        decoration: const InputDecoration(
+                          labelText: 'Soil Type',
+                          prefixIcon: Icon(Icons.terrain_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.space3),
+                      TextFormField(
+                        controller: _soilPh,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Soil pH (optional)',
+                          prefixIcon: Icon(Icons.science_outlined),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space4),
+
+                // Planting
+                const SectionHeader('Planting'),
+                AppCard(
+                  child: TextFormField(
+                    controller: _plantingYear,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Planting Year (optional)',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
                     ),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space4),
+
+                // Irrigation
+                const SectionHeader('Irrigation'),
+                AppCard(
+                  child: DropdownButtonFormField<String>(
+                    value: _irrigationType,
+                    items: _irrigationTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _irrigationType = v),
+                    decoration: const InputDecoration(
+                      labelText: 'Irrigation Type',
+                      prefixIcon: Icon(Icons.water_drop_outlined),
                     ),
-                    child: const Icon(Icons.image, size: 60),
                   ),
-
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.photo),
-                  label: const Text("Choose Farm Picture"),
                 ),
+                const SizedBox(height: AppTheme.space4),
 
-                pad16,
-
-                // BASIC INFO
-                TextFormField(
-                  controller: _name,
-                  decoration: const InputDecoration(labelText: 'Farm Name *'),
-                  validator: _req,
-                ),
-                pad16,
-                TextFormField(
-                  controller: _address,
-                  decoration: const InputDecoration(
-                    labelText: 'Address / Barangay *',
+                // Disease & pests
+                const SectionHeader('Disease & pests'),
+                AppCard(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space2,
+                    vertical: AppTheme.space1,
                   ),
-                  validator: _req,
-                ),
-                pad16,
-                TextFormField(
-                  controller: _areaHa,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Area (hectares)',
-                    helperText: 'Example: 1.5',
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        value: _anthracnose,
+                        onChanged: (v) => setState(() => _anthracnose = v),
+                        title: const Text('Anthracnose observed'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      SwitchListTile(
+                        value: _powderyMildew,
+                        onChanged: (v) => setState(() => _powderyMildew = v),
+                        title: const Text('Powdery Mildew observed'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
                   ),
                 ),
 
-                pad16,
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Soil',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                pad8,
-                DropdownButtonFormField<String>(
-                  value: _soilType,
-                  items: _soilTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _soilType = v),
-                  decoration: const InputDecoration(labelText: 'Soil Type'),
-                ),
-                pad8,
-                TextFormField(
-                  controller: _soilPh,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Soil pH (optional)',
-                  ),
-                ),
-
-                pad16,
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Planting',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                pad8,
-                TextFormField(
-                  controller: _plantingYear,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Planting Year (optional)',
-                  ),
-                ),
-
-                pad16,
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Irrigation',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                pad8,
-                DropdownButtonFormField<String>(
-                  value: _irrigationType,
-                  items: _irrigationTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _irrigationType = v),
-                  decoration: const InputDecoration(
-                    labelText: 'Irrigation Type',
-                  ),
-                ),
-
-                pad16,
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Disease',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                SwitchListTile(
-                  value: _anthracnose,
-                  onChanged: (v) => setState(() => _anthracnose = v),
-                  title: const Text('Anthracnose observed'),
-                ),
-                SwitchListTile(
-                  value: _powderyMildew,
-                  onChanged: (v) => setState(() => _powderyMildew = v),
-                  title: const Text('Powdery Mildew observed'),
-                ),
-
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.space5),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -339,4 +329,73 @@ class _AddFarmPageState extends State<AddFarmPage> {
       ),
     );
   }
+
+  /// Tappable farm-photo picker: shows the chosen image with a "Change" chip,
+  /// or a dashed placeholder prompting the user to pick one.
+  Widget _photoField(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Pressable(
+      onTap: _pickImage,
+      child: ClipRRect(
+        borderRadius: AppTheme.cardRadius,
+        child: SizedBox(
+          width: double.infinity,
+          height: 180,
+          child: _pickedImage != null
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(File(_pickedImage!.path), fit: BoxFit.cover),
+                    Positioned(
+                      right: AppTheme.space2,
+                      bottom: AppTheme.space2,
+                      child: _changeChip(),
+                    ),
+                  ],
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: AppTheme.cardRadius,
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo_outlined,
+                        size: 40,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(height: AppTheme.space2),
+                      Text(
+                        'Choose farm picture',
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _changeChip() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.edit, size: 14, color: Colors.white),
+        SizedBox(width: 4),
+        Text(
+          'Change',
+          style: TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ],
+    ),
+  );
 }
