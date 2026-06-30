@@ -9,6 +9,7 @@ import 'package:insights/notifications_controller.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
 import 'package:insights/theme/components.dart';
+import 'package:insights/theme/app_theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -59,10 +60,17 @@ class _Settings extends State<SettingsPage> {
           return const ProfileSkeleton();
         }
         if (snap.hasError) {
-          return Center(child: Text('Failed to load: ${snap.error}'));
+          return EmptyState(
+            icon: Icons.error_outline,
+            title: 'Could not load profile',
+            message: '${snap.error}',
+          );
         }
         if (!snap.hasData || !snap.data!.exists) {
-          return const Center(child: Text('Profile not found.'));
+          return const EmptyState(
+            icon: Icons.person_off_outlined,
+            title: 'Profile not found',
+          );
         }
 
         final data = snap.data!.data()!;
@@ -71,9 +79,9 @@ class _Settings extends State<SettingsPage> {
         final lastName = data['last_name'] ?? '—';
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Settings')),
+          appBar: AppBar(title: const Text('Settings'), elevation: 0),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.space4),
             children: [
               // Profile
               Center(
@@ -134,7 +142,8 @@ class _Settings extends State<SettingsPage> {
 
               const SectionHeader('Account'),
               // Account Settings
-              Card(
+              AppCard(
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: [
                     ListTile(
@@ -164,11 +173,12 @@ class _Settings extends State<SettingsPage> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.space4),
 
-              // ——— App section (UI examples) ———
+              // ——— App section ———
               const SectionHeader('App'),
-              Card(
+              AppCard(
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: [
                     ValueListenableBuilder<bool>(

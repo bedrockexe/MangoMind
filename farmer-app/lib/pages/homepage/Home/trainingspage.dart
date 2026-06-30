@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:insights/theme/transitions.dart';
 import 'package:insights/theme/skeletons.dart';
-import 'package:insights/theme/interactions.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'trainingdetails.dart';
 
 class FarmerTrainingsPage extends StatefulWidget {
@@ -190,135 +191,138 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
     final isEnrolled = _enrolledMap.containsKey(trainingId);
     final scheme = Theme.of(context).colorScheme;
 
-    return Pressable(
-        onTap: () {
-          Navigator.push(
-            context,
-            appRoute(TrainingDetailsPage(trainingId: trainingId)),
-          );
-        },
-        child: Card(
-          margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          elevation: 4, // Added elevation for a modern shadow effect
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hero animation for the thumbnail
-                Hero(
-                  tag:
-                      'training-image-$trainingId', // Unique tag for each image
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: thumbnail != null
-                        ? Image.network(
-                            thumbnail,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(10),
+    return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space4,
+          vertical: AppTheme.space2,
+        ),
+        child: AppCard(
+          onTap: () {
+            Navigator.push(
+              context,
+              appRoute(TrainingDetailsPage(trainingId: trainingId)),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Hero animation for the thumbnail
+                  Hero(
+                    tag: 'training-image-$trainingId',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      child: thumbnail != null
+                          ? Image.network(
+                              thumbnail,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: scheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSm,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.school,
+                                size: 40,
+                                color: scheme.onPrimaryContainer,
+                              ),
                             ),
-                            child: Icon(
-                              Icons.school,
-                              size: 40,
-                              color: scheme.onPrimaryContainer,
-                            ),
-                          ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16), // Spacing for better organization
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (venue.isNotEmpty)
+                  const SizedBox(width: AppTheme.space4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Venue: $venue',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: scheme.onSurfaceVariant,
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: AppTheme.space2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                formattedDate,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: scheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (venue.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.place,
+                                size: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  venue,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
+                        const SizedBox(height: AppTheme.space2),
+                        AppStatusChip(
+                          isEnrolled ? 'Registered' : 'Open',
+                          tone: isEnrolled
+                              ? StatusTone.success
+                              : StatusTone.info,
+                          icon: isEnrolled
+                              ? Icons.check_circle
+                              : Icons.event_available,
                         ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Status: ${isEnrolled ? 'Registered' : 'Open'}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isEnrolled
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
-                          fontWeight:
-                              FontWeight.w500, // Make it stand out as a label
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!isEnrolled)
-                      ElevatedButton(
-                        onPressed: () => _enroll(trainingId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: scheme.primary,
-                          foregroundColor: scheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        child: const Text('Enroll'),
-                      )
-                    else
-                      OutlinedButton(
+                ],
+              ),
+              const SizedBox(height: AppTheme.space3),
+              SizedBox(
+                width: double.infinity,
+                child: isEnrolled
+                    ? OutlinedButton.icon(
                         onPressed: () => _cancelEnrollment(trainingId),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: scheme.error),
                           foregroundColor: scheme.error,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
                         ),
-                        child: const Text('Cancel'),
+                        icon: const Icon(Icons.cancel_outlined, size: 18),
+                        label: const Text('Cancel enrollment'),
+                      )
+                    : FilledButton.icon(
+                        onPressed: () => _enroll(trainingId),
+                        icon: const Icon(Icons.how_to_reg, size: 18),
+                        label: const Text('Enroll'),
                       ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       )
@@ -345,11 +349,7 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trainings'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-      ),
+      appBar: AppBar(title: const Text('Trainings'), elevation: 0),
       body: SafeArea(
         child: Column(
           children: [
@@ -362,7 +362,11 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
                 stream: trainingsStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return EmptyState(
+                      icon: Icons.error_outline,
+                      title: 'Could not load trainings',
+                      message: '${snapshot.error}',
+                    );
                   }
                   if (!snapshot.hasData) {
                     return const TrainingListSkeleton();
@@ -378,7 +382,15 @@ class _FarmerTrainingsPageState extends State<FarmerTrainingsPage> {
                   }).toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No trainings found'));
+                    return EmptyState(
+                      icon: Icons.school_outlined,
+                      title: _searchQuery.isEmpty
+                          ? 'No trainings yet'
+                          : 'No trainings found',
+                      message: _searchQuery.isEmpty
+                          ? 'Upcoming trainings will appear here.'
+                          : 'Try a different search term.',
+                    );
                   }
 
                   return RefreshIndicator(
