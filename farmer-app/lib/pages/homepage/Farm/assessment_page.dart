@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'assessment_review.dart';
 
 class QuestionnairePage extends StatefulWidget {
@@ -201,27 +204,95 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
   }
 
   Widget _buildRadioQuestion(String key, String questionLabel) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final opts = options[key] ?? [];
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
+    final answered = answers[key] != null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space3),
+      child: AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              questionLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    questionLabel,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+                if (answered)
+                  Icon(
+                    Icons.check_circle,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space3),
             ...opts.map((opt) {
-              return RadioListTile<String>(
-                value: opt,
-                groupValue: answers[key],
-                title: Text(opt),
-                onChanged: (v) => setState(() => answers[key] = v),
+              final selected = answers[key] == opt;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  onTap: () => setState(() => answers[key] = opt),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space3,
+                      vertical: AppTheme.space3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? scheme.primaryContainer
+                          : scheme.surfaceContainerHighest.withValues(
+                              alpha: 0.4,
+                            ),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      border: Border.all(
+                        color: selected
+                            ? scheme.primary
+                            : scheme.outlineVariant,
+                        width: selected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 20,
+                          color: selected
+                              ? scheme.primary
+                              : scheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: AppTheme.space3),
+                        Expanded(
+                          child: Text(
+                            opt,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: selected
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -537,11 +608,74 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     }
   }
 
+  // Friendly names for each section letter.
+  static const Map<String, String> _sectionNames = {
+    'A': 'Pre-season',
+    'B': 'Flowering',
+    'C': 'Harvest',
+    'D': 'Selling',
+    'E': 'Overall',
+  };
+
+  Widget _progressHeader(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final section = sections[currentSection];
+    final progress = (currentSection + 1) / sections.length;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space4,
+        AppTheme.space3,
+        AppTheme.space4,
+        AppTheme.space4,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(
+          bottom: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _sectionNames[section] ?? 'Section $section',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                'Step ${currentSection + 1} of ${sections.length}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space3),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final section = sections[currentSection];
+    final isLast = currentSection == sections.length - 1;
     return Scaffold(
-      appBar: AppBar(title: const Text('Farmers Assessment')),
+      appBar: AppBar(title: const Text('Farm Assessment'), elevation: 0),
       body: Stack(
         children: [
           // AbsorbPointer prevents interaction while submitting
@@ -551,109 +685,99 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               opacity: _isSubmitting ? 0.6 : 1.0, // subtle dim while submitting
               child: Column(
                 children: [
-                  // Progress / section indicator
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Section ${section} (${currentSection + 1}/${sections.length})',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  _progressHeader(theme),
                   Expanded(
                     child: ListView(
+                      key: ValueKey(section),
+                      padding: const EdgeInsets.all(AppTheme.space4),
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'Please answer the questions below. All questions are required.',
-                            style: TextStyle(fontSize: 14),
+                        Text(
+                          'Answer the questions below. All questions are '
+                          'required.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.space4),
                         ..._sectionWidgets(section),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppTheme.space5),
                       ],
-                    ),
+                    ).animate().fadeIn(duration: 250.ms),
                   ),
 
                   // Navigation buttons
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        if (currentSection > 0)
-                          ElevatedButton(
-                            onPressed: _isSubmitting
-                                ? null
-                                : () => setState(() => currentSection--),
-                            child: const Text('Previous'),
-                          ),
-                        const Spacer(),
-                        if (currentSection < sections.length - 1)
-                          ElevatedButton(
-                            onPressed: _isSubmitting
-                                ? null
-                                : () {
-                                    // simple validation per section before moving forward
-                                    if (!_validateSection(section)) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please answer all questions in this section before continuing.',
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    setState(() => currentSection++);
-                                  },
-                            child: const Text('Next'),
-                          ),
-                        if (currentSection == sections.length - 1)
-                          // Submit button shows spinner when submitting
-                          ElevatedButton(
-                            onPressed: _isSubmitting ? null : _submitAll,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.space4),
+                      child: Row(
+                        children: [
+                          if (currentSection > 0) ...[
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () =>
+                                          setState(() => currentSection--),
+                                icon: const Icon(Icons.arrow_back, size: 18),
+                                label: const Text('Back'),
                               ),
                             ),
-                            child: _isSubmitting
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
+                            const SizedBox(width: AppTheme.space3),
+                          ],
+                          Expanded(
+                            flex: currentSection > 0 ? 1 : 1,
+                            child: FilledButton.icon(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () {
+                                      if (!_validateSection(section)) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please answer all questions in this section before continuing.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      if (isLast) {
+                                        _submitAll();
+                                      } else {
+                                        setState(() => currentSection++);
+                                      }
+                                    },
+                              icon: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
-                                      SizedBox(width: 12),
-                                      Text('Submitting...'),
-                                    ],
-                                  )
-                                : const Text('Submit'),
+                                    )
+                                  : Icon(
+                                      isLast
+                                          ? Icons.check_rounded
+                                          : Icons.arrow_forward,
+                                      size: 18,
+                                    ),
+                              label: Text(
+                                _isSubmitting
+                                    ? 'Submitting...'
+                                    : isLast
+                                    ? 'Submit'
+                                    : 'Next',
+                              ),
+                            ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -666,29 +790,20 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             Positioned.fill(
               child: Container(
                 color: Colors.black.withValues(alpha: 0.25),
-                child: const Center(
-                  child: Card(
-                    elevation: 6,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(18.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 14),
-                          Text(
-                            'Submitting assessment...',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
+                child: Center(
+                  child: AppCard(
+                    padding: const EdgeInsets.all(AppTheme.space4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: AppTheme.space3),
+                        Text('Submitting assessment...'),
+                      ],
                     ),
                   ),
                 ),

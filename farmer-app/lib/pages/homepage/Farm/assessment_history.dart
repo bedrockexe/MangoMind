@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/skeletons.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:intl/intl.dart';
@@ -93,34 +95,61 @@ class MySubmissionsPage extends StatelessWidget {
     }
   }
 
+  String _initials(String name) {
+    if (name.trim().isEmpty) return '?';
+    return name
+        .trim()
+        .split(' ')
+        .map((s) => s.isEmpty ? '' : s[0])
+        .take(2)
+        .join()
+        .toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('My Submissions')),
+      appBar: AppBar(title: const Text('My submissions'), elevation: 0),
       body: StreamBuilder<QuerySnapshot>(
         stream: _myStream(),
         builder: (context, snap) {
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+          if (snap.hasError) {
+            return EmptyState(
+              icon: Icons.error_outline,
+              title: 'Could not load submissions',
+              message: '${snap.error}',
+            );
+          }
           if (!snap.hasData) {
             return const ListSkeleton();
           }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
-            return const Center(child: Text('No submissions yet.'));
+            return const EmptyState(
+              icon: Icons.history,
+              title: 'No submissions yet',
+              message:
+                  'Your completed assessments will appear here so you can '
+                  'review and export them.',
+            );
           }
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.all(AppTheme.space4),
             itemCount: docs.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: AppTheme.space3),
             itemBuilder: (context, i) {
               final d = docs[i];
               final data = d.data() as Map<String, dynamic>;
+              final name = (data['farmer_name'] ?? 'Submission ${d.id}')
+                  .toString();
               final submittedAt = data['submitted_at'] as Timestamp?;
               final dt = submittedAt != null
                   ? DateFormat.yMMMd().add_jm().format(submittedAt.toDate())
                   : 'Not submitted';
-              return ListTile(
-                title: Text(data['farmer_name'] ?? 'Submission ${d.id}'),
-                subtitle: Text(dt),
-                trailing: const Icon(Icons.chevron_right),
+              return AppCard(
                 onTap: () {
                   Navigator.of(context).push(
                     appRoute(
@@ -133,6 +162,55 @@ class MySubmissionsPage extends StatelessWidget {
                     ),
                   );
                 },
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: scheme.primaryContainer,
+                      child: Text(
+                        _initials(name),
+                        style: TextStyle(
+                          color: scheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.event_available,
+                                size: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  dt,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+                  ],
+                ),
               );
             },
           );
