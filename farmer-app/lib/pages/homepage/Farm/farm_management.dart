@@ -1,5 +1,8 @@
 // Flutter packages
 import 'package:flutter/material.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
+import 'package:insights/theme/interactions.dart';
 import 'package:insights/theme/transitions.dart';
 
 // Pages
@@ -16,142 +19,123 @@ class FarmList extends StatefulWidget {
 class _FarmListState extends State<FarmList> {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Photo-backed cards: a translucent scrim keeps text legible over the
-    // image, flipping from light (with dark text) to dark (with light text)
-    // along with the app theme so they no longer stay bright in dark mode.
-    final scrimColor = (isDark ? Colors.black : Colors.white)
-        .withValues(alpha: isDark ? 0.55 : 0.6);
-    final onScrim = isDark ? Colors.white : Colors.black;
-    final onScrimVariant = isDark ? Colors.white70 : Colors.black54;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Farm Management')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.space4),
         children: [
-          AssessmentButton(),
-          SizedBox(height: 16),
-          // View and Manage Farms
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage("assets/mangofarm.png"),
-                fit: BoxFit.cover,
-              ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Stack(
+          // Flagship assessment CTA.
+          const AssessmentButton(),
+          const SizedBox(height: AppTheme.space5),
+
+          // Farm list entry — photo-backed hero with a legible bottom gradient.
+          const SectionHeader('Your farm'),
+          _myFarmsCard(context),
+          const SizedBox(height: AppTheme.space5),
+
+          // Live market prices on a clean surface card.
+          const SectionHeader('Market'),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: scrimColor,
-                  ),
-                ),
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      appRoute(const FarmListPage()),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.agriculture,
-                        color: Color.fromARGB(255, 62, 142, 63),
-                        size: 64,
-                      ),
-                      title: Text(
-                        "My Farms",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: onScrim,
+                Row(
+                  children: [
+                    Icon(Icons.local_offer, size: 20, color: scheme.primary),
+                    const SizedBox(width: AppTheme.space2),
+                    Expanded(
+                      child: Text(
+                        'Mango Public Market Price',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      subtitle: Text(
-                        "View and manage your farm list",
-                        style: TextStyle(color: onScrimVariant),
-                      ),
-                      trailing: Icon(
-                        Icons.arrow_forward_ios,
-                        size: 18,
-                        color: onScrim,
-                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Based on DA “Bantay Presyo”',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
+                const SizedBox(height: AppTheme.space2),
+                const MangoPriceTile(),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          SizedBox(height: 16),
-
-          // View Mango Market Price
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage("assets/mangga.jpg"),
-                fit: BoxFit.cover,
+  /// Tappable photo card opening the farm list. Uses a top-to-bottom dark
+  /// gradient over the photo so the white label stays legible in any theme.
+  Widget _myFarmsCard(BuildContext context) {
+    return Pressable(
+      onTap: () => Navigator.push(context, appRoute(const FarmListPage())),
+      child: ClipRRect(
+        borderRadius: AppTheme.cardRadius,
+        child: SizedBox(
+          height: 140,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset('assets/mangofarm.png', fit: BoxFit.cover),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black87],
+                    stops: [0.35, 1.0],
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-
-            child: Card(
-              color: scrimColor,
-              child: Padding(
-                padding: EdgeInsets.all(15),
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.space4),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        Icon(
-                          Icons.local_offer,
-                          size: 20,
-                          color: Colors.green.shade700,
-                        ),
-                        const SizedBox(width: 8),
+                        Icon(Icons.agriculture, color: Colors.white, size: 26),
+                        SizedBox(width: AppTheme.space2),
                         Text(
-                          'Mango Public Market Price',
+                          'My Farms',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: onScrim,
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const Spacer(),
+                        Spacer(),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ],
                     ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 27),
-                        child: Text(
-                          "Based on DA \"Bantay Presyo\"",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: onScrimVariant,
-                          ),
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'View and manage your farm list',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
                       ),
                     ),
-
-                    MangoPriceTile(),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

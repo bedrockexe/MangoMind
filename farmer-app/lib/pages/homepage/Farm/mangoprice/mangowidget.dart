@@ -28,11 +28,11 @@ class _MangoPriceTileState extends State<MangoPriceTile> {
 
   @override
   Widget build(BuildContext context) {
-    // This tile is rendered over the photo-backed price card's scrim, which
-    // flips light/dark with the theme — so its text must flip too.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final onScrim = isDark ? Colors.white : Colors.black;
-    final onScrimVariant = isDark ? Colors.white70 : Colors.black54;
+    // Rendered inside a plain surface card, so it reads its colors straight
+    // from the theme (which already adapts to light/dark mode).
+    final scheme = Theme.of(context).colorScheme;
+    final onScrim = scheme.onSurface;
+    final onScrimVariant = scheme.onSurfaceVariant;
 
     return RefreshIndicator(
       onRefresh: _refresh,
