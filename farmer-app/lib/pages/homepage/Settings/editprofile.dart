@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/skeletons.dart';
 
 class AccountEditPage extends StatefulWidget {
@@ -178,46 +180,62 @@ class _AccountEditPageState extends State<AccountEditPage> {
               .toUpperCase()
         : 'U';
 
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        CircleAvatar(
-          radius: 48,
-          backgroundImage: image,
-          child: image == null
-              ? Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Stack(
           children: [
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _pickImage,
-              icon: const Icon(Icons.photo),
-              label: const Text('Change photo'),
+            CircleAvatar(
+              radius: 52,
+              backgroundColor: scheme.primaryContainer,
+              backgroundImage: image,
+              child: image == null
+                  ? Text(
+                      initials,
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    )
+                  : null,
             ),
-            const SizedBox(width: 12),
-            if (_photoUrl != null || _newPhotoFile != null)
-              TextButton.icon(
-                onPressed: _saving
-                    ? null
-                    : () {
-                        setState(() {
-                          _newPhotoFile = null;
-                          _photoUrl = null;
-                        });
-                      },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Remove'),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Material(
+                color: scheme.primary,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _saving ? null : _pickImage,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.photo_camera,
+                      size: 18,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ),
               ),
+            ),
           ],
         ),
+        const SizedBox(height: AppTheme.space2),
+        if (_photoUrl != null || _newPhotoFile != null)
+          TextButton.icon(
+            onPressed: _saving
+                ? null
+                : () {
+                    setState(() {
+                      _newPhotoFile = null;
+                      _photoUrl = null;
+                    });
+                  },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Remove photo'),
+          ),
       ],
     );
   }
@@ -226,89 +244,115 @@ class _AccountEditPageState extends State<AccountEditPage> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Account')),
+        appBar: AppBar(title: const Text('Edit account'), elevation: 0),
         body: const ProfileSkeleton(),
       );
     }
 
     if (_loadError != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Account')),
-        body: Center(child: Text(_loadError!)),
+        appBar: AppBar(title: const Text('Edit account'), elevation: 0),
+        body: EmptyState(
+          icon: Icons.error_outline,
+          title: 'Could not load profile',
+          message: _loadError,
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Account')),
+      appBar: AppBar(title: const Text('Edit account'), elevation: 0),
       body: SafeArea(
         child: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.space4),
             children: [
+              const SizedBox(height: AppTheme.space2),
               _avatar(),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppTheme.space5),
 
-              TextFormField(
-                controller: _first,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'First name',
-                  border: OutlineInputBorder(),
+              const SectionHeader('Personal details'),
+              AppCard(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _first,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'First name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) => _required(v, label: 'First name'),
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
+                      controller: _last,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Last name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) => _required(v, label: 'Last name'),
+                    ),
+                  ],
                 ),
-                validator: (v) => _required(v, label: 'First name'),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _last,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Last name',
-                  border: OutlineInputBorder(),
+              const SizedBox(height: AppTheme.space5),
+
+              const SectionHeader('Contact'),
+              AppCard(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9+\-\s()]'),
+                        ),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Contact number',
+                        hintText: 'e.g. 0917 123 4567',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                      validator: _validatePhone,
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    TextFormField(
+                      controller: _address,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Address',
+                        alignLabelWithHint: true,
+                        prefixIcon: Icon(Icons.home_outlined),
+                      ),
+                      validator: (v) => _required(v, label: 'Address'),
+                    ),
+                  ],
                 ),
-                validator: (v) => _required(v, label: 'Last name'),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]')),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Contact number',
-                  hintText: 'e.g. 0917 123 4567',
-                  border: OutlineInputBorder(),
-                ),
-                validator: _validatePhone,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _address,
-                minLines: 2,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Address',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => _required(v, label: 'Address'),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
+              const SizedBox(height: AppTheme.space5),
+
+              FilledButton.icon(
                 onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
                       )
-                    : const Text('Save changes'),
+                    : const Icon(Icons.check),
+                label: Text(_saving ? 'Saving...' : 'Save changes'),
               ),
+              const SizedBox(height: AppTheme.space4),
             ],
           ),
         ),

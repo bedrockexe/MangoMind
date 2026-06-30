@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 
 class TrainingDetailsPage extends StatefulWidget {
   final String trainingId;
@@ -141,7 +143,11 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
         stream: trainingDoc.snapshots(),
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
+            return EmptyState(
+              icon: Icons.error_outline,
+              title: 'Could not load training',
+              message: '${snap.error}',
+            );
           }
           if (!snap.hasData || !snap.data!.exists) {
             return const SafeArea(
@@ -203,96 +209,73 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                     delegate: SliverChildListDelegate([
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppTheme.space4),
 
                       // Date & Venue card (venue displayed as simple label)
-                      Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_month,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      formattedDate,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (venue.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.place,
-                                            size: 16,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              'Venue: $venue',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
+                      AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_month,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
+                                const SizedBox(width: AppTheme.space3),
+                                Expanded(
+                                  child: Text(
+                                    formattedDate,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (venue.isNotEmpty) ...[
+                              const SizedBox(height: AppTheme.space3),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.place,
+                                    size: 20,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: AppTheme.space3),
+                                  Expanded(
+                                    child: Text(
+                                      venue,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppTheme.space4),
 
                       // Description section
-                      Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'About this training',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(desc, style: const TextStyle(fontSize: 14)),
-                            ],
-                          ),
+                      const SectionHeader('About this training'),
+                      AppCard(
+                        child: Text(
+                          desc,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(height: 1.5),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppTheme.space4),
 
                       // Attendees count & CTA
                       StreamBuilder<QuerySnapshot>(
@@ -319,81 +302,105 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                                         md['status'] == 'attended');
                               });
 
-                          return Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Attendees',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text('$count people registered'),
-                                      ],
+                          return Column(
+                            children: [
+                              AppCard(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.groups_outlined,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
-                                  ),
-                                  Column(
-                                    children: [
-                                      ElevatedButton(
+                                    const SizedBox(width: AppTheme.space3),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '$count registered',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          Text(
+                                            'farmers attending',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (iAmEnrolled)
+                                      const AppStatusChip(
+                                        'Enrolled',
+                                        tone: StatusTone.success,
+                                        icon: Icons.check_circle,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppTheme.space4),
+                              SizedBox(
+                                width: double.infinity,
+                                child: iAmEnrolled
+                                    ? OutlinedButton.icon(
                                         onPressed: _isProcessing
                                             ? null
-                                            : () {
-                                                if (!iAmEnrolled) {
-                                                  _enroll(widget.trainingId);
-                                                } else {
-                                                  _cancelEnrollment(
-                                                    widget.trainingId,
-                                                  );
-                                                }
-                                              },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          child: Text(
-                                            _isProcessing
-                                                ? 'Processing...'
-                                                : (!iAmEnrolled
-                                                      ? 'Enroll'
-                                                      : 'Cancel'),
-                                          ),
+                                            : () => _cancelEnrollment(
+                                                widget.trainingId,
+                                              ),
+                                        icon: const Icon(Icons.cancel_outlined),
+                                        label: Text(
+                                          _isProcessing
+                                              ? 'Processing...'
+                                              : 'Cancel enrollment',
+                                        ),
+                                      )
+                                    : FilledButton.icon(
+                                        onPressed: _isProcessing
+                                            ? null
+                                            : () => _enroll(widget.trainingId),
+                                        icon: const Icon(Icons.how_to_reg),
+                                        label: Text(
+                                          _isProcessing
+                                              ? 'Processing...'
+                                              : 'Enroll',
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      OutlinedButton(
-                                        onPressed: scheduledAt == null
-                                            ? null
-                                            : () => _addToCalendar(
-                                                start: scheduledAt,
-                                                title: title,
-                                                description: desc,
-                                                location: venue,
-                                              ),
-                                        child: const Text('Add to calendar'),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ),
-                            ),
+                              const SizedBox(height: AppTheme.space3),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: scheduledAt == null
+                                      ? null
+                                      : () => _addToCalendar(
+                                          start: scheduledAt,
+                                          title: title,
+                                          description: desc,
+                                          location: venue,
+                                        ),
+                                  icon: const Icon(Icons.event_available),
+                                  label: const Text('Add to calendar'),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppTheme.space5),
                     ]),
                   ),
                 ),

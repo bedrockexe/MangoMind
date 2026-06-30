@@ -1,6 +1,8 @@
 // Flutter Material
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/skeletons.dart';
 
 class TasksPage extends StatefulWidget {
@@ -198,11 +200,8 @@ class _TasksPage extends State<TasksPage> {
 
   Widget sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
+      padding: const EdgeInsets.only(top: AppTheme.space3),
+      child: SectionHeader(title),
     );
   }
 
@@ -228,41 +227,29 @@ class _TasksPage extends State<TasksPage> {
       isOverdue = dd.isBefore(today);
     }
 
-    Color statusColor() {
+    StatusTone statusTone() {
       switch (status) {
         case 'In-Progress':
-          return Colors.orange;
+          return StatusTone.warning;
         case 'Done':
-          return Colors.green;
+          return StatusTone.success;
         default:
-          return Theme.of(context).colorScheme.outline; // Pending = gray
+          return StatusTone.neutral; // Pending
       }
     }
 
-    Widget statusPill() {
-      final c = statusColor();
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: c.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: c.withValues(alpha: 0.6)),
-        ),
-        child: Text(
-          status,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: c,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-    }
+    Widget statusPill() => AppStatusChip(status, tone: statusTone());
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space3),
+      child: AppCard(
+      padding: EdgeInsets.zero,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          shape: const RoundedRectangleBorder(borderRadius: AppTheme.cardRadius),
+          collapsedShape:
+              const RoundedRectangleBorder(borderRadius: AppTheme.cardRadius),
           tilePadding: const EdgeInsets.symmetric(horizontal: 8),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           leading: Checkbox(
@@ -360,6 +347,7 @@ class _TasksPage extends State<TasksPage> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -376,14 +364,27 @@ class _TasksPage extends State<TasksPage> {
                 .snapshots(),
             builder: (context, snap) {
               if (snap.hasError) {
-                return Center(child: Text('Error: ${snap.error}'));
+                return EmptyState(
+                  icon: Icons.error_outline,
+                  title: 'Could not load tasks',
+                  message: '${snap.error}',
+                );
               }
               if (snap.connectionState == ConnectionState.waiting) {
                 return const ListSkeleton();
               }
               final docs = snap.data?.docs ?? [];
               if (docs.isEmpty) {
-                return const Center(child: Text('No tasks yet. Add one.'));
+                return EmptyState(
+                  icon: Icons.checklist_rtl,
+                  title: 'No tasks yet',
+                  message: 'Add a task to start planning your farm work.',
+                  action: FilledButton.icon(
+                    onPressed: _addTaskSheet,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add task'),
+                  ),
+                );
               }
               // ---- Group by due date ----
               final now = DateTime.now();

@@ -1,5 +1,7 @@
 // lib/pages/settings_page.dart
 import 'package:flutter/material.dart';
+import 'package:insights/theme/app_theme.dart';
+import 'package:insights/theme/components.dart';
 import 'package:insights/theme/transitions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:insights/pages/homepage/Settings/forgotpass.dart';
@@ -165,22 +167,23 @@ class _PasswordForm extends State<ChangePassword> {
     return InputDecoration(
       labelText: label,
       errorText: errorText, // forces red border + message
+      prefixIcon: const Icon(Icons.lock_outline),
       suffixIcon: IconButton(
         onPressed: onToggle,
         icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
         tooltip: obscure ? 'Show' : 'Hide',
       ),
-      border: const OutlineInputBorder(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: const Text('Change password'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppTheme.space4),
           child: Form(
             key: _formKey,
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -188,67 +191,47 @@ class _PasswordForm extends State<ChangePassword> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_globalError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _globalError!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppTheme.space4),
+                    padding: const EdgeInsets.all(AppTheme.space3),
+                    decoration: BoxDecoration(
+                      color: scheme.errorContainer,
+                      borderRadius: AppTheme.cardRadius,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: scheme.onErrorContainer,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppTheme.space2),
+                        Expanded(
+                          child: Text(
+                            _globalError!,
+                            style: TextStyle(color: scheme.onErrorContainer),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                TextFormField(
-                  controller: _currentCtrl,
-                  focusNode: _currentFocus,
-                  obscureText: !_showCurrent,
-                  textInputAction: TextInputAction.next,
-                  decoration: _decoration(
-                    label: 'Current password',
-                    obscure: !_showCurrent,
-                    onToggle: () =>
-                        setState(() => _showCurrent = !_showCurrent),
-                    errorText: _currentError,
+                const SectionHeader('Verify it\'s you'),
+                AppCard(
+                  child: TextFormField(
+                    controller: _currentCtrl,
+                    focusNode: _currentFocus,
+                    obscureText: !_showCurrent,
+                    textInputAction: TextInputAction.next,
+                    decoration: _decoration(
+                      label: 'Current password',
+                      obscure: !_showCurrent,
+                      onToggle: () =>
+                          setState(() => _showCurrent = !_showCurrent),
+                      errorText: _currentError,
+                    ),
+                    validator: _validateCurrent,
                   ),
-                  validator: _validateCurrent,
                 ),
-
-                // New Password Form
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _newCtrl,
-                  focusNode: _newFocus,
-                  obscureText: !_showNew,
-                  textInputAction: TextInputAction.next,
-                  decoration:
-                      _decoration(
-                        label: 'New password',
-                        obscure: !_showNew,
-                        onToggle: () => setState(() => _showNew = !_showNew),
-                        errorText: _newError,
-                      ).copyWith(
-                        helperText: 'Password should be 6+ characters long',
-                      ),
-                  validator: _validateNew,
-                ),
-
-                // Confirm New Password Form
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _confirmCtrl,
-                  focusNode: _confirmFocus,
-                  obscureText: !_showConfirm,
-                  textInputAction: TextInputAction.done,
-                  decoration: _decoration(
-                    label: 'Confirm new password',
-                    obscure: !_showConfirm,
-                    onToggle: () =>
-                        setState(() => _showConfirm = !_showConfirm),
-                    errorText: _confirmError,
-                  ),
-                  validator: _validateConfirm,
-                  onFieldSubmitted: (_) => _handleChange(),
-                ),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -257,21 +240,67 @@ class _PasswordForm extends State<ChangePassword> {
                         appRoute(const PasswordResetPage()),
                       );
                     },
-
-                    child: Text('Forgot Password?'),
+                    child: const Text('Forgot password?'),
                   ),
                 ),
 
-                const SizedBox(height: 20),
-                FilledButton(
+                const SizedBox(height: AppTheme.space3),
+                const SectionHeader('New password'),
+                AppCard(
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _newCtrl,
+                        focusNode: _newFocus,
+                        obscureText: !_showNew,
+                        textInputAction: TextInputAction.next,
+                        decoration:
+                            _decoration(
+                              label: 'New password',
+                              obscure: !_showNew,
+                              onToggle: () =>
+                                  setState(() => _showNew = !_showNew),
+                              errorText: _newError,
+                            ).copyWith(
+                              helperText:
+                                  'Password should be 6+ characters long',
+                            ),
+                        validator: _validateNew,
+                      ),
+                      const SizedBox(height: AppTheme.space4),
+                      TextFormField(
+                        controller: _confirmCtrl,
+                        focusNode: _confirmFocus,
+                        obscureText: !_showConfirm,
+                        textInputAction: TextInputAction.done,
+                        decoration: _decoration(
+                          label: 'Confirm new password',
+                          obscure: !_showConfirm,
+                          onToggle: () =>
+                              setState(() => _showConfirm = !_showConfirm),
+                          errorText: _confirmError,
+                        ),
+                        validator: _validateConfirm,
+                        onFieldSubmitted: (_) => _handleChange(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppTheme.space5),
+                FilledButton.icon(
                   onPressed: _loading ? null : _handleChange,
-                  child: _loading
+                  icon: _loading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Update Password'),
+                      : const Icon(Icons.check),
+                  label: Text(_loading ? 'Updating...' : 'Update password'),
                 ),
               ],
             ),
