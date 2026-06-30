@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:insights/theme/app_theme.dart';
 import 'package:insights/theme/components.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class ReportsPage extends StatefulWidget {
   final String? farmId;
@@ -575,234 +576,371 @@ class _ReportsPageState extends State<ReportsPage> {
   );
 
   // --------------------- UI ---------------------
+  int _selectedTab = 0; // 0 = Yields, 1 = Irrigation, 2 = Observations
+
+  void _onExport() async {
+    try {
+      await _previewAndDownload();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Failed to save PDF: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final range = _currentRange();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-        actions: [
-          IconButton(
-            tooltip: 'Preview & Download PDF',
-            onPressed: (_farmId != null && !_loadingData)
-                ? () async {
-                    try {
-                      await _previewAndDownload();
-                    } catch (e) {
-                      if (!mounted) return;
-                      _showSnack('Failed to save PDF: $e');
-                    }
-                  }
-                : null,
-            icon: const Icon(Icons.picture_as_pdf),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Reports')),
       body: RefreshIndicator(
         onRefresh: _initFarms,
         child: ListView(
           padding: const EdgeInsets.all(AppTheme.space4),
           children: [
-            const SectionHeader('Farm'),
-            _farmPicker(),
+            _heroCard(range).animate().fadeIn(duration: 350.ms),
             const SizedBox(height: AppTheme.space4),
-            const SectionHeader('Date range'),
-            _rangeChips(range),
-            const SizedBox(height: AppTheme.space4),
-            const SectionHeader('Summary'),
-            _summaryCards(),
+            _rangeSegmented(range),
             const SizedBox(height: AppTheme.space5),
-            _section(
-              title: 'Yields (${_yields.length})',
-              child: _simpleList(
-                _yields,
-                (m) => [
-                  _fmt.format(_date(m['date']) ?? DateTime(1970)),
-                  '${_num(m["weightKg"])} kg',
-                  (m['type'] ?? '').toString(),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            _section(
-              title: 'Irrigations (${_irrigs.length})',
-              child: _simpleList(
-                _irrigs,
-                (m) => [
-                  _fmt.format(_date(m['date']) ?? DateTime(1970)),
-                  (m['method'] ?? '').toString(),
-                  _num(m['waterLiters']) > 0
-                      ? '${_num(m["waterLiters"])} L'
-                      : '',
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            _section(
-              title: 'Observations (${_obs.length})',
-              child: _simpleList(
-                _obs,
-                (m) => [
-                  _fmt.format(_date(m['date']) ?? DateTime(1970)),
-                  (m['category'] ?? '').toString(),
-                  (m['severity'] ?? '').toString(),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _farmPicker() {
-    if (_loadingFarms) {
-      return const AppCard(
-        child: Row(
-          children: [
+            const SectionHeader('Summary'),
+            _metrics(),
+            const SizedBox(height: AppTheme.space4),
             SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: AppTheme.space3),
-            Text('Loading farms...'),
-          ],
-        ),
-      );
-    }
-
-    if (_farms.isEmpty) {
-      return const AppCard(
-        child: Row(
-          children: [
-            Icon(Icons.agriculture),
-            SizedBox(width: AppTheme.space3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No farms found',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 2),
-                  Text('Add a farm first, then come back here.'),
-                ],
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: (_farmId != null && !_loadingData) ? _onExport : null,
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Preview & Download PDF'),
               ),
             ),
+            const SizedBox(height: AppTheme.space5),
+            const SectionHeader('Records'),
+            _segmented(
+              labels: const ['Yields', 'Irrigation', 'Observations'],
+              selected: _selectedTab,
+              onTap: (i) => setState(() => _selectedTab = i),
+            ),
+            const SizedBox(height: AppTheme.space3),
+            _recordList(),
+            const SizedBox(height: AppTheme.space5),
           ],
         ),
-      );
-    }
-
-    return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space3,
-        vertical: AppTheme.space3,
-      ),
-      child: DropdownButtonFormField<String>(
-        value: _farmId,
-        decoration: const InputDecoration(
-          labelText: 'Choose farm',
-          prefixIcon: Icon(Icons.agriculture),
-        ),
-        isExpanded: true,
-        items: _farms
-            .map((f) => DropdownMenuItem(value: f.id, child: Text(f.name)))
-            .toList(),
-        onChanged: (val) async {
-          if (val == null) return;
-          setState(() {
-            _farmId = val;
-          });
-          await _loadData(); // reload data for the selected farm
-        },
       ),
     );
   }
 
-  Widget _rangeChips(DateTimeRange range) {
-    String label(RangePreset p) {
-      switch (p) {
-        case RangePreset.last7:
-          return 'Last 7 days';
-        case RangePreset.thisMonth:
-          return 'This month';
-        case RangePreset.custom:
-          return 'Custom';
-      }
-    }
+  /// Gradient report header: report label + export, an inline farm switcher,
+  /// and the active date range.
+  Widget _heroCard(DateTimeRange range) {
+    final farmName = _loadingFarms
+        ? 'Loading…'
+        : (_farms.isEmpty ? 'No farms yet' : _farmNameById(_farmId));
+    final canSwitch = _farms.length > 1;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        ChoiceChip(
-          label: Text(label(RangePreset.last7)),
-          selected: _preset == RangePreset.last7,
-          onSelected: (v) {
-            setState(() => _preset = RangePreset.last7);
-            _loadData();
-          },
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.space5),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.brandGreen, AppTheme.brandGreenDeep],
         ),
-        ChoiceChip(
-          label: Text(label(RangePreset.thisMonth)),
-          selected: _preset == RangePreset.thisMonth,
-          onSelected: (v) {
-            setState(() => _preset = RangePreset.thisMonth);
-            _loadData();
-          },
-        ),
-        ActionChip(
-          label: Text(
-            _preset == RangePreset.custom
-                ? 'Custom: ${_fmt.format(range.start)} → ${_fmt.format(range.end)}'
-                : 'Pick custom range',
-          ),
-          onPressed: _pickCustomRange,
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryCards() {
-    final scheme = Theme.of(context).colorScheme;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _statTile(
-              icon: Icons.scale,
-              color: scheme.primary,
-              value: '$_totalKg',
-              label: 'Total kg',
-            ),
-          ),
-          const SizedBox(width: AppTheme.space3),
-          Expanded(
-            child: _statTile(
-              icon: Icons.opacity,
-              color: const Color(0xFF18A0C1),
-              value: '$_irrigCount',
-              label: _irrigLiters > 0 ? '$_irrigLiters L' : 'Irrigations',
-            ),
-          ),
-          const SizedBox(width: AppTheme.space3),
-          Expanded(
-            child: _statTile(
-              icon: Icons.remove_red_eye,
-              color: AppTheme.brandAmber,
-              value: '$_obsCount',
-              label: 'Observations',
-            ),
+        borderRadius: AppTheme.cardRadius,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.brandGreen.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'FARM REPORT',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Material(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: (_farmId != null && !_loadingData) ? _onExport : null,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space3),
+          InkWell(
+            onTap: canSwitch ? _pickFarmSheet : null,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            child: Row(
+              children: [
+                const Icon(Icons.agriculture, color: Colors.white, size: 26),
+                const SizedBox(width: AppTheme.space2),
+                Flexible(
+                  child: Text(
+                    farmName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (canSwitch) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.unfold_more, color: Colors.white70, size: 20),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_today,
+                color: Colors.white70,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${_fmt.format(range.start)}  →  ${_fmt.format(range.end)}',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bottom sheet listing the user's farms so they can switch the report's
+  /// subject without a cramped inline dropdown.
+  Future<void> _pickFarmSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text(
+                'Choose farm',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            for (final f in _farms)
+              ListTile(
+                leading: const Icon(Icons.agriculture),
+                title: Text(f.name),
+                trailing: f.id == _farmId
+                    ? Icon(
+                        Icons.check_circle,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (f.id != _farmId) {
+                    setState(() => _farmId = f.id);
+                    await _loadData();
+                  }
+                },
+              ),
+            const SizedBox(height: AppTheme.space2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A pill-style segmented control (selected segment is a raised surface chip).
+  Widget _segmented({
+    required List<String> labels,
+    required int selected,
+    required ValueChanged<int> onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Row(
+        children: [
+          for (int i = 0; i < labels.length; i++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onTap(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected == i ? scheme.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    boxShadow: selected == i
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    labels[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: selected == i
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: selected == i
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Date-range picker as a segmented control. Tapping "Custom" opens the
+  /// range picker; the other two apply instantly.
+  Widget _rangeSegmented(DateTimeRange range) {
+    final index = _preset == RangePreset.last7
+        ? 0
+        : _preset == RangePreset.thisMonth
+        ? 1
+        : 2;
+    return _segmented(
+      labels: const ['Last 7 days', 'This month', 'Custom'],
+      selected: index,
+      onTap: (i) {
+        if (i == 0) {
+          setState(() => _preset = RangePreset.last7);
+          _loadData();
+        } else if (i == 1) {
+          setState(() => _preset = RangePreset.thisMonth);
+          _loadData();
+        } else {
+          _pickCustomRange();
+        }
+      },
+    );
+  }
+
+  Widget _metrics() {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        // Featured headline metric: total yield for the range.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppTheme.space4),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: AppTheme.cardRadius,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.scale, color: scheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: AppTheme.space4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total yield',
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_totalKg kg',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _statTile(
+                  icon: Icons.water_drop,
+                  color: const Color(0xFF18A0C1),
+                  value: _irrigLiters > 0 ? '$_irrigLiters' : '$_irrigCount',
+                  label: _irrigLiters > 0
+                      ? 'Liters • $_irrigCount logs'
+                      : 'Irrigation logs',
+                ),
+              ),
+              const SizedBox(width: AppTheme.space3),
+              Expanded(
+                child: _statTile(
+                  icon: Icons.coronavirus,
+                  color: AppTheme.brandAmber,
+                  value: '$_obsCount',
+                  label: 'Observations',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -849,66 +987,151 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  Widget _section({
-  required String title,
-  required Widget child,
-}) {
-  return _ExpandableCard(
-    title: title,
-    child: child,
-  );
-}
-
-
-  Widget _simpleList(
-    List<Map<String, dynamic>> rows,
-    List<String> Function(Map<String, dynamic>) toCells,
-  ) {
+  /// Builds the list for the currently selected record type, with loading and
+  /// empty states.
+  Widget _recordList() {
     if (_loadingData) {
       return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 12),
-            Text('Fetching records…'),
-          ],
+        padding: EdgeInsets.all(32),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: AppTheme.space3),
+              Text('Fetching records…'),
+            ],
+          ),
         ),
       );
     }
 
-    if (rows.isEmpty) return _empty('No records in this range.');
-    final tiles = rows.map((m) => toCells(m)).toList();
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: tiles.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (_, i) {
-        final cells = tiles[i];
-        return ListTile(
-          dense: true,
-          leading: const Icon(Icons.event_note),
-          title: Text(cells.first),
-          subtitle: cells.length > 1
-              ? Text(cells.skip(1).where((e) => e.isNotEmpty).join(' • '))
-              : null,
-        );
-      },
+    final scheme = Theme.of(context).colorScheme;
+    late final List<Widget> rows;
+    late final IconData emptyIcon;
+    late final String emptyMsg;
+
+    switch (_selectedTab) {
+      case 0:
+        emptyIcon = Icons.scale_outlined;
+        emptyMsg = 'No yields recorded in this range.';
+        rows = _yields.map((m) {
+          final type = (m['type'] ?? '').toString();
+          return _recordRow(
+            color: scheme.primary,
+            icon: Icons.scale,
+            title: '${_num(m['weightKg'])} kg',
+            subtitle: _fmt.format(_date(m['date']) ?? DateTime(1970)) +
+                (type.isNotEmpty ? ' • $type' : ''),
+          );
+        }).toList();
+      case 1:
+        emptyIcon = Icons.water_drop_outlined;
+        emptyMsg = 'No irrigation logs in this range.';
+        rows = _irrigs.map((m) {
+          final liters = _num(m['waterLiters']);
+          return _recordRow(
+            color: const Color(0xFF18A0C1),
+            icon: Icons.water_drop,
+            title: (m['method'] ?? 'Irrigation').toString(),
+            subtitle: _fmt.format(_date(m['date']) ?? DateTime(1970)),
+            trailing: liters > 0 ? '$liters L' : null,
+          );
+        }).toList();
+      default:
+        emptyIcon = Icons.coronavirus_outlined;
+        emptyMsg = 'No observations in this range.';
+        rows = _obs.map((m) {
+          final sev = (m['severity'] ?? '').toString();
+          return _recordRow(
+            color: AppTheme.brandAmber,
+            icon: Icons.coronavirus,
+            title: (m['category'] ?? 'Observation').toString().replaceAll(
+              '_',
+              ' ',
+            ),
+            subtitle: _fmt.format(_date(m['date']) ?? DateTime(1970)),
+            trailing: sev.isNotEmpty ? sev.toUpperCase() : null,
+          );
+        }).toList();
+    }
+
+    if (rows.isEmpty) {
+      return EmptyState(
+        icon: emptyIcon,
+        title: 'Nothing here',
+        message: emptyMsg,
+      );
+    }
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space3,
+        vertical: AppTheme.space1,
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
+            rows[i],
+          ],
+        ],
+      ),
     );
   }
 
-  Widget _empty(String msg) {
+  Widget _recordRow({
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? trailing,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: Text(
-          msg,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-        ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: AppTheme.space2),
+            Text(
+              trailing,
+              style: TextStyle(fontWeight: FontWeight.w700, color: color),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -924,92 +1147,4 @@ class _Farm {
   _Farm(this.id, this.name);
 }
 
-class _ExpandableCard extends StatefulWidget {
-  final String title;
-  final Widget child;
-
-  const _ExpandableCard({
-    super.key,
-    required this.title,
-    required this.child,
-  });
-
-  @override
-  State<_ExpandableCard> createState() => _ExpandableCardState();
-}
-
-class _ExpandableCardState extends State<_ExpandableCard>
-    with SingleTickerProviderStateMixin {
-  bool _expanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppTheme.cardRadius,
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          // ---------------- HEADER ----------------
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppTheme.radiusMd),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Text(
-                    widget.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(Icons.keyboard_arrow_down, size: 28),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ---------------- EXPANDED CONTENT ----------------
-          AnimatedCrossFade(
-            firstChild: const SizedBox(), // Closed
-            secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                children: [
-                  widget.child,
-                  const SizedBox(height: 15),
-
-                  // ---------------- BOTTOM CLOSE BUTTON ----------------
-                  TextButton.icon(
-                    onPressed: () => setState(() => _expanded = false),
-                    icon: const Icon(Icons.keyboard_arrow_up),
-                    label: const Text(
-                      "Collapse",
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 200),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
