@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'assessment_detail.dart';
 import 'report_service.dart';
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
 
 class Assessment extends StatefulWidget {
   const Assessment({super.key});
@@ -12,11 +16,9 @@ class Assessment extends StatefulWidget {
   State<Assessment> createState() => _AssessmentState();
 }
 
-class _AssessmentState extends State<Assessment>
-    with SingleTickerProviderStateMixin {
+class _AssessmentState extends State<Assessment> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _search = '';
-  late final AnimationController _animController;
 
   static const Map<String, String> _questionBank = {
     'A1': 'When do you start preparing your farm for the mango season?',
@@ -88,11 +90,6 @@ class _AssessmentState extends State<Assessment>
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _animController.forward();
     _searchCtrl.addListener(
       () => setState(() => _search = _searchCtrl.text.trim().toLowerCase()),
     );
@@ -100,7 +97,6 @@ class _AssessmentState extends State<Assessment>
 
   @override
   void dispose() {
-    _animController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -122,152 +118,130 @@ class _AssessmentState extends State<Assessment>
         farm.contains(_search);
   }
 
-  Widget _buildCard(QueryDocumentSnapshot doc, int index) {
+  Widget _buildCard(QueryDocumentSnapshot doc) {
+    final scheme = Theme.of(context).colorScheme;
     final data = doc.data() as Map<String, dynamic>;
-    final name = data['farmer_name'] ?? 'Unknown Farmer';
-    final email = data['farmer_email'] ?? '';
+    final name = (data['farmer_name'] ?? 'Unknown Farmer').toString();
+    final email = (data['farmer_email'] ?? '').toString();
     final submittedAt = data['submitted_at'] as Timestamp?;
     final timeText = submittedAt != null
         ? DateFormat.yMMMd().add_jm().format(submittedAt.toDate())
         : 'Not submitted';
 
-    // small summary: whether answers exist
     final answers = (data['answers'] ?? {}) as Map<String, dynamic>;
     final tookAssessment = answers.isNotEmpty;
 
-    // staggered animation offset
-    final anim = CurvedAnimation(
-      parent: _animController,
-      curve: Interval(
-        (index * .03).clamp(0.0, 0.9),
-        1.0,
-        curve: Curves.easeOut,
-      ),
-    );
-    return SizeTransition(
-      sizeFactor: anim,
-      axisAlignment: 0.0,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => AssessmentDetail(docId: doc.id, data: data),
-            ),
-          );
-        },
-        child: Card(
-          elevation: 6,
-          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // left avatar/status
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: tookAssessment
-                          ? [Colors.green.shade300, Colors.green.shade600]
-                          : [Colors.grey.shade300, Colors.grey.shade500],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      (name
-                              .toString()
-                              .split(' ')
-                              .map((s) => s.isEmpty ? '' : s[0])
-                              .take(2)
-                              .join())
-                          .toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ),
+    final initials = name
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0])
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+      child: AppCard(
+        onTap: () => Navigator.of(context).push(
+          appRoute(AssessmentDetail(docId: doc.id, data: data)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                color: tookAssessment
+                    ? scheme.primaryContainer
+                    : scheme.surfaceContainerHighest,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initials.isEmpty ? '?' : initials,
+                style: TextStyle(
+                  color: tookAssessment
+                      ? scheme.onPrimaryContainer
+                      : scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
-
-                const SizedBox(width: 12),
-
-                // main info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+            const SizedBox(width: AppTheme.space3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name.toString(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
-                            ),
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
-                          const SizedBox(width: 8),
-                          Chip(
-                            label: Text(
-                              tookAssessment ? 'Completed' : 'No Response',
-                            ),
-                            backgroundColor: tookAssessment
-                                ? Colors.green.shade50
-                                : Colors.grey.shade200,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        email.toString(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            timeText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.picture_as_pdf_outlined),
-                            onPressed: () async {
-                              // Generate PDF for single assessment
-                              await ReportService.generateSingleAssessmentPdf(
-                                doc.id,
-                                data,
-                                questionBank: _questionBank,
-                              );
-                            },
-                          ),
-                        ],
+                      const SizedBox(width: AppTheme.space2),
+                      AppStatusChip(
+                        tookAssessment ? 'Completed' : 'No response',
+                        tone: tookAssessment
+                            ? StatusTone.success
+                            : StatusTone.neutral,
                       ),
                     ],
                   ),
-                ),
-              ],
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: AppTheme.space2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          timeText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        tooltip: 'Export PDF',
+                        onPressed: () =>
+                            ReportService.generateSingleAssessmentPdf(
+                              doc.id,
+                              data,
+                              questionBank: _questionBank,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -277,7 +251,7 @@ class _AssessmentState extends State<Assessment>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin • Assessments'),
+        title: const Text('Assessments'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -303,43 +277,40 @@ class _AssessmentState extends State<Assessment>
       ),
       body: Column(
         children: [
-          // search bar with modern style
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(12),
-              child: TextField(
-                controller: _searchCtrl,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Search by farmer name, email',
-                  border: InputBorder.none,
-                  suffixIcon: _search.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () => _searchCtrl.clear(),
-                        )
-                      : null,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                ),
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space4,
+              AppTheme.space4,
+              AppTheme.space4,
+              AppTheme.space2,
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search by farmer name or email',
+                suffixIcon: _search.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _searchCtrl.clear(),
+                      )
+                    : null,
               ),
             ),
           ),
-
-          // list
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _assessmentsStream(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return EmptyState(
+                    icon: Icons.cloud_off,
+                    title: 'Could not load assessments',
+                    message: '${snapshot.error}',
+                  );
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const ListSkeleton();
                 }
 
                 final docs = snapshot.data!.docs
@@ -348,25 +319,27 @@ class _AssessmentState extends State<Assessment>
                     )
                     .toList();
                 if (docs.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(18),
-                      child: Text(
-                        'No assessments found. Try clearing the search or wait for submissions.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  return EmptyState(
+                    icon: Icons.assignment_outlined,
+                    title: _search.isEmpty
+                        ? 'No assessments yet'
+                        : 'No matches',
+                    message: _search.isEmpty
+                        ? 'Submitted farmer assessments will appear here.'
+                        : 'Try a different farmer name or email.',
                   );
                 }
 
-                // animate controller restart so new items animate
-                _animController.reset();
-                _animController.forward();
-
                 return ListView.builder(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.space4,
+                    AppTheme.space2,
+                    AppTheme.space4,
+                    AppTheme.space4,
+                  ),
                   itemCount: docs.length,
-                  itemBuilder: (context, i) => _buildCard(docs[i], i),
+                  itemBuilder: (context, i) => _buildCard(docs[i]),
                 );
               },
             ),

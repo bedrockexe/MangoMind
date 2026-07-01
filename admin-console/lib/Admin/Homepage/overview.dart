@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
 
 class MangoYieldCard extends StatefulWidget {
   const MangoYieldCard({super.key});
@@ -70,7 +72,7 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
           if (weightVal is num) {
             yieldRecords.add({
               'season': season,
-              'weightKg': (weightVal as num).toDouble(),
+              'weightKg': weightVal.toDouble(),
             });
           }
         }
@@ -138,27 +140,31 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
   }) {
     // returns plain Container — caller should wrap with Expanded if needed
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -166,17 +172,20 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
     );
   }
 
+  /// Distinct, theme-friendly palette reused by the pie slices and legend.
+  List<Color> get _chartPalette => const [
+    AppTheme.brandGreen,
+    AppTheme.brandOrange,
+    Color(0xFF18A0C1),
+    Color(0xFF8E6DF5),
+    Color(0xFFEF4444),
+    Color(0xFF0EA5A4),
+  ];
+
   List<PieChartSectionData> _buildPieSections() {
     final sections = <PieChartSectionData>[];
     final entries = pieData.entries.toList();
-    final colors = [
-      Colors.green.shade600,
-      Colors.orange.shade600,
-      Colors.blue.shade600,
-      Colors.purple.shade600,
-      Colors.red.shade600,
-      Colors.teal.shade600,
-    ];
+    final colors = _chartPalette;
     for (int i = 0; i < entries.length; i++) {
       final e = entries[i];
       final color = colors[i % colors.length];
@@ -194,224 +203,162 @@ class _MangoYieldCardState extends State<MangoYieldCard> {
         ),
       );
     }
-    if (sections.isEmpty) {
-      sections.addAll([
-        PieChartSectionData(
-          color: Colors.green,
-          value: 50,
-          title: '50%',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        PieChartSectionData(
-          color: Colors.orange,
-          value: 50,
-          title: '50%',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ]);
-    }
     return sections;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 8,
-      shadowColor: Colors.green.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.white, Colors.green.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space4,
+        AppTheme.space2,
+        AppTheme.space4,
+        AppTheme.space2,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader('Mango yield overview'),
+          AppCard(
+            child: _loading
+                ? const SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : _error != null
+                ? SizedBox(
+                    height: 240,
+                    child: EmptyState(
+                      icon: Icons.error_outline,
+                      title: 'Could not load metrics',
+                      message: _error,
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricTile(
+                              icon: Icons.trending_up,
+                              label: 'Avg. yield / record',
+                              value:
+                                  '${overallAverageYield.toStringAsFixed(0)} kg',
+                              color: AppTheme.brandGreen,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.space3),
+                          Expanded(
+                            child: _buildMetricTile(
+                              icon: Icons.agriculture,
+                              label: 'Total farms',
+                              value: totalFarms.toString(),
+                              color: AppTheme.brandOrange,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.space3),
+                          Expanded(
+                            child: _buildMetricTile(
+                              icon: Icons.people,
+                              label: 'Active farmers',
+                              value: totalFarmers.toString(),
+                              color: const Color(0xFF18A0C1),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.space5),
+                      if (pieData.isEmpty)
+                        const SizedBox(
+                          height: 240,
+                          child: EmptyState(
+                            icon: Icons.pie_chart_outline,
+                            title: 'No yield data yet',
+                            message:
+                                'Season breakdown appears once farmers log '
+                                'yields.',
+                          ),
+                        )
+                      else ...[
+                        SizedBox(
+                          height: 150,
+                          child: PieChart(
+                            PieChartData(
+                              sections: _buildPieSections(),
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 30,
+                              borderData: FlBorderData(show: false),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space3),
+                        Center(
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.center,
+                            children: pieData.entries.map((entry) {
+                              final season = entry.key;
+                              final percent = entry.value.toStringAsFixed(1);
+                              final colorIndex =
+                                  pieData.keys.toList().indexOf(season) %
+                                  _chartPalette.length;
+                              final color = _chartPalette[colorIndex];
+
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$season: $percent%',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space2),
+                        Center(
+                          child: Text(
+                            'Average kilograms per yield, by season',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        if (avgYieldPerSeason.isNotEmpty) ...[
+                          const SizedBox(height: AppTheme.space3),
+                          Center(
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: avgYieldPerSeason.entries.map((e) {
+                                return AppStatusChip(
+                                  '${e.key}: ${e.value.toStringAsFixed(0)} kg',
+                                  tone: StatusTone.neutral,
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
           ),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: _loading
-            ? SizedBox(
-                height: 220,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 12),
-                      Text('Loading mango metrics...'),
-                    ],
-                  ),
-                ),
-              )
-            : _error != null
-            ? SizedBox(
-                height: 220,
-                child: Center(
-                  child: Text(
-                    'Error: $_error',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.local_florist,
-                        color: Colors.green.shade600,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Mango Yield Overview',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricTile(
-                          icon: Icons.trending_up,
-                          label: 'Avg. Yield (record)',
-                          value: '${overallAverageYield.toStringAsFixed(0)} kg',
-                          color: Colors.green,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildMetricTile(
-                          icon: Icons.agriculture,
-                          label: 'Total Farms',
-                          value: totalFarms.toString(),
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricTile(
-                          icon: Icons.people,
-                          label: 'Total Active Farmers',
-                          value: totalFarmers.toString(),
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: 150,
-                    child: PieChart(
-                      PieChartData(
-                        sections: _buildPieSections(),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 30,
-                        borderData: FlBorderData(show: false),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: pieData.entries.map((entry) {
-                        final season = entry.key;
-                        final percent = entry.value.toStringAsFixed(1);
-
-                        // Pick the same colors you used for the pie chart slices
-                        final colors = [
-                          Colors.green.shade600,
-                          Colors.orange.shade600,
-                          Colors.blue.shade600,
-                          Colors.purple.shade600,
-                          Colors.red.shade600,
-                          Colors.teal.shade600,
-                        ];
-                        final colorIndex =
-                            pieData.keys.toList().indexOf(season) %
-                            colors.length;
-                        final color = colors[colorIndex];
-
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$season: $percent%',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-                  Center(
-                    child: const Text(
-                      'Average Kilogram per yield by season',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-                  if (avgYieldPerSeason.isNotEmpty) ...[
-                    Center(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: avgYieldPerSeason.entries.map((e) {
-                          return Chip(
-                            backgroundColor: Colors.grey[400],
-                            label: Text(
-                              '${e.key}: ${e.value.toStringAsFixed(0)} kg/per yield',
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+        ],
       ),
     );
   }

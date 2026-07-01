@@ -4,6 +4,10 @@ import 'add_training.dart';
 import 'trainingdetails.dart';
 import 'edittraining.dart';
 import 'package:intl/intl.dart';
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
 
 class AdminTrainingsPage extends StatefulWidget {
   const AdminTrainingsPage({super.key});
@@ -195,9 +199,8 @@ class _AdminTrainingsPageState extends State<AdminTrainingsPage> {
                                     userSnap.data!.data()
                                         as Map<String, dynamic>;
                                 name =
-                                    (ud['first_name'] ?? '') +
-                                    ' ' +
-                                    (ud['last_name'] ?? '');
+                                    '${ud['first_name'] ?? ''} '
+                                    '${ud['last_name'] ?? ''}';
                                 sub = ud['phone'] ?? '';
                               }
                               return ListTile(
@@ -247,160 +250,162 @@ class _AdminTrainingsPageState extends State<AdminTrainingsPage> {
       return DateFormat.yMMMd().add_jm().format(scheduledAt.toLocal());
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 12,
-          horizontal: 12,
+    final scheme = Theme.of(context).colorScheme;
+    final ended = status == 'Ended';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+      child: AppCard(
+        onTap: () => Navigator.push(
+          context,
+          appRoute(TrainingDetailsPage(trainingId: doc.id)),
         ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TrainingDetailsPage(trainingId: doc.id),
-            ),
-          );
-        },
-        leading: thumbnail != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  thumbnail,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.cover,
-                ),
-              )
-            : Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.school),
-              ),
-        // Title row: title (limited lines) + status badge
-        title: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 2, // <-- limit lines so it doesn't wrap into a column
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  height: 1.15,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: status == 'Ended'
-                    ? Colors.red.shade100
-                    : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  color: status == 'Ended'
-                      ? Colors.red.shade700
-                      : Colors.green.shade800,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        // Subtitle - minimal main axis size so it doesn't force extra height
-        subtitle: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (scheduledAt != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6.0),
-                child: Text(
-                  formattedDate(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-            if (venue.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Text(
-                  'Venue: $venue',
-                  maxLines: 2, // allow two lines for longer venue text
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Chip(label: Text(category)),
-                Chip(label: Text(level)),
-                if (published)
-                  Chip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.public, size: 14),
-                        SizedBox(width: 4),
-                        Text('Published'),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  child: thumbnail != null
+                      ? Image.network(
+                          thumbnail,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _thumbFallback(scheme),
+                        )
+                      : _thumbFallback(scheme),
+                ),
+                const SizedBox(width: AppTheme.space3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (scheduledAt != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.event,
+                              size: 14,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                formattedDate(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
+                      if (venue.toString().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.place_outlined,
+                              size: 14,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                venue,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (v) async {
+                    if (v == 'edit') {
+                      Navigator.push(
+                        context,
+                        appRoute(EditTrainingPage(trainingId: doc.id)),
+                      );
+                    } else if (v == 'delete') {
+                      await _confirmAndDelete(doc.id);
+                    } else if (v == 'enroll') {
+                      await _showEnrollments(doc.id);
+                    } else if (v == 'open') {
+                      Navigator.push(
+                        context,
+                        appRoute(TrainingDetailsPage(trainingId: doc.id)),
+                      );
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(value: 'open', child: Text('Open details')),
+                    PopupMenuItem(value: 'edit', child: Text('Edit training')),
+                    PopupMenuItem(
+                      value: 'enroll',
+                      child: Text('View enrollments'),
                     ),
-                  )
-                else
-                  const Chip(label: Text('Draft')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.space3),
+            Wrap(
+              spacing: AppTheme.space2,
+              runSpacing: AppTheme.space1,
+              children: [
+                AppStatusChip(
+                  status,
+                  tone: ended ? StatusTone.danger : StatusTone.success,
+                  icon: ended ? Icons.history : Icons.schedule,
+                ),
+                AppStatusChip(category, tone: StatusTone.info),
+                AppStatusChip(level, tone: StatusTone.neutral),
+                AppStatusChip(
+                  published ? 'Published' : 'Draft',
+                  tone: published ? StatusTone.success : StatusTone.warning,
+                  icon: published ? Icons.public : Icons.edit_note,
+                ),
               ],
             ),
           ],
         ),
-        isThreeLine: false,
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) async {
-            if (v == 'edit') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditTrainingPage(trainingId: doc.id),
-                ),
-              );
-            } else if (v == 'delete') {
-              await _confirmAndDelete(doc.id);
-            } else if (v == 'enroll') {
-              await _showEnrollments(doc.id);
-            } else if (v == 'open') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TrainingDetailsPage(trainingId: doc.id),
-                ),
-              );
-            }
-          },
-          itemBuilder: (ctx) => [
-            const PopupMenuItem(value: 'open', child: Text('Open details')),
-            const PopupMenuItem(value: 'edit', child: Text('Edit training')),
-            const PopupMenuItem(
-              value: 'enroll',
-              child: Text('View enrollments'),
-            ),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-        ),
       ),
+    );
+  }
+
+  Widget _thumbFallback(ColorScheme scheme) {
+    return Container(
+      width: 64,
+      height: 64,
+      color: scheme.surfaceContainerHighest,
+      child: Icon(Icons.school, color: scheme.onSurfaceVariant),
     );
   }
 
@@ -413,124 +418,124 @@ class _AdminTrainingsPageState extends State<AdminTrainingsPage> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin — Trainings'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Create Training',
-            onPressed: () {
-              // Navigate to create page (instead of showing form inline)
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateTrainingPage()),
-              );
-            },
-          ),
-        ],
+      appBar: AppBar(title: const Text('Trainings')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          appRoute(const CreateTrainingPage()),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('New training'),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // filters + search
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space4,
+                AppTheme.space4,
+                AppTheme.space4,
+                AppTheme.space2,
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Search trainings',
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.space4,
+                ),
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchCtrl,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search),
-                            hintText: 'Search trainings',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                  for (final c in categories)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppTheme.space2),
+                      child: ChoiceChip(
+                        label: Text(c),
+                        selected: _filterCategory == c,
+                        onSelected: (_) =>
+                            setState(() => _filterCategory = c),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      DropdownButton<String>(
-                        value: _filterCategory,
-                        items: categories
-                            .map(
-                              (c) => DropdownMenuItem(value: c, child: Text(c)),
-                            )
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _filterCategory = v ?? 'All'),
-                      ),
-                      const SizedBox(width: 8),
-                      Checkbox(
-                        value: _onlyPublished,
-                        onChanged: (v) =>
-                            setState(() => _onlyPublished = v ?? false),
-                      ),
-                      const Text('Published'),
-                    ],
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppTheme.space2),
+                    child: FilterChip(
+                      label: const Text('Published'),
+                      selected: _onlyPublished,
+                      onSelected: (v) => setState(() => _onlyPublished = v),
+                    ),
                   ),
                 ],
               ),
             ),
-
+            const SizedBox(height: AppTheme.space2),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: trainingsStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return EmptyState(
+                      icon: Icons.cloud_off,
+                      title: 'Could not load trainings',
+                      message: '${snapshot.error}',
+                    );
                   }
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const TrainingListSkeleton();
                   }
 
-                  final docs = snapshot.data!.docs;
+                  final filtered = snapshot.data!.docs.where((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    final title = (data['title'] ?? '')
+                        .toString()
+                        .toLowerCase();
+                    final category = (data['category'] ?? '').toString();
+                    final published = data['published'] ?? false;
 
-                  if (docs.isEmpty) {
-                    return const Center(
-                      child: Text('No trainings available. Click + to add.'),
-                    );
-                  } else {
-                    final filtered = docs.where((d) {
-                      final data = d.data() as Map<String, dynamic>;
-                      final title = (data['title'] ?? '')
-                          .toString()
-                          .toLowerCase();
-                      final category = (data['category'] ?? '').toString();
-                      final published = data['published'] ?? false;
-
-                      if (_onlyPublished && !published) return false;
-                      if (_filterCategory != 'All' &&
-                          _filterCategory != category) {
-                        return false;
-                      }
-                      if (_searchQuery.isNotEmpty &&
-                          !title.contains(_searchQuery)) {
-                        return false;
-                      }
-                      return true;
-                    }).toList();
-
-                    if (filtered.isEmpty) {
-                      return const Center(
-                        child: Text('No trainings match your filters.'),
-                      );
+                    if (_onlyPublished && !published) return false;
+                    if (_filterCategory != 'All' &&
+                        _filterCategory != category) {
+                      return false;
                     }
+                    if (_searchQuery.isNotEmpty &&
+                        !title.contains(_searchQuery)) {
+                      return false;
+                    }
+                    return true;
+                  }).toList();
 
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, i) =>
-                          _buildTrainingCard(filtered[i]),
+                  if (filtered.isEmpty) {
+                    final filtering = _searchQuery.isNotEmpty ||
+                        _onlyPublished ||
+                        _filterCategory != 'All';
+                    return EmptyState(
+                      icon: Icons.menu_book_outlined,
+                      title: filtering
+                          ? 'No matching trainings'
+                          : 'No trainings yet',
+                      message: filtering
+                          ? 'Adjust your search or filters.'
+                          : 'Tap “New training” to create your first one.',
                     );
                   }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.space4,
+                      AppTheme.space2,
+                      AppTheme.space4,
+                      96,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, i) =>
+                        _buildTrainingCard(filtered[i]),
+                  );
                 },
               ),
             ),

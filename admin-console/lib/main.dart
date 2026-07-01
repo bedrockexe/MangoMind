@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
-import 'Login/login_page.dart';
+import 'Login/auth_gate.dart';
 import 'ThemeController.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,9 +13,9 @@ Future<void> main() async {
     );
     await ThemeController.init();
   } catch (e) {
-    print('Firebase initialization error: $e');
+    debugPrint('Firebase initialization error: $e');
   }
-  runApp(SweetInsightAdmin());
+  runApp(const SweetInsightAdmin());
 }
 
 class SweetInsightAdmin extends StatelessWidget {
@@ -27,25 +27,12 @@ class SweetInsightAdmin extends StatelessWidget {
       animation: ThemeController.instance,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Sweet Insight Admin',
+          title: 'MangoMind Admin',
+          debugShowCheckedModeBanner: false,
           themeMode: ThemeController.instance.mode,
-          theme: ThemeData(
-            useMaterial3: true,
-            colorSchemeSeed: Colors.green,
-            textTheme: GoogleFonts.poppinsTextTheme(
-              ThemeData.light().textTheme,
-            ),
-            brightness: Brightness.light,
-          ),
-          darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            useMaterial3: true,
-            colorSchemeSeed: Colors.green,
-            textTheme: GoogleFonts.poppinsTextTheme(
-              ThemeData.light().textTheme,
-            ),
-          ),
-          home: LoginPage(),
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const AuthGate(),
         );
       },
     );

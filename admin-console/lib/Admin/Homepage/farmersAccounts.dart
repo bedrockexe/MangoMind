@@ -1,182 +1,194 @@
 import 'package:flutter/material.dart';
 import 'package:sweet_insights_admin/Admin/Homepage/fullAccountList.dart';
 import 'package:sweet_insights_admin/Admin/Homepage/detailed.dart';
-import 'dart:math';
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
 
-class FarmersListCard extends StatefulWidget {
+/// Dashboard card listing the most recent user accounts, with a "See all"
+/// link to the full list. Uses the shared design system so it tracks the app
+/// theme (light/dark) automatically.
+class FarmersListCard extends StatelessWidget {
   final List<Map<String, dynamic>> farmers;
-  const FarmersListCard({super.key, required this.farmers});
+  final bool loading;
 
-  @override
-  State<FarmersListCard> createState() => _FarmersListCardState();
-}
+  const FarmersListCard({
+    super.key,
+    required this.farmers,
+    this.loading = false,
+  });
 
-class _FarmersListCardState extends State<FarmersListCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  List<Map<String, dynamic>> get _farmers => widget.farmers;
-
-  Color generateRandomColor() {
-    final Random _random = Random();
-    return Color.fromARGB(
-      255,
-      _random.nextInt(256),
-      _random.nextInt(256),
-      _random.nextInt(256),
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  /// Deterministic accent for an avatar, derived from the name so it stays
+  /// stable across rebuilds (the old code re-randomized on every frame).
+  Color _avatarColor(BuildContext context, String seed) {
+    final scheme = Theme.of(context).colorScheme;
+    final palette = [
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      const Color(0xFF18A0C1),
+      const Color(0xFF8E6DF5),
+    ];
+    return palette[seed.hashCode.abs() % palette.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 8,
-      shadowColor: Colors.green.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.white, Colors.green.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(Icons.people, color: Colors.green.shade600, size: 28),
-                const SizedBox(width: 8),
-                const Text(
-                  'User Accounts',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Manage user profiles below. Tap edit for actions.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
+    final preview = farmers.take(5).toList();
 
-            SizedBox(
-              height: 320,
-              child: _farmers.isNotEmpty
-                  ? AnimatedBuilder(
-                      animation: _fadeAnimation,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _fadeAnimation.value,
-                          child: ListView.separated(
-                            physics: const ClampingScrollPhysics(),
-                            itemCount: _farmers.length < 5
-                                ? _farmers.length
-                                : 5,
-                            separatorBuilder: (context, index) => const Divider(
-                              height: 1,
-                              color: Colors.grey,
-                              thickness: 0.5,
-                            ),
-                            itemBuilder: (context, index) {
-                              final farmer = _farmers[index];
-                              return _buildFarmerItem(farmer, index);
-                            },
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space4,
+        AppTheme.space2,
+        AppTheme.space4,
+        AppTheme.space2,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            'User accounts',
+            trailing: farmers.isEmpty
+                ? null
+                : TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      appRoute(const FarmersListPage()),
+                    ),
+                    child: const Text('See all'),
+                  ),
+          ),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: loading
+                ? const Padding(
+                    padding: EdgeInsets.all(AppTheme.space4),
+                    child: _AccountsLoading(),
+                  )
+                : preview.isEmpty
+                ? const SizedBox(
+                    height: 220,
+                    child: EmptyState(
+                      icon: Icons.people_outline,
+                      title: 'No users yet',
+                      message: 'Registered farmer accounts will appear here.',
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (int i = 0; i < preview.length; i++) ...[
+                        if (i != 0)
+                          Divider(
+                            height: 1,
+                            color: Theme.of(context).colorScheme.outlineVariant,
                           ),
-                        );
-                      },
-                    )
-                  : Center(child: Text("No Users Found")),
-            ),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => FarmersListPage()),
-                  );
-                },
-                child: const Text(
-                  'See All',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ),
-          ],
-        ),
+                        _AccountTile(
+                          farmer: preview[i],
+                          color: _avatarColor(
+                            context,
+                            '${preview[i]['first_name'] ?? ''}'
+                                '${preview[i]['email_address'] ?? i}',
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildFarmerItem(Map<String, dynamic> farmer, int index) {
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({required this.farmer, required this.color});
+
+  final Map<String, dynamic> farmer;
+  final Color color;
+
+  String get _initial {
+    final first = (farmer['first_name'] ?? '').toString().trim();
+    return first.isNotEmpty ? first[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final first = (farmer['first_name'] ?? '').toString();
+    final last = (farmer['last_name'] ?? '').toString();
+    final email = (farmer['email_address'] ?? '').toString();
+
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space4,
+        vertical: AppTheme.space1,
+      ),
       leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: generateRandomColor(),
+        radius: 22,
+        backgroundColor: color.withValues(alpha: 0.15),
         child: Text(
-          farmer['first_name'][0].toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          _initial,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
       ),
       title: Text(
-        "${farmer['first_name']} ${farmer['last_name']}",
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        '$first $last'.trim().isEmpty ? 'Unnamed user' : '$first $last',
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Text(farmer['email_address'])],
+      subtitle: email.isEmpty ? null : Text(email),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.push(
+        context,
+        appRoute(UserDetailsPage(farmer: farmer)),
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.chevron_right, color: Colors.green),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => UserDetailsPage(farmer: farmer),
-            ),
-          );
-        },
-      ),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserDetailsPage(farmer: farmer),
+    );
+  }
+}
+
+class _AccountsLoading extends StatelessWidget {
+  const _AccountsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: List.generate(4, (i) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: i == 3 ? 0 : AppTheme.space4),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: scheme.surfaceContainerHighest,
+              ),
+              const SizedBox(width: AppTheme.space3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 12,
+                      width: 140,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 10,
+                      width: 200,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
-      },
+      }),
     );
   }
 }
