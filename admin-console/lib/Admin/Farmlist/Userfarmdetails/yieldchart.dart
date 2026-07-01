@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sweet_insights_admin/theme/components.dart';
+
 class CompactYieldCard extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>>? farmRef;
   const CompactYieldCard({super.key, this.farmRef});
@@ -95,146 +97,143 @@ class _CompactYieldCardState extends State<CompactYieldCard> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     if (_loading) {
-      SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+      return const AppCard(
+        child: SizedBox(
+          height: 150,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
     final months = _currentSeasonMonths;
     final spots = _spots;
     final yMax = _maxY;
 
-    return Container(
-      margin: const EdgeInsets.all(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
-          children: [
-            // Header + toggle
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Yields this Season',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '$_seasonName ($_year)',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const Spacer(),
-                PopupMenuButton<int>(
-                  icon: const Icon(Icons.swap_horiz),
-                  onSelected: (val) => setState(() => _seasonMode = val),
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 0,
-                      child: Text("Auto (current)"),
-                    ),
-                    const PopupMenuItem(value: 1, child: Text("Wet Season")),
-                    const PopupMenuItem(value: 2, child: Text("Dry Season")),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 6),
-
-            // Graph
-            SizedBox(
-              height: 110,
-              child: LineChart(
-                LineChartData(
-                  minX: 0,
-                  maxX: (months.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: yMax,
-                  gridData: FlGridData(show: true, drawVerticalLine: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 46,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            '${value.toInt()} kg',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.black54,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx < 0 || idx >= months.length) {
-                            return const SizedBox.shrink();
-                          }
-                          final label = DateFormat.MMM().format(
-                            DateTime(0, months[idx]),
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              label,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+    return AppCard(
+      child: Column(
+        children: [
+          // Header + toggle
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Yields this season',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    '$_seasonName ($_year)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      barWidth: 2.5,
-                      dotData: FlDotData(show: true),
-                      color: Theme.of(context).primaryColor,
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: Theme.of(
-                          context,
-                        ).primaryColor.withValues(alpha: 0.15),
-                      ),
+                ],
+              ),
+
+              const Spacer(),
+              PopupMenuButton<int>(
+                icon: const Icon(Icons.swap_horiz),
+                onSelected: (val) => setState(() => _seasonMode = val),
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(value: 0, child: Text("Auto (current)")),
+                  const PopupMenuItem(value: 1, child: Text("Wet Season")),
+                  const PopupMenuItem(value: 2, child: Text("Dry Season")),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          // Graph
+          SizedBox(
+            height: 110,
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: (months.length - 1).toDouble(),
+                minY: 0,
+                maxY: yMax,
+                gridData: FlGridData(show: true, drawVerticalLine: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 46,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          '${value.toInt()} kg',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        );
+                      },
                     ),
-                  ],
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final idx = value.toInt();
+                        if (idx < 0 || idx >= months.length) {
+                          return const SizedBox.shrink();
+                        }
+                        final label = DateFormat.MMM().format(
+                          DateTime(0, months[idx]),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    barWidth: 2.5,
+                    dotData: FlDotData(show: true),
+                    color: Theme.of(context).primaryColor,
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
 
-            const SizedBox(height: 6),
+          const SizedBox(height: 6),
 
-            // Total line
-            Text(
-              'Total: ${_currentSeasonMonths.map((m) => _kgPerMonth[m] ?? 0.0).reduce((a, b) => a + b).toStringAsFixed(0)} kg',
-              style: const TextStyle(fontSize: 15, color: Colors.black54),
-            ),
-          ],
-        ),
+          // Total line
+          Text(
+            'Total: ${_currentSeasonMonths.map((m) => _kgPerMonth[m] ?? 0.0).reduce((a, b) => a + b).toStringAsFixed(0)} kg',
+            style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

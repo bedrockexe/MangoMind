@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'report_service.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+
 /// Modernized Assessment Detail page that shows question text + farmer answer.
 /// Replace your old assessment_detail.dart with this file.
 class AssessmentDetail extends StatefulWidget {
@@ -126,107 +129,91 @@ class _AssessmentDetailState extends State<AssessmentDetail>
     String farm,
     String submittedText,
   ) {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.green[300],
-              child: Text(
-                name.isEmpty
-                    ? '?'
-                    : name
-                          .split(' ')
-                          .map((s) => s.isEmpty ? '' : s[0])
-                          .take(2)
-                          .join()
-                          .toUpperCase(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 18,
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: scheme.primaryContainer,
+            child: Text(
+              name.isEmpty
+                  ? '?'
+                  : name
+                        .split(' ')
+                        .map((s) => s.isEmpty ? '' : s[0])
+                        .take(2)
+                        .join()
+                        .toUpperCase(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: scheme.onPrimaryContainer,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Unknown farmer' : name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email_outlined,
+                      size: 14,
+                      color: scheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.email_outlined,
-                        size: 14,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          email,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        submittedText,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(email, style: const TextStyle(fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  submittedText,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _questionCard(String qKey, String qText, dynamic qAnswer) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(qText, style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Text(
-                qAnswer?.toString() ?? '-',
-                style: const TextStyle(fontSize: 14),
-              ),
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(qText, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-          ],
-        ),
+            child: Text(
+              qAnswer?.toString() ?? '-',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -245,29 +232,16 @@ class _AssessmentDetailState extends State<AssessmentDetail>
           ),
         );
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppTheme.space3),
+        child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      section,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                  AppStatusChip(section, tone: StatusTone.success),
+                  const SizedBox(width: AppTheme.space3),
                   Text(
                     'Section $section',
                     style: const TextStyle(fontWeight: FontWeight.bold),
@@ -275,11 +249,13 @@ class _AssessmentDetailState extends State<AssessmentDetail>
                   const Spacer(),
                   Text(
                     '${questionKeys.length} Qs',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppTheme.space3),
               Column(
                 children: questionKeys.map((k) {
                   final text = qmap[k]!;
@@ -290,6 +266,22 @@ class _AssessmentDetailState extends State<AssessmentDetail>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _statTile(String value, String label) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
+        ],
       ),
     );
   }
@@ -329,71 +321,23 @@ class _AssessmentDetailState extends State<AssessmentDetail>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _headerCard(name, email, farm, submittedText),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space3),
             Row(
               children: [
+                Expanded(child: _statTile('${answers.length}', 'Answered')),
+                const SizedBox(width: AppTheme.space3),
                 Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    margin: const EdgeInsets.only(right: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Text(
-                            '${answers.length}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Answered',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    margin: const EdgeInsets.only(left: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Text(
-                            '${groupedQuestions.keys.length}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Sections',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _statTile(
+                    '${groupedQuestions.keys.length}',
+                    'Sections',
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space3),
             // sections
-            ...sections
-                .map((s) => _sectionBlock(s, groupedQuestions[s]!))
-                .toList(),
-            const SizedBox(height: 28),
+            ...sections.map((s) => _sectionBlock(s, groupedQuestions[s]!)),
+            const SizedBox(height: AppTheme.space5),
           ],
         ),
       ),

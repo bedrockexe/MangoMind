@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+
 class AdminRecordingsPage extends StatefulWidget {
-  const AdminRecordingsPage({Key? key}) : super(key: key);
+  const AdminRecordingsPage({super.key});
 
   @override
   State<AdminRecordingsPage> createState() => _AdminRecordingsPageState();
@@ -18,7 +22,12 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
   // Local UI state
   String _selectedStatus = 'All';
   String _sortBy = 'latest';
-  List<String> _statusOptions = ['All', 'Healthy', 'Monitor', 'Issue Found'];
+  final List<String> _statusOptions = [
+    'All',
+    'Healthy',
+    'Monitor',
+    'Issue Found',
+  ];
   Timer? _debounce;
 
   // Pagination / streaming
@@ -138,13 +147,13 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
   Color _chipColorForStatus(String status) {
     switch (status) {
       case 'Healthy':
-        return Colors.green.shade400;
+        return AppTheme.brandGreen;
       case 'Monitor':
-        return Colors.amber.shade700;
+        return AppTheme.brandAmber;
       case 'Issue Found':
-        return Colors.red.shade400;
+        return const Color(0xFFEF4444);
       default:
-        return Colors.grey.shade400;
+        return const Color(0xFF64748B);
     }
   }
 
@@ -196,13 +205,6 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
                               },
                             )
                           : null,
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
                     ),
                   ),
                 ),
@@ -264,15 +266,13 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
           ),
 
           if (_isInitialLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: ListSkeleton())
           else if (filteredDocs.isEmpty)
-            Expanded(
-              child: Center(
-                child: Text(
-                  'No recordings found.\nTry clearing filters or search.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
+            const Expanded(
+              child: EmptyState(
+                icon: Icons.fact_check_outlined,
+                title: 'No recordings found',
+                message: 'Try clearing filters or search.',
               ),
             )
           else
@@ -303,149 +303,179 @@ class _AdminRecordingsPageState extends State<AdminRecordingsPage> {
                     final attachments = List<String>.from(
                       data['attachments'] ?? [],
                     );
-                    final location = data['location'] ?? null;
+                    final location = data['location'];
 
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.space2,
                       ),
-                      elevation: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        childrenPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        title: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: _chipColorForStatus(status),
-                              child: Text(
-                                farmerName.toString().isNotEmpty
-                                    ? farmerName.toString()[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(color: Colors.white),
-                              ),
+                      child: AppCard(
+                        padding: EdgeInsets.zero,
+                        child: Theme(
+                          data: Theme.of(
+                            context,
+                          ).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            tilePadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    farmerName.toString(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
+                            childrenPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            title: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: _chipColorForStatus(status),
+                                  child: Text(
+                                    farmerName.toString().isNotEmpty
+                                        ? farmerName.toString()[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        farmerName.toString(),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$yieldVal kg • ${_formatTimestamp(createdAt)}',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _chipColorForStatus(
+                                      status,
+                                    ).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusLg,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '$yieldVal kg • ${_formatTimestamp(createdAt)}',
+                                  child: Text(
+                                    status.toString(),
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
                                       fontSize: 12,
+                                      color: _chipColorForStatus(status),
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.description_outlined,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(notes.toString())),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (attachments.isNotEmpty)
+                                SizedBox(
+                                  height: 64,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemBuilder: (c, i) {
+                                      final url = attachments[i];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          // open image viewer or show full screen
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: Image.network(
+                                            url,
+                                            width: 92,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Container(
+                                                  color: Colors.grey[200],
+                                                  width: 92,
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                  ),
+                                                ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: 8),
+                                    itemCount: attachments.length,
+                                  ),
+                                ),
+                              if (location != null) ...[
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_outlined,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(location.toString()),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      // navigate to farmer profile
+                                    },
+                                    icon: const Icon(Icons.person),
+                                    label: const Text('Farmer Profile'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      // add follow-up task or comment
+                                    },
+                                    icon: const Icon(Icons.add_task),
+                                    label: const Text('Add Follow-up'),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () {
+                                      // edit / moderate recording
+                                    },
+                                    child: const Text('Edit'),
                                   ),
                                 ],
                               ),
-                            ),
-                            Chip(
-                              label: Text(status),
-                              backgroundColor: _chipColorForStatus(
-                                status,
-                              ).withValues(alpha: 0.15),
-                              labelStyle: TextStyle(
-                                color: _chipColorForStatus(status),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.description_outlined, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(notes.toString())),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (attachments.isNotEmpty)
-                            SizedBox(
-                              height: 64,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemBuilder: (c, i) {
-                                  final url = attachments[i];
-                                  return GestureDetector(
-                                    onTap: () {
-                                      // open image viewer or show full screen
-                                    },
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        url,
-                                        width: 92,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: Colors.grey[200],
-                                          width: 92,
-                                          child: const Icon(Icons.broken_image),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 8),
-                                itemCount: attachments.length,
-                              ),
-                            ),
-                          if (location != null) ...[
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on_outlined,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(location.toString()),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              TextButton.icon(
-                                onPressed: () {
-                                  // navigate to farmer profile
-                                },
-                                icon: const Icon(Icons.person),
-                                label: const Text('Farmer Profile'),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: () {
-                                  // add follow-up task or comment
-                                },
-                                icon: const Icon(Icons.add_task),
-                                label: const Text('Add Follow-up'),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  // edit / moderate recording
-                                },
-                                child: const Text('Edit'),
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
                     );
                   },

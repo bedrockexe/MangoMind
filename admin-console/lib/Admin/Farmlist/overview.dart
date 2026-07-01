@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
+
 import 'Userfarmdetails/yieldchart.dart';
 import 'Userfarmdetails/editfarm.dart';
 
@@ -24,380 +28,222 @@ class OverviewPage extends StatefulWidget {
 
 class _OverviewPage extends State<OverviewPage> {
   DocumentReference<Map<String, dynamic>> get farmRef => widget.farmRef;
-  TabController get tabController => widget.tabController;
 
   Future<void> deleteFarm() async {
+    // Capture before the await so we don't touch a stale context afterwards.
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     try {
       await farmRef.delete();
-      Navigator.pop(context, true);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Deleted Farm Successfully')));
+      if (!mounted) return;
+      navigator.pop(true);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Farm deleted')),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error deleting farm: $e')));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error deleting farm: $e')),
+      );
     }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete farm?'),
+        content: const Text(
+          'This permanently removes the farm and its records. This cannot be '
+          'undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) deleteFarm();
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: farmRef.snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Error: ${snap.error}'));
+          return EmptyState(
+            icon: Icons.cloud_off,
+            title: 'Could not load farm',
+            message: '${snap.error}',
+          );
         }
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
         final data = snap.data?.data() ?? {};
-        final name = data['name'] ?? 'Farm';
-        final address = data['address'] ?? '';
+        final name = (data['name'] ?? 'Farm') as String;
+        final address = (data['address'] ?? '') as String;
         final areaHa = data['areaHa'];
+
         final dp = Map<String, dynamic>.from(data['diseasePest'] ?? {});
         final lastObs = dp['lastObserved'] as Timestamp?;
         final DateTime? lastDiseaseDt = lastObs?.toDate();
         final String lastDiseaseValue = lastDiseaseDt == null
-            ? '—'
-            : DateFormat('yyyy-MM-dd').format(lastDiseaseDt);
-        final bool recent =
-            lastDiseaseDt != null &&
+            ? 'None recorded'
+            : DateFormat('MMM d, yyyy').format(lastDiseaseDt);
+        final bool recent = lastDiseaseDt != null &&
             DateTime.now().difference(lastDiseaseDt).inDays <= 14;
-        final Color accent = recent
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF22C55E);
-        final IconData icon = recent
-            ? Icons.warning_amber_rounded
-            : Icons.verified_rounded;
-        final String caption = recent
-            ? 'Recent issue—monitor closely'
-            : 'No recent disease flags';
+
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppTheme.space4),
           children: [
-            // Farm Title Card
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+            // ===== Farm identity =====
+            const SectionHeader('Farm'),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
-                    Text(
-                      address,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.place_outlined,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
                     ),
-                    if (areaHa != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Area: ${areaHa.toString()} hectares',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
                   ],
+                  if (areaHa != null) ...[
+                    const SizedBox(height: AppTheme.space2),
+                    AppStatusChip(
+                      '${areaHa is num ? areaHa.toStringAsFixed(2) : areaHa} ha',
+                      icon: Icons.straighten,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppTheme.space4),
+
+            // ===== Yield trend =====
+            const SectionHeader('Yield trend'),
+            CompactYieldCard(farmRef: farmRef),
+
+            const SizedBox(height: AppTheme.space4),
+
+            // ===== Disease status =====
+            const SectionHeader('Disease & pest'),
+            AppCard(
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: (recent ? scheme.error : AppTheme.brandGreen)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      recent
+                          ? Icons.warning_amber_rounded
+                          : Icons.verified_rounded,
+                      color: recent ? scheme.error : AppTheme.brandGreen,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.space3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Last observed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          lastDiseaseValue,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        AppStatusChip(
+                          recent
+                              ? 'Recent issue — monitor closely'
+                              : 'No recent disease flags',
+                          tone: recent ? StatusTone.danger : StatusTone.success,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppTheme.space5),
+
+            // ===== Actions =====
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                appRoute(
+                  EditFarm(
+                    farm: data,
+                    userId: widget.userId,
+                    farmId: widget.farmId,
+                  ),
                 ),
               ),
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text('Edit farm'),
             ),
-            //
-            const Divider(height: 5),
-            //
-            const SizedBox(height: 12),
-            // Yields Chart Card
-            CompactYieldCard(farmRef: farmRef),
-            //
-            const SizedBox(height: 12),
-            // Last Disease
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: farmRef
-                  .collection('yields')
-                  .orderBy('date', descending: true)
-                  .limit(500)
-                  .snapshots(),
-              builder: (context, ysnap) {
-                if (ysnap.hasData) {
-                  final docs = ysnap.data!.docs;
-                  // Aggregate yields by season
-                  final Map<String, double> totals = {};
-                  for (final d in docs) {
-                    final m = d.data();
-                    final season =
-                        (m['season'] ?? '') as String; // 'Wet' | 'Dry'
-                    final seasonYear =
-                        (m['seasonYear'] ?? 0) as int; // e.g., 2026
-                    final w = (m['weightKg'] is int)
-                        ? (m['weightKg'] as int).toDouble()
-                        : (m['weightKg'] as num?)?.toDouble() ?? 0.0;
-
-                    if ((season == 'Wet' || season == 'Dry') &&
-                        seasonYear > 0) {
-                      final key = '$seasonYear-$season';
-                      totals[key] = (totals[key] ?? 0) + w;
-                    }
-                  }
-
-                  // Pick the latest season: higher seasonYear wins; for same year Wet > Dry
-                  int? bestYear;
-                  String? bestSeason;
-
-                  for (final key in totals.keys) {
-                    final parts = key.split('-'); // [year, season]
-                    if (parts.length != 2) continue;
-                    final yr = int.tryParse(parts[0]) ?? 0;
-                    final ssn = parts[1]; // 'Wet' or 'Dry'
-
-                    bool isBetter = false;
-                    if (bestYear == null) {
-                      isBetter = true;
-                    } else if (yr > bestYear) {
-                      isBetter = true;
-                    } else if (yr == bestYear) {
-                      // Within same seasonYear, Wet is later than Dry
-                      final currentRank = (ssn == 'Wet') ? 2 : 1;
-                      final bestRank = (bestSeason == 'Wet') ? 2 : 1;
-                      if (currentRank > bestRank) isBetter = true;
-                    }
-
-                    if (isBetter) {
-                      bestYear = yr;
-                      bestSeason = ssn;
-                    }
-                  }
-                }
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: KpiCard(
-                        title: 'Last Disease',
-                        value: lastDiseaseValue,
-                        caption: caption,
-                        color: accent,
-                        icon: icon,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            //
-            const SizedBox(height: 12),
-            FarmActionButtons(
-              onEdit: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => EditFarm(
-                      farm: data,
-                      userId: widget.userId,
-                      farmId: widget.farmId,
-                    ),
-                  ),
-                );
-              },
-              onDelete: () async {
-                final confirm = await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Confirm Delete'),
-                    content: const Text(
-                      'Are you sure you want to delete this farm?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  deleteFarm();
-                }
-              },
+            const SizedBox(height: AppTheme.space3),
+            OutlinedButton.icon(
+              onPressed: _confirmDelete,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.error,
+                side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+              ),
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Delete farm'),
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class KpiCard extends StatelessWidget {
-  const KpiCard({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.color,
-    required this.icon,
-    this.caption,
-  });
-
-  final String title;
-  final String value;
-  final Color color;
-  final IconData icon;
-  final String? caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = Theme.of(context).colorScheme.surface;
-    final onBg = Theme.of(context).colorScheme.onSurface;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [bg.withValues(alpha: 0.96), bg.withValues(alpha: 0.86)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: onBg.withValues(alpha: 0.06)),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          // Icon pill
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 12),
-          // Texts
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: onBg.withValues(alpha: 0.75),
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: onBg,
-                  ),
-                ),
-                if (caption != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    caption!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: onBg.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class FarmActionButtons extends StatelessWidget {
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const FarmActionButtons({
-    super.key,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0), // outer margin
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 🟢 Edit Farm Button
-          SizedBox(
-            height: 55,
-            child: ElevatedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_rounded, color: Colors.white),
-              label: const Text(
-                'Edit Farm',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16), // spacing between buttons
-          // 🔴 Delete Farm Button
-          SizedBox(
-            height: 55,
-            child: ElevatedButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.white,
-              ),
-              label: const Text(
-                'Delete Farm',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935),
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

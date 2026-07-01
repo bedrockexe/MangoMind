@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final Map<String, dynamic>? farmer;
@@ -31,29 +34,26 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   HttpsCallable get _deleteUserCallable =>
       FirebaseFunctions.instance.httpsCallable('deleteUser');
 
-  Future<void> _loadUserData() async {
-    final user = widget.farmer!;
-
-    setState(() {
-      _firstNameController = TextEditingController(
-        text: user['first_name']?.toString() ?? '',
-      );
-      _lastNameController = TextEditingController(
-        text: user['last_name']?.toString() ?? '',
-      );
-      _emailController = TextEditingController(
-        text: user['email_address']?.toString() ?? '',
-      );
-      _contactController = TextEditingController(
-        text:
-            user['contactNumber']?.toString() ??
-            user['contact_number']?.toString() ??
-            '',
-      );
-      _addressController = TextEditingController(
-        text: user['address']?.toString() ?? '',
-      );
-    });
+  void _loadUserData() {
+    final user = widget.farmer ?? const {};
+    _firstNameController = TextEditingController(
+      text: user['first_name']?.toString() ?? '',
+    );
+    _lastNameController = TextEditingController(
+      text: user['last_name']?.toString() ?? '',
+    );
+    _emailController = TextEditingController(
+      text: user['email_address']?.toString() ?? '',
+    );
+    _contactController = TextEditingController(
+      text:
+          user['contactNumber']?.toString() ??
+          user['contact_number']?.toString() ??
+          '',
+    );
+    _addressController = TextEditingController(
+      text: user['address']?.toString() ?? '',
+    );
   }
 
   @override
@@ -82,6 +82,14 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     super.dispose();
   }
 
+  String _initials() {
+    final f = (widget.farmer?['first_name'] ?? '').toString().trim();
+    final l = (widget.farmer?['last_name'] ?? '').toString().trim();
+    final s = ((f.isNotEmpty ? f[0] : '') + (l.isNotEmpty ? l[0] : ''))
+        .toUpperCase();
+    return s.isEmpty ? '?' : s;
+  }
+
   Future<void> _updateUser() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
@@ -106,7 +114,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
       final result = await _updateUserCallable.call(payload);
       final data = result.data;
 
-      // Only update UI or pop if still mounted
       if (!mounted) return;
 
       ScaffoldMessenger.of(
@@ -114,11 +121,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
       ).showSnackBar(const SnackBar(content: Text('User updated.')));
 
       Navigator.pop(context, true);
-
-      print('Update result:');
-      print(data['userRecord']['email_address']);
-      print('Type result:');
-      print(data['userRecord']['email_address'].runtimeType);
 
       Map<String, dynamic> userRecord = {
         'first_name': data['userRecord']['first_name'],
@@ -130,9 +132,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => UserDetailsPage(farmer: userRecord),
-        ),
+        appRoute(UserDetailsPage(farmer: userRecord)),
       );
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
@@ -147,236 +147,169 @@ class _UserDetailsPageState extends State<UserDetailsPage>
         ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
     } finally {
-      // Only set state if still in widget tree
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final String firstName = widget.farmer?['first_name'];
-    final String lastName = widget.farmer?['last_name'];
-    final String address = widget.farmer?['address'];
-    final String contactNumber = widget.farmer?['contact_number'];
-    final String email = widget.farmer?['email_address'];
-    final Color avatarColor = Colors.green;
+    final scheme = Theme.of(context).colorScheme;
+    final firstName = (widget.farmer?['first_name'] ?? '').toString();
+    final lastName = (widget.farmer?['last_name'] ?? '').toString();
+    final address = (widget.farmer?['address'] ?? '—').toString();
+    final contactNumber = (widget.farmer?['contact_number'] ?? '—').toString();
+    final email = (widget.farmer?['email_address'] ?? '—').toString();
+    final fullName = '$firstName $lastName'.trim();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Details'),
-        backgroundColor: Colors.green.shade600,
-      ),
+      appBar: AppBar(title: const Text('User details')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: AnimatedBuilder(
-          animation: _fadeAnimation,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _fadeAnimation.value,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Hero-animated Avatar and Name
-                  Center(
-                    child: Hero(
-                      tag: 'user_avatar_${widget.farmer?['name'] ?? 'user'}',
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: avatarColor,
-                        child: Text(
-                          firstName[0].toUpperCase() +
-                              lastName[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Hero(
+                  tag: 'user_avatar_${widget.farmer?['name'] ?? 'user'}',
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: scheme.primaryContainer,
                     child: Text(
-                      '$firstName $lastName',
-                      style: const TextStyle(
-                        fontSize: 24,
+                      _initials(),
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'User Information',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space4),
+              Center(
+                child: Text(
+                  fullName.isEmpty ? 'Unnamed user' : fullName,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTheme.space5),
+              const SectionHeader('User information'),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow(Icons.person, 'First name', firstName),
+                    _buildDivider(),
+                    _buildDetailRow(
+                      Icons.person_outline,
+                      'Last name',
+                      lastName,
+                    ),
+                    _buildDivider(),
+                    _buildDetailRow(Icons.home, 'Address', address),
+                    _buildDivider(),
+                    _buildDetailRow(Icons.phone, 'Contact number', contactNumber),
+                    _buildDivider(),
+                    _buildDetailRow(Icons.email, 'Email address', email),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.space5),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _showEditProfileDialog,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit profile'),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  const SizedBox(width: AppTheme.space3),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showDeleteConfirmationDialog(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: scheme.error,
+                        side: BorderSide(
+                          color: scheme.error.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Delete'),
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          colors: [Colors.white, Colors.green.shade50],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildDetailRow(
-                              Icons.person,
-                              'First Name',
-                              firstName,
-                            ),
-                            _buildDivider(),
-                            _buildDetailRow(
-                              Icons.person_outline,
-                              'Last Name',
-                              lastName,
-                            ),
-                            _buildDivider(),
-                            _buildDetailRow(Icons.home, 'Address', address),
-                            _buildDivider(),
-                            _buildDetailRow(
-                              Icons.phone,
-                              'Contact Number',
-                              contactNumber,
-                            ),
-                            _buildDivider(),
-                            _buildDetailRow(
-                              Icons.email,
-                              'Email Address',
-                              email,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Action Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _showEditProfileDialog,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Edit Profile'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            _showDeleteConfirmationDialog(context);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Delete Account',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.green, size: 24),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.black87,
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
+      child: Row(
+        children: [
+          Icon(icon, color: scheme.primary, size: 24),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
+                Text(
+                  value.isEmpty ? '—' : value,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(
-      thickness: 1,
-      color: Colors.grey,
-      indent: 10,
-      endIndent: 10,
-    );
-  }
+  Widget _buildDivider() =>
+      Divider(height: 20, color: Theme.of(context).colorScheme.outlineVariant);
 
   void _showEditProfileDialog() {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(AppTheme.space4),
               child: Form(
                 key: _formKey,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Header row with title and close button
                       Row(
                         children: [
                           const Expanded(
                             child: Text(
-                              'Edit Profile',
+                              'Edit profile',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
@@ -386,13 +319,10 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           IconButton(
                             onPressed: () => Navigator.of(dialogContext).pop(),
                             icon: const Icon(Icons.close),
-                            splashRadius: 20,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-
-                      // First Row: First + Last name
+                      const SizedBox(height: AppTheme.space2),
                       Row(
                         children: [
                           Expanded(
@@ -401,24 +331,11 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                               child: TextFormField(
                                 controller: _firstNameController,
                                 keyboardType: TextInputType.name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.black,
-                                ),
                                 autovalidateMode:
                                     AutovalidateMode.onUserInteraction,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Colors.grey[50],
+                                decoration: const InputDecoration(
                                   labelText: 'First name',
-                                  prefixIcon: const Icon(Icons.person_outline),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                    horizontal: 12,
-                                  ),
+                                  prefixIcon: Icon(Icons.person_outline),
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
@@ -446,24 +363,11 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                               child: TextFormField(
                                 controller: _lastNameController,
                                 keyboardType: TextInputType.name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.black,
-                                ),
                                 autovalidateMode:
                                     AutovalidateMode.onUserInteraction,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Colors.grey[50],
+                                decoration: const InputDecoration(
                                   labelText: 'Last name',
-                                  prefixIcon: const Icon(Icons.person),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                    horizontal: 12,
-                                  ),
+                                  prefixIcon: Icon(Icons.person),
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
@@ -487,30 +391,14 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // Email
+                      const SizedBox(height: AppTheme.space3),
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
                         autovalidateMode: AutovalidateMode.onUserInteraction,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[50],
+                        decoration: const InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 12,
-                          ),
+                          prefixIcon: Icon(Icons.email_outlined),
                         ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) {
@@ -528,30 +416,14 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           if (_error != null) setState(() => _error = null);
                         },
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // Contact + Address row
+                      const SizedBox(height: AppTheme.space3),
                       TextFormField(
                         controller: _contactController,
                         keyboardType: TextInputType.phone,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
                         autovalidateMode: AutovalidateMode.onUserInteraction,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[50],
+                        decoration: const InputDecoration(
                           labelText: 'Contact number',
-                          prefixIcon: const Icon(Icons.phone_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 12,
-                          ),
+                          prefixIcon: Icon(Icons.phone_outlined),
                         ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) {
@@ -567,29 +439,14 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           if (_error != null) setState(() => _error = null);
                         },
                       ),
-
-                      const SizedBox(height: 12),
-
+                      const SizedBox(height: AppTheme.space3),
                       TextFormField(
                         controller: _addressController,
                         keyboardType: TextInputType.streetAddress,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
                         autovalidateMode: AutovalidateMode.onUserInteraction,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[50],
+                        decoration: const InputDecoration(
                           labelText: 'Address',
-                          prefixIcon: const Icon(Icons.location_on_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 12,
-                          ),
+                          prefixIcon: Icon(Icons.location_on_outlined),
                         ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) {
@@ -602,33 +459,17 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           if (_error != null) setState(() => _error = null);
                         },
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // Password with helper tip
+                      const SizedBox(height: AppTheme.space3),
                       TextFormField(
                         controller: _passwordController,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
+                        obscureText: true,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[50],
+                        decoration: const InputDecoration(
                           labelText: 'Password',
                           helperText: 'Leave empty to keep current password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 12,
-                          ),
+                          prefixIcon: Icon(Icons.lock_outline),
                         ),
                         validator: (v) {
-                          // if user leaves password blank we allow it (means no change)
                           if (v == null || v.trim().isEmpty) return null;
                           if (v.trim().length < 6) {
                             return 'Password must be at least 6 characters';
@@ -640,10 +481,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           if (_error != null) setState(() => _error = null);
                         },
                       ),
-
-                      const SizedBox(height: 18),
-
-                      // Actions
+                      const SizedBox(height: AppTheme.space4),
                       Row(
                         children: [
                           Expanded(
@@ -654,9 +492,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                               child: const Text('Cancel'),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppTheme.space2),
                           Expanded(
-                            child: ElevatedButton.icon(
+                            child: FilledButton.icon(
                               onPressed: _isSaving ? null : _updateUser,
                               icon: _isSaving
                                   ? const SizedBox.shrink()
@@ -670,12 +508,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                                       ),
                                     )
                                   : const Text('Update'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(44),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -692,11 +524,12 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   void _showDeleteConfirmationDialog(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete Account'),
+          title: const Text('Delete account'),
           content: const Text(
             'Are you sure you want to delete this account? This action cannot be undone.',
           ),
@@ -725,7 +558,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                           );
                           navigator.pop();
 
-                          // ✅ Then close the UserDetailsPage
                           if (Navigator.of(
                             context,
                             rootNavigator: true,
@@ -741,9 +573,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                         }
                       } on FirebaseFunctionsException catch (e) {
                         messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Delete failed: ${e.message}'),
-                          ),
+                          SnackBar(content: Text('Delete failed: ${e.message}')),
                         );
                       } catch (e) {
                         messenger.showSnackBar(
@@ -753,7 +583,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                         if (mounted) setState(() => _isDeleting = false);
                       }
                     },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: Text('Delete', style: TextStyle(color: scheme.error)),
             ),
           ],
         );

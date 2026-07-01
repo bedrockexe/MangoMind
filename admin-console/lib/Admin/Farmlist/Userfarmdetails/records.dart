@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
+
 // Import your existing pages
 import 'irrigations.dart';
 import 'observations.dart';
@@ -13,102 +17,103 @@ class RecordsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.water_drop_outlined,
-                  label: 'Irrigations',
-                  color: Colors.teal.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => IrrigationsPage(farmRef: farmRef),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.visibility_outlined,
-                  label: 'Observations',
-                  color: Colors.amber.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ObservationsPage(farmRef: farmRef),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _RecordsBigButton(
-                  icon: Icons.scale_outlined,
-                  label: 'Yields',
-                  color: Colors.green.shade700,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => YieldsHomePage(farmRef: farmRef),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.space4),
+      children: [
+        const SectionHeader('Record logs'),
+        _RecordTile(
+          icon: Icons.water_drop_outlined,
+          color: const Color(0xFF0EA5A4),
+          label: 'Irrigations',
+          subtitle: 'Watering schedule and volumes',
+          onTap: () => Navigator.push(
+            context,
+            appRoute(IrrigationsPage(farmRef: farmRef)),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        _RecordTile(
+          icon: Icons.visibility_outlined,
+          color: AppTheme.brandAmber,
+          label: 'Observations',
+          subtitle: 'Field notes, disease and pest sightings',
+          onTap: () => Navigator.push(
+            context,
+            appRoute(ObservationsPage(farmRef: farmRef)),
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        _RecordTile(
+          icon: Icons.scale_outlined,
+          color: AppTheme.brandGreen,
+          label: 'Yields',
+          subtitle: 'Harvest weights by season',
+          onTap: () => Navigator.push(
+            context,
+            appRoute(YieldsHomePage(farmRef: farmRef)),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _RecordsBigButton extends StatelessWidget {
-  const _RecordsBigButton({
+class _RecordTile extends StatelessWidget {
+  const _RecordTile({
     required this.icon,
     required this.label,
+    required this.subtitle,
     required this.onTap,
     required this.color,
   });
 
   final IconData icon;
   final String label;
+  final String subtitle;
   final VoidCallback onTap;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.white24,
-              child: Icon(icon, color: Colors.white),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right, color: Colors.white),
-          ],
-        ),
+          ),
+          Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+        ],
       ),
     );
   }

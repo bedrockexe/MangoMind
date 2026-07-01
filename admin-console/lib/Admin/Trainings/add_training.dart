@@ -7,6 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+
 class CreateTrainingPage extends StatefulWidget {
   const CreateTrainingPage({super.key});
 
@@ -26,7 +29,6 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
   File? _thumbnailFile;
   bool _isPublished = false;
   bool _isSaving = false;
-  double _uploadProgress = 0.0;
 
   final _categories = [
     'Pest Control',
@@ -84,9 +86,6 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
       _thumbnailFile!,
       SettableMetadata(contentType: 'image/jpeg'),
     );
-    uploadTask.snapshotEvents.listen((snap) {
-      setState(() => _uploadProgress = snap.bytesTransferred / snap.totalBytes);
-    });
     await uploadTask;
     return await ref.getDownloadURL();
   }
@@ -136,17 +135,19 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
 
       await docRef.set(data);
 
+      if (!mounted) return;
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Training created successfully')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -158,12 +159,7 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
     return TextFormField(
       controller: ctrl,
       maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      decoration: InputDecoration(labelText: label),
       validator: (v) => v == null || v.isEmpty ? 'Required field' : null,
     );
   }
@@ -175,13 +171,8 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
     Function(String?) onChanged,
   ) {
     return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      value: value,
+      decoration: InputDecoration(labelText: label),
+      initialValue: value,
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
           .toList(),
@@ -233,17 +224,23 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
           : Container(
               height: 150,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade400),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
               ),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.image, size: 40, color: Colors.grey),
-                    SizedBox(height: 6),
-                    Text('Tap to upload thumbnail'),
+                    Icon(
+                      Icons.image_outlined,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text('Tap to upload thumbnail'),
                   ],
                 ),
               ),
@@ -259,17 +256,15 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
           .limit(5)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const CircularProgressIndicator();
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) return const Text('No previous trainings found.');
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Recent Trainings',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+            const SectionHeader('Recent trainings'),
             ...docs.map((doc) {
               final d = doc.data() as Map<String, dynamic>;
               final title = d['title'] ?? 'Untitled';
@@ -277,16 +272,19 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
               final formatted = date != null
                   ? DateFormat('MMM d, yyyy hh:mm a').format(date)
                   : '';
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                child: ListTile(
-                  leading: d['thumbnailUrl'] != null
-                      ? CircleAvatar(
-                          backgroundImage: NetworkImage(d['thumbnailUrl']),
-                        )
-                      : const CircleAvatar(child: Icon(Icons.school)),
-                  title: Text(title),
-                  subtitle: Text('${d['venue'] ?? ''} • $formatted'),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: d['thumbnailUrl'] != null
+                        ? CircleAvatar(
+                            backgroundImage: NetworkImage(d['thumbnailUrl']),
+                          )
+                        : const CircleAvatar(child: Icon(Icons.school)),
+                    title: Text(title),
+                    subtitle: Text('${d['venue'] ?? ''} • $formatted'),
+                  ),
                 ),
               );
             }),
@@ -341,11 +339,11 @@ class _CreateTrainingPageState extends State<CreateTrainingPage> {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   icon: const Icon(Icons.save),
                   label: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Text(_isSaving ? 'Saving...' : 'Save Training'),
+                    child: Text(_isSaving ? 'Saving...' : 'Save training'),
                   ),
                   onPressed: _isSaving ? null : _saveTraining,
                 ),

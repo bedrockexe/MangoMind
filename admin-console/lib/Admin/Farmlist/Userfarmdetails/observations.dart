@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+
 class ObservationsPage extends StatelessWidget {
   const ObservationsPage({super.key, required this.farmRef});
 
@@ -14,6 +18,7 @@ class ObservationsPage extends StatelessWidget {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (ctx) {
         bool saving = false; // local state for this sheet
 
@@ -38,7 +43,7 @@ class ObservationsPage extends StatelessWidget {
 
                   // Type
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     decoration: const InputDecoration(labelText: 'Type'),
                     items: const [
                       DropdownMenuItem(
@@ -144,43 +149,23 @@ class ObservationsPage extends StatelessWidget {
   // ────────────────────────────────────────────────────────────────────────────
   // UI helpers
   // ────────────────────────────────────────────────────────────────────────────
-  Color _sevColor(String sev) {
+  StatusTone _sevTone(String sev) {
     switch (sev.toLowerCase()) {
       case 'high':
-        return Colors.red;
+        return StatusTone.danger;
       case 'med':
-        return Colors.orange;
+        return StatusTone.warning;
       case 'low':
-        return Colors.green;
+        return StatusTone.success;
       default:
-        return Colors.grey;
+        return StatusTone.neutral;
     }
   }
 
   Widget _sevPill(String sev) {
-    final c = _sevColor(sev);
-    final label = sev.isEmpty ? '—' : sev.toUpperCase();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: c.withValues(alpha: 0.6)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12),
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
+    return AppStatusChip(
+      sev.isEmpty ? '—' : sev.toUpperCase(),
+      tone: _sevTone(sev),
     );
   }
 
@@ -198,110 +183,121 @@ class ObservationsPage extends StatelessWidget {
         ? ''
         : obsAt.toLocal().toString().split(' ').first;
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: const Icon(Icons.coronavirus),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  dateStr.isEmpty ? 'Observed' : 'Observed: $dateStr',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              _sevPill(sev),
-            ],
-          ),
-          subtitle: Text(type.replaceAll('_', ' ').toUpperCase()),
-          trailing: PopupMenuButton<String>(
-            onSelected: (val) async {
-              if (val == 'edit') {
-                final ctrl = TextEditingController(text: notes);
-                bool saving = false;
-                await showDialog(
-                  context: context,
-                  builder: (ctx) => StatefulBuilder(
-                    builder: (ctx, setLocal) => AlertDialog(
-                      title: const Text('Edit notes'),
-                      content: TextField(
-                        controller: ctrl,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          hintText: 'Write notes…',
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: saving
-                              ? null
-                              : () async {
-                                  setLocal(() => saving = true);
-                                  try {
-                                    await doc.reference.update({
-                                      'notes': ctrl.text.trim(),
-                                    });
-                                    if (ctx.mounted) Navigator.pop(ctx);
-                                  } finally {
-                                    setLocal(() => saving = false);
-                                  }
-                                },
-                          child: saving
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Save'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              } else if (val == 'delete') {
-                await doc.reference.delete();
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit notes')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
-            ],
-          ),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: notes.trim().isEmpty
-                    ? Text(
-                        'No notes',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      )
-                    : Text(notes),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.errorContainer.withValues(alpha: 0.5),
+              child: Icon(
+                Icons.coronavirus,
+                color: Theme.of(context).colorScheme.error,
               ),
             ),
-            if (photoUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    photoUrl,
-                    height: 140,
-                    fit: BoxFit.cover,
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    dateStr.isEmpty ? 'Observed' : 'Observed: $dateStr',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
+                _sevPill(sev),
+              ],
+            ),
+            subtitle: Text(type.replaceAll('_', ' ').toUpperCase()),
+            trailing: PopupMenuButton<String>(
+              onSelected: (val) async {
+                if (val == 'edit') {
+                  final ctrl = TextEditingController(text: notes);
+                  bool saving = false;
+                  await showDialog(
+                    context: context,
+                    builder: (ctx) => StatefulBuilder(
+                      builder: (ctx, setLocal) => AlertDialog(
+                        title: const Text('Edit notes'),
+                        content: TextField(
+                          controller: ctrl,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            hintText: 'Write notes…',
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    setLocal(() => saving = true);
+                                    try {
+                                      await doc.reference.update({
+                                        'notes': ctrl.text.trim(),
+                                      });
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                    } finally {
+                                      setLocal(() => saving = false);
+                                    }
+                                  },
+                            child: saving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                } else if (val == 'delete') {
+                  await doc.reference.delete();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit notes')),
+                PopupMenuItem(value: 'delete', child: Text('Delete')),
+              ],
+            ),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: notes.trim().isEmpty
+                      ? Text(
+                          'No notes',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      : Text(notes),
+                ),
               ),
-          ],
+              if (photoUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      height: 140,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -317,14 +313,24 @@ class ObservationsPage extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snap) {
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+          if (snap.hasError) {
+            return EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load observations',
+              message: '${snap.error}',
+            );
+          }
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
 
           final docs = snap.data?.docs ?? [];
           if (docs.isEmpty) {
-            return const Center(child: Text('No observations yet.'));
+            return const EmptyState(
+              icon: Icons.coronavirus_outlined,
+              title: 'No observations yet',
+              message: 'Log disease and pest sightings to track farm health.',
+            );
           }
 
           final anth = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
@@ -342,38 +348,37 @@ class ObservationsPage extends StatelessWidget {
             }
           }
 
+          Widget noRecords() => Padding(
+            padding: const EdgeInsets.only(
+              left: AppTheme.space1,
+              bottom: AppTheme.space2,
+            ),
+            child: Text(
+              'No records',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          );
+
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.space4),
             children: [
-              _sectionHeader('ANTHRACNOSE'),
+              const SectionHeader('Anthracnose'),
               if (anth.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 16, bottom: 8),
-                  child: Text(
-                    'No records',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                )
+                noRecords()
               else
                 ...anth.map((d) => _obsCard(context, d)),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.space2),
 
-              _sectionHeader('POWDERY MILDEW'),
+              const SectionHeader('Powdery mildew'),
               if (pm.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 16, bottom: 8),
-                  child: Text(
-                    'No records',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                )
+                noRecords()
               else
                 ...pm.map((d) => _obsCard(context, d)),
 
               if (other.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _sectionHeader('OTHER'),
+                const SizedBox(height: AppTheme.space2),
+                const SectionHeader('Other'),
                 ...other.map((d) => _obsCard(context, d)),
               ],
             ],

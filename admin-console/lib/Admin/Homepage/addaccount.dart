@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+
 class AddAccount extends StatefulWidget {
   const AddAccount({super.key});
 
@@ -97,205 +100,151 @@ class _RegisterForm extends State<AddAccount> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final passOk = RegExp(r'^.{6,}$').hasMatch(_password.text);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add User Account'),
-        backgroundColor: Colors.green.shade600,
-      ),
+      appBar: AppBar(title: const Text('Add user account')),
       body: ListView(
+        padding: const EdgeInsets.all(AppTheme.space4),
         children: [
-          // Forms
-          Padding(
-            padding: EdgeInsets.all(15),
+          const SectionHeader('Account details'),
+          AppCard(
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  // First Name
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _firstname,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        labelText: 'First Name',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => regexValidator(
-                        label: 'First Name',
-                        pattern: namePattern,
-                        value: v,
-                        hint: 'Name contains invalid characters',
-                      ),
+                  TextFormField(
+                    controller: _firstname,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: const InputDecoration(
+                      labelText: 'First name',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: (v) => regexValidator(
+                      label: 'First Name',
+                      pattern: namePattern,
+                      value: v,
+                      hint: 'Name contains invalid characters',
                     ),
                   ),
-
-                  // Last Name
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _lastname,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        labelText: 'Last Name',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => regexValidator(
-                        label: 'Last Name',
-                        pattern: namePattern,
-                        value: v,
-                        hint: 'Name contains invalid characters',
-                      ),
+                  const SizedBox(height: AppTheme.space3),
+                  TextFormField(
+                    controller: _lastname,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: const InputDecoration(
+                      labelText: 'Last name',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                    validator: (v) => regexValidator(
+                      label: 'Last Name',
+                      pattern: namePattern,
+                      value: v,
+                      hint: 'Name contains invalid characters',
                     ),
                   ),
-
-                  // Contact Number
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _contact,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        labelText: 'Contact Number',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => regexValidator(
-                        label: 'Contact Number',
-                        pattern: phPhonePattern,
-                        value: v,
-                        hint: 'number should be in PH Format. Ex. 0933-',
-                      ),
+                  const SizedBox(height: AppTheme.space3),
+                  TextFormField(
+                    controller: _contact,
+                    keyboardType: TextInputType.phone,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: const InputDecoration(
+                      labelText: 'Contact number',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                    validator: (v) => regexValidator(
+                      label: 'Contact Number',
+                      pattern: phPhonePattern,
+                      value: v,
+                      hint: 'number should be in PH Format. Ex. 0933-',
                     ),
                   ),
-
-                  // Address
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _address,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        labelText: 'Home Address',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Address is required';
-                        }
-                        return null;
-                      },
+                  const SizedBox(height: AppTheme.space3),
+                  TextFormField(
+                    controller: _address,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: const InputDecoration(
+                      labelText: 'Home address',
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Address is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (v) => regexValidator(
+                      label: 'Email Address',
+                      pattern: emailPattern,
+                      value: v,
+                      hint: 'Invalid email address',
                     ),
                   ),
-
-                  // Email Address
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _email,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        labelText: 'Email Address',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => regexValidator(
-                        label: 'Email Address',
-                        pattern: emailPattern,
-                        value: v,
-                        hint: 'Invalid email address',
-                      ),
-                    ),
-                  ),
-
-                  // Password
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: TextFormField(
-                      controller: _password,
-                      obscureText: !_showPassword,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        hintText: "Enter strong password",
-                        border: const OutlineInputBorder(),
-                        // Icons in form fields
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_password.text.isNotEmpty)
-                              // Check or Error Icon
-                              Icon(
-                                (!RegExp(r'^.{6,}$').hasMatch(_password.text))
-                                    ? Icons.error
-                                    : Icons.check_circle,
-                                color:
-                                    (!RegExp(
-                                      r'^.{6,}$',
-                                    ).hasMatch(_password.text))
-                                    ? Colors.red
-                                    : Colors.green,
-                              ),
-
-                            // See Password Icon
-                            IconButton(
-                              icon: Icon(
-                                _showPassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showPassword = !_showPassword;
-                                });
-                              },
+                  const SizedBox(height: AppTheme.space3),
+                  TextFormField(
+                    controller: _password,
+                    obscureText: !_showPassword,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      hintText: 'Enter strong password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_password.text.isNotEmpty)
+                            Icon(
+                              passOk ? Icons.check_circle : Icons.error,
+                              color: passOk ? AppTheme.brandGreen : scheme.error,
                             ),
-                          ],
-                        ),
+                          IconButton(
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () =>
+                                setState(() => _showPassword = !_showPassword),
+                          ),
+                        ],
                       ),
-                      validator: (v) => regexValidator(
-                        label: 'Password',
-                        pattern: strongPassPattern,
-                        value: v,
-                        hint: 'Password should contain atleast 6 characters',
-                      ),
+                    ),
+                    validator: (v) => regexValidator(
+                      label: 'Password',
+                      pattern: strongPassPattern,
+                      value: v,
+                      hint: 'Password should contain atleast 6 characters',
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Create Account button
-          Padding(
-            padding: EdgeInsets.all(15),
-            child: SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: _loading ? null : _register,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+          const SizedBox(height: AppTheme.space5),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _register,
+              child: _loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
-              ),
+                    )
+                  : const Text('Create account'),
             ),
           ),
         ],

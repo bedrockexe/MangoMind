@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+
 class YieldsHomePage extends StatefulWidget {
   const YieldsHomePage({super.key, required this.farmRef, this.yearsBack = 2});
   final DocumentReference<Map<String, dynamic>> farmRef;
@@ -57,9 +61,15 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
             .snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+          if (snap.hasError) {
+            return EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load yields',
+              message: '${snap.error}',
+            );
+          }
 
           // Aggregate firestore docs -> by month
           final Map<_MonthKey, _MonthAgg> byMonth = {};
@@ -79,62 +89,75 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
             itemBuilder: (context, yi) {
               final year = _years[yi];
 
-              return Card(
-                margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space4,
+                  AppTheme.space3,
+                  AppTheme.space4,
+                  0,
                 ),
-                child: ExpansionTile(
-                  initiallyExpanded: yi == 0, // expand current year by default
-                  title: Text(
-                    '$year',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  childrenPadding: const EdgeInsets.only(bottom: 8),
-                  children: [
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 12,
-                      separatorBuilder: (_, __) => const Divider(height: 0),
-                      itemBuilder: (context, mi) {
-                        final month = mi + 1; // 1..12
-                        final label = DateFormat(
-                          'MMMM',
-                        ).format(DateTime(year, month));
-                        final agg =
-                            byMonth[_MonthKey(year, month)] ?? _MonthAgg();
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Theme(
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      initiallyExpanded: yi == 0,
+                      title: Text(
+                        '$year',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                        ),
+                      ),
+                      childrenPadding: const EdgeInsets.only(bottom: 8),
+                      children: [
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: 12,
+                          separatorBuilder: (_, __) => const Divider(height: 0),
+                          itemBuilder: (context, mi) {
+                            final month = mi + 1; // 1..12
+                            final label = DateFormat(
+                              'MMMM',
+                            ).format(DateTime(year, month));
+                            final agg =
+                                byMonth[_MonthKey(year, month)] ?? _MonthAgg();
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: Text(
-                              DateFormat(
-                                'MMM',
-                              ).format(DateTime(year, month)).toUpperCase(),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          title: Text('$label $year'),
-                          subtitle: Text(
-                            '${_fmtKg(agg.total)} total • ${agg.count} record(s)',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MonthYieldsPage(
-                                  farmRef: widget.farmRef,
-                                  year: year,
-                                  month: month,
+                            return ListTile(
+                              leading: CircleAvatar(
+                                child: Text(
+                                  DateFormat(
+                                    'MMM',
+                                  ).format(DateTime(year, month)).toUpperCase(),
+                                  style: const TextStyle(fontSize: 12),
                                 ),
                               ),
+                              title: Text('$label $year'),
+                              subtitle: Text(
+                                '${_fmtKg(agg.total)} total • ${agg.count} record(s)',
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MonthYieldsPage(
+                                      farmRef: widget.farmRef,
+                                      year: year,
+                                      month: month,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -274,7 +297,7 @@ class _YieldsHomePageState extends State<YieldsHomePage> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: season,
+                          initialValue: season,
                           decoration: const InputDecoration(
                             labelText: 'Season',
                             prefixIcon: Icon(Icons.thermostat_auto_outlined),
@@ -451,7 +474,11 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
+            return EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load yields',
+              message: '${snap.error}',
+            );
           }
 
           // ---- Transform snapshot → events map (day -> records)
@@ -491,48 +518,42 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
             children: [
               // ---------------- Calendar (locked to month) ----------------
               Padding(
-                padding: const EdgeInsets.all(12),
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                    child: ValueListenableBuilder<DateTime>(
-                      valueListenable: _selectedDayVN,
-                      builder: (context, selectedDay, _) {
-                        return TableCalendar<_YieldRecord>(
-                          firstDay: _firstDay,
-                          lastDay: _lastDay,
-                          focusedDay:
-                              selectedDay.isBefore(_firstDay) ||
-                                  selectedDay.isAfter(_lastDay)
-                              ? _firstDay
-                              : selectedDay,
-                          calendarFormat: CalendarFormat.month,
-                          availableCalendarFormats: const {
-                            CalendarFormat.month: 'Month',
-                          },
-                          availableGestures: AvailableGestures.none, // lock nav
-                          headerStyle: const HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                            leftChevronVisible: false,
-                            rightChevronVisible: false,
-                          ),
-                          startingDayOfWeek: StartingDayOfWeek.monday,
-                          selectedDayPredicate: (day) =>
-                              _isSameDay(day, selectedDay),
-                          eventLoader: (day) =>
-                              events[_dayOnly(day)] ?? const [],
-                          onDaySelected: (day, _) {
-                            // 🔒 No setState here → no StreamBuilder rebuild.
-                            if (!mounted) return;
-                            _selectedDayVN.value = _dayOnly(day);
-                          },
-                        );
-                      },
-                    ),
+                padding: const EdgeInsets.all(AppTheme.space3),
+                child: AppCard(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                  child: ValueListenableBuilder<DateTime>(
+                    valueListenable: _selectedDayVN,
+                    builder: (context, selectedDay, _) {
+                      return TableCalendar<_YieldRecord>(
+                        firstDay: _firstDay,
+                        lastDay: _lastDay,
+                        focusedDay:
+                            selectedDay.isBefore(_firstDay) ||
+                                selectedDay.isAfter(_lastDay)
+                            ? _firstDay
+                            : selectedDay,
+                        calendarFormat: CalendarFormat.month,
+                        availableCalendarFormats: const {
+                          CalendarFormat.month: 'Month',
+                        },
+                        availableGestures: AvailableGestures.none, // lock nav
+                        headerStyle: const HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          leftChevronVisible: false,
+                          rightChevronVisible: false,
+                        ),
+                        startingDayOfWeek: StartingDayOfWeek.monday,
+                        selectedDayPredicate: (day) =>
+                            _isSameDay(day, selectedDay),
+                        eventLoader: (day) => events[_dayOnly(day)] ?? const [],
+                        onDaySelected: (day, _) {
+                          // 🔒 No setState here → no StreamBuilder rebuild.
+                          if (!mounted) return;
+                          _selectedDayVN.value = _dayOnly(day);
+                        },
+                      );
+                    },
                   ),
                 ),
               ),
@@ -587,83 +608,84 @@ class _MonthYieldsPageState extends State<MonthYieldsPage> {
                                     message: 'No yields on this day.',
                                   ),
                                 )
-                              : Card(
+                              : Padding(
                                   key: ValueKey(
                                     '${dayKey.toIso8601String()}-${recs.length}',
                                   ),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppTheme.space3,
+                                    vertical: AppTheme.space2,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      for (final r in recs) ...[
-                                        ListTile(
-                                          dense: true,
-                                          leading: const Icon(
-                                            Icons.local_mall_outlined,
-                                          ),
-                                          title: Text(_fmtKg(r.kg)),
-                                          subtitle: Text(
-                                            [
-                                              if (r.type.isNotEmpty)
-                                                'Type: ${r.type}',
-                                              if (r.notes.isNotEmpty) r.notes,
-                                              if (r.type.isEmpty &&
-                                                  r.notes.isEmpty)
-                                                'No notes',
-                                            ].join(' • '),
-                                          ),
-                                          trailing: Wrap(
-                                            spacing: 0,
-                                            children: [
-                                              IconButton(
-                                                tooltip: 'Edit notes',
-                                                icon: const Icon(
-                                                  Icons.edit_note_outlined,
+                                  child: AppCard(
+                                    padding: EdgeInsets.zero,
+                                    child: Column(
+                                      children: [
+                                        for (final r in recs) ...[
+                                          ListTile(
+                                            dense: true,
+                                            leading: const Icon(
+                                              Icons.local_mall_outlined,
+                                            ),
+                                            title: Text(_fmtKg(r.kg)),
+                                            subtitle: Text(
+                                              [
+                                                if (r.type.isNotEmpty)
+                                                  'Type: ${r.type}',
+                                                if (r.notes.isNotEmpty) r.notes,
+                                                if (r.type.isEmpty &&
+                                                    r.notes.isEmpty)
+                                                  'No notes',
+                                              ].join(' • '),
+                                            ),
+                                            trailing: Wrap(
+                                              spacing: 0,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Edit notes',
+                                                  icon: const Icon(
+                                                    Icons.edit_note_outlined,
+                                                  ),
+                                                  onPressed: () =>
+                                                      _editRecordDialog(
+                                                        context,
+                                                        r,
+                                                      ),
                                                 ),
-                                                onPressed: () =>
-                                                    _editRecordDialog(
-                                                      context,
-                                                      r,
-                                                    ),
-                                              ),
-                                              IconButton(
-                                                tooltip: 'Delete',
-                                                icon: const Icon(
-                                                  Icons.delete_outline,
+                                                IconButton(
+                                                  tooltip: 'Delete',
+                                                  icon: const Icon(
+                                                    Icons.delete_outline,
+                                                  ),
+                                                  onPressed: () => _deleteWithUndo(
+                                                    context,
+                                                    r.id,
+                                                    // safe copy for undo; may be empty if not needed
+                                                    {
+                                                      'date':
+                                                          Timestamp.fromDate(
+                                                            r.date,
+                                                          ),
+                                                      'weightKg': r.kg,
+                                                      'type': r.type,
+                                                      'notes': r.notes,
+                                                      'createdAt':
+                                                          FieldValue.serverTimestamp(),
+                                                    },
+                                                  ),
                                                 ),
-                                                onPressed: () => _deleteWithUndo(
-                                                  context,
-                                                  r.id,
-                                                  // safe copy for undo; may be empty if not needed
-                                                  {
-                                                    'date': Timestamp.fromDate(
-                                                      r.date,
-                                                    ),
-                                                    'weightKg': r.kg,
-                                                    'type': r.type,
-                                                    'notes': r.notes,
-                                                    'createdAt':
-                                                        FieldValue.serverTimestamp(),
-                                                  },
-                                                ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
+                                            onLongPress: () => _editNotesDialog(
+                                              context,
+                                              r.id,
+                                              r.notes,
+                                            ),
                                           ),
-                                          onLongPress: () => _editNotesDialog(
-                                            context,
-                                            r.id,
-                                            r.notes,
-                                          ),
-                                        ),
-                                        if (r != recs.last)
-                                          const Divider(height: 0),
+                                          if (r != recs.last)
+                                            const Divider(height: 0),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
                                 ),
                         ),

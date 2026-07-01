@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+
 class EditTrainingPage extends StatefulWidget {
   final String trainingId;
   const EditTrainingPage({super.key, required this.trainingId});
@@ -163,7 +165,7 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
         ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -222,31 +224,42 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
               children: [
                 GestureDetector(
                   onTap: _pickThumbnail,
-                  child: _thumbnailFile != null
-                      ? Image.file(
-                          _thumbnailFile!,
-                          height: 160,
-                          fit: BoxFit.cover,
-                        )
-                      : (_existingThumbnailUrl != null
-                            ? Image.network(
-                                _existingThumbnailUrl!,
-                                height: 160,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                height: 160,
-                                color: Colors.grey.shade200,
-                                child: const Center(child: Icon(Icons.image)),
-                              )),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    child: _thumbnailFile != null
+                        ? Image.file(
+                            _thumbnailFile!,
+                            height: 160,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : (_existingThumbnailUrl != null
+                              ? Image.network(
+                                  _existingThumbnailUrl!,
+                                  height: 160,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  height: 160,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                )),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Title'),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Required';
                     return null;
@@ -256,10 +269,7 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
                 TextFormField(
                   controller: _descriptionCtrl,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Description'),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Required';
                     return null;
@@ -267,15 +277,12 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   items: _categories
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) => setState(() => _category = v),
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Category'),
                   validator: (v) {
                     if (v == null) return 'Select';
                     return null;
@@ -283,15 +290,12 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _level,
+                  initialValue: _level,
                   items: _levels
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) => setState(() => _level = v),
-                  decoration: const InputDecoration(
-                    labelText: 'Level',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Level'),
                   validator: (v) {
                     if (v == null) return 'Select';
                     return null;
@@ -300,10 +304,7 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _venueCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Venue',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Venue'),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -342,7 +343,7 @@ class _EditTrainingPageState extends State<EditTrainingPage> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _isSaving ? null : _save,
                     child: Text(_isSaving ? 'Saving...' : 'Save changes'),
                   ),

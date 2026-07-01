@@ -5,6 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+
 class EditFarm extends StatefulWidget {
   final Map<String, dynamic> farm;
   final String userId;
@@ -20,8 +23,7 @@ class EditFarm extends StatefulWidget {
   State<EditFarm> createState() => _EditFarmState();
 }
 
-class _EditFarmState extends State<EditFarm>
-    with SingleTickerProviderStateMixin {
+class _EditFarmState extends State<EditFarm> {
   final _formKey = GlobalKey<FormState>();
 
   // Basic profile
@@ -45,12 +47,7 @@ class _EditFarmState extends State<EditFarm>
   final _plantingYear = TextEditingController();
 
   // Irrigation
-  final List<String> _irrigationTypes = [
-    'None',
-    'Drip',
-    'Sprinkler',
-    'Surface',
-  ];
+  final List<String> _irrigationTypes = ['None', 'Drip', 'Sprinkler', 'Surface'];
   String? _irrigationType = 'Drip';
 
   // Disease flags
@@ -62,15 +59,10 @@ class _EditFarmState extends State<EditFarm>
   File? _pickedImage;
 
   bool _saving = false;
-  late final AnimationController _heroController;
 
   @override
   void initState() {
     super.initState();
-    _heroController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
 
     final f = widget.farm;
 
@@ -91,7 +83,6 @@ class _EditFarmState extends State<EditFarm>
 
   @override
   void dispose() {
-    _heroController.dispose();
     _name.dispose();
     _address.dispose();
     _areaHa.dispose();
@@ -137,7 +128,6 @@ class _EditFarmState extends State<EditFarm>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
-    _heroController.forward();
 
     try {
       final db = FirebaseFirestore.instance;
@@ -173,36 +163,28 @@ class _EditFarmState extends State<EditFarm>
       await batch.commit();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Farm updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Farm updated')));
       Navigator.of(context).maybePop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-        _heroController.reverse();
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  // Label helper
-  Widget _sectionLabel(String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
-
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isWide = MediaQuery.of(context).size.width > 700;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Farm'),
+        title: const Text('Edit farm'),
         actions: [
           IconButton(
             tooltip: 'Save',
@@ -221,255 +203,209 @@ class _EditFarmState extends State<EditFarm>
           ),
         ],
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.all(AppTheme.space4),
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: isWide ? 800 : double.infinity,
               ),
-
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-
-                    // ==========================
                     // IMAGE SECTION
-                    // ==========================
-                    Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Text("Farm Picture",
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 12),
-
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: _pickedImage != null
-                                  ? Image.file(
-                                      _pickedImage!,
-                                      width: double.infinity,
-                                      height: 200,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : (_imageUrl != null &&
-                                          _imageUrl!.isNotEmpty)
-                                      ? Image.network(
-                                          _imageUrl!,
-                                          width: double.infinity,
-                                          height: 200,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Container(
-                                          width: double.infinity,
-                                          height: 200,
-                                          color: Colors.grey[300],
-                                          child: const Icon(Icons.image,
-                                              size: 60, color: Colors.grey),
-                                        ),
+                    const SectionHeader('Farm picture'),
+                    AppCard(
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMd,
                             ),
-
-                            const SizedBox(height: 12),
-
-                            OutlinedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.photo),
-                              label: const Text("Change Picture"),
-                            ),
-                          ],
-                        ),
+                            child: _pickedImage != null
+                                ? Image.file(
+                                    _pickedImage!,
+                                    width: double.infinity,
+                                    height: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : (_imageUrl != null && _imageUrl!.isNotEmpty)
+                                ? Image.network(
+                                    _imageUrl!,
+                                    width: double.infinity,
+                                    height: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: double.infinity,
+                                    height: 200,
+                                    color: scheme.surfaceContainerHighest,
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      size: 60,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: AppTheme.space3),
+                          OutlinedButton.icon(
+                            onPressed: _pickImage,
+                            icon: const Icon(Icons.photo),
+                            label: const Text('Change picture'),
+                          ),
+                        ],
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.space4),
 
-                    // ==========================
-                    // BASIC INFO CARD
-                    // ==========================
-                    Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(14.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionLabel('Basic Info'),
-                            TextFormField(
-                              controller: _name,
-                              decoration: const InputDecoration(
-                                labelText: 'Farm name *',
-                                prefixIcon: Icon(Icons.home_outlined),
-                              ),
-                              validator: _req,
+                    // BASIC INFO
+                    const SectionHeader('Basic info'),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _name,
+                            decoration: const InputDecoration(
+                              labelText: 'Farm name *',
+                              prefixIcon: Icon(Icons.home_outlined),
                             ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _address,
-                              decoration: const InputDecoration(
-                                labelText: 'Address / Barangay *',
-                                prefixIcon: Icon(Icons.location_on_outlined),
-                              ),
-                              validator: _req,
+                            validator: _req,
+                          ),
+                          const SizedBox(height: AppTheme.space3),
+                          TextFormField(
+                            controller: _address,
+                            decoration: const InputDecoration(
+                              labelText: 'Address / Barangay *',
+                              prefixIcon: Icon(Icons.location_on_outlined),
                             ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _areaHa,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              decoration: const InputDecoration(
-                                labelText: 'Area (hectares)',
-                                prefixIcon: Icon(Icons.square_foot),
-                                helperText: 'Example: 1.5',
-                              ),
+                            validator: _req,
+                          ),
+                          const SizedBox(height: AppTheme.space3),
+                          TextFormField(
+                            controller: _areaHa,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
                             ),
-                          ],
-                        ),
+                            decoration: const InputDecoration(
+                              labelText: 'Area (hectares)',
+                              prefixIcon: Icon(Icons.square_foot),
+                              helperText: 'Example: 1.5',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.space4),
 
-                    // ==========================
-                    // SOIL CARD
-                    // ==========================
-                    Card(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(14.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionLabel('Soil'),
-                            DropdownButtonFormField<String>(
-                              value: _soilType,
-                              items: _soilTypes
-                                  .map((t) => DropdownMenuItem(
-                                        value: t,
-                                        child: Text(t),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _soilType = v),
-                              decoration: const InputDecoration(
-                                labelText: 'Soil type',
-                                prefixIcon: Icon(Icons.terrain_outlined),
-                              ),
+                    // SOIL
+                    const SectionHeader('Soil'),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            initialValue: _soilType,
+                            items: _soilTypes
+                                .map(
+                                  (t) => DropdownMenuItem(
+                                    value: t,
+                                    child: Text(t),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(() => _soilType = v),
+                            decoration: const InputDecoration(
+                              labelText: 'Soil type',
+                              prefixIcon: Icon(Icons.terrain_outlined),
                             ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _soilPh,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              decoration: const InputDecoration(
-                                labelText: 'Soil pH',
-                                prefixIcon: Icon(Icons.show_chart),
-                              ),
+                          ),
+                          const SizedBox(height: AppTheme.space3),
+                          TextFormField(
+                            controller: _soilPh,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
                             ),
-                          ],
-                        ),
+                            decoration: const InputDecoration(
+                              labelText: 'Soil pH',
+                              prefixIcon: Icon(Icons.show_chart),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.space4),
 
-                    // ==========================
                     // PLANTING & IRRIGATION
-                    // ==========================
                     isWide
                         ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(child: _plantingCard()),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: AppTheme.space3),
                               Expanded(child: _irrigationCard()),
                             ],
                           )
                         : Column(
                             children: [
                               _plantingCard(),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: AppTheme.space4),
                               _irrigationCard(),
                             ],
                           ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.space4),
 
-                    // ==========================
-                    // DISEASE CARD
-                    // ==========================
-                    Card(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionLabel('Disease / Pest'),
-
-                            SwitchListTile(
-                              value: _anthracnose,
-                              onChanged: (v) =>
-                                  setState(() => _anthracnose = v),
-                              title: const Text('Anthracnose observed'),
-                              secondary:
-                                  const Icon(Icons.warning_amber_rounded),
-                              contentPadding: EdgeInsets.zero,
-                            ),
-
-                            SwitchListTile(
-                              value: _powderyMildew,
-                              onChanged: (v) =>
-                                  setState(() => _powderyMildew = v),
-                              title: const Text('Powdery Mildew observed'),
-                              secondary: const Icon(Icons.bug_report_outlined),
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ],
-                        ),
+                    // DISEASE
+                    const SectionHeader('Disease / pest'),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchListTile(
+                            value: _anthracnose,
+                            onChanged: (v) => setState(() => _anthracnose = v),
+                            title: const Text('Anthracnose observed'),
+                            secondary: const Icon(Icons.warning_amber_rounded),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          SwitchListTile(
+                            value: _powderyMildew,
+                            onChanged: (v) => setState(() => _powderyMildew = v),
+                            title: const Text('Powdery mildew observed'),
+                            secondary: const Icon(Icons.bug_report_outlined),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppTheme.space5),
 
-                    // ==========================
                     // BUTTONS
-                    // ==========================
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: _saving
                                 ? null
-                                : () {
-                                    Navigator.of(context).maybePop(false);
-                                  },
+                                : () => Navigator.of(context).maybePop(false),
                             icon: const Icon(Icons.close),
                             label: const Text('Cancel'),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppTheme.space3),
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: FilledButton.icon(
                             onPressed: _saving ? null : _saveFarm,
                             icon: AnimatedSwitcher(
-                              duration:
-                                  const Duration(milliseconds: 250),
+                              duration: const Duration(milliseconds: 250),
                               child: _saving
                                   ? const SizedBox(
                                       width: 18,
@@ -480,14 +416,13 @@ class _EditFarmState extends State<EditFarm>
                                     )
                                   : const Icon(Icons.save),
                             ),
-                            label:
-                                Text(_saving ? 'Saving...' : 'Update Farm'),
+                            label: Text(_saving ? 'Saving...' : 'Update farm'),
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppTheme.space5),
                   ],
                 ),
               ),
@@ -500,53 +435,43 @@ class _EditFarmState extends State<EditFarm>
 
   // CARD BUILDERS
   Widget _plantingCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionLabel('Planting'),
-            TextFormField(
-              controller: _plantingYear,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Planting year',
-                prefixIcon: Icon(Icons.calendar_month),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('Planting'),
+        AppCard(
+          child: TextFormField(
+            controller: _plantingYear,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Planting year',
+              prefixIcon: Icon(Icons.calendar_month),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _irrigationCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionLabel('Irrigation'),
-            DropdownButtonFormField<String>(
-              value: _irrigationType,
-              items: _irrigationTypes
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                  .toList(),
-              onChanged: (v) => setState(() => _irrigationType = v),
-              decoration: const InputDecoration(
-                labelText: 'Irrigation type',
-                prefixIcon: Icon(Icons.water_drop_outlined),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('Irrigation'),
+        AppCard(
+          child: DropdownButtonFormField<String>(
+            initialValue: _irrigationType,
+            items: _irrigationTypes
+                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                .toList(),
+            onChanged: (v) => setState(() => _irrigationType = v),
+            decoration: const InputDecoration(
+              labelText: 'Irrigation type',
+              prefixIcon: Icon(Icons.water_drop_outlined),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

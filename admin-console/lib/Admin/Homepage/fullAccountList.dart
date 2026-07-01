@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:sweet_insights_admin/Admin/Homepage/detailed.dart';
 import 'package:sweet_insights_admin/service/listuser.dart';
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+import 'package:sweet_insights_admin/theme/transitions.dart';
 import 'addaccount.dart';
 
 class FarmersListPage extends StatefulWidget {
@@ -15,39 +18,44 @@ class _FarmersListPageState extends State<FarmersListPage> {
   final ListUserService listService = ListUserService();
   List<Map<String, dynamic>> _filteredFarmers = [];
   List<Map<String, dynamic>> _fullFarmers = [];
-  List<Color> colorList = [];
   final TextEditingController _searchController = TextEditingController();
-  // ignore: unused_field
   String? _error;
   bool isLoading = false;
 
   Future<void> listUsers() async {
-    try {
+    setState(() {
       isLoading = true;
+      _error = null;
+    });
+    try {
       final users = await listService.listUsers();
+      if (!mounted) return;
       setState(() {
-        _filteredFarmers = users;
         _fullFarmers = users;
+        isLoading = false;
       });
-      for (var i = 0; i < _filteredFarmers.length; i++) {
-        colorList.add(generateRandomColor());
-      }
-      isLoading = false;
+      _filterFarmers();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        isLoading = false;
+      });
     }
   }
 
-  Color generateRandomColor() {
-    final Random _random = Random();
-    return Color.fromARGB(
-      255,
-      _random.nextInt(256),
-      _random.nextInt(256),
-      _random.nextInt(256),
-    );
+  /// Deterministic accent for an avatar, derived from the name so it stays
+  /// stable across rebuilds and refreshes.
+  Color _avatarColor(String seed) {
+    final scheme = Theme.of(context).colorScheme;
+    final palette = [
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      const Color(0xFF18A0C1),
+      const Color(0xFF8E6DF5),
+    ];
+    return palette[seed.hashCode.abs() % palette.length];
   }
 
   @override
@@ -64,147 +72,120 @@ class _FarmersListPageState extends State<FarmersListPage> {
   }
 
   void _filterFarmers() {
-    String query = _searchController.text.toLowerCase();
+    final query = _searchController.text.toLowerCase();
     setState(() {
       if (query.isEmpty) {
         _filteredFarmers = _fullFarmers;
       } else {
-        _filteredFarmers = _filteredFarmers.where((farmer) {
-          return farmer['first_name'].toLowerCase().contains(query) ||
-              farmer['last_name'].toLowerCase().contains(query) ||
-              farmer['email_address'].toLowerCase().contains(query);
+        _filteredFarmers = _fullFarmers.where((farmer) {
+          final first = (farmer['first_name'] ?? '').toString().toLowerCase();
+          final last = (farmer['last_name'] ?? '').toString().toLowerCase();
+          final email = (farmer['email_address'] ?? '')
+              .toString()
+              .toLowerCase();
+          return first.contains(query) ||
+              last.contains(query) ||
+              email.contains(query);
         }).toList();
       }
     });
   }
 
-  Widget _buildFarmerItem(Map<String, dynamic> farmer, int index) {
+  Future<void> _openDetails(Map<String, dynamic> farmer) async {
+    await Navigator.push(context, appRoute(UserDetailsPage(farmer: farmer)));
+    await listUsers();
+  }
+
+  Widget _buildFarmerItem(Map<String, dynamic> farmer) {
+    final first = (farmer['first_name'] ?? '').toString();
+    final last = (farmer['last_name'] ?? '').toString();
+    final email = (farmer['email_address'] ?? '').toString();
+    final initial = first.trim().isNotEmpty ? first[0].toUpperCase() : '?';
+    final color = _avatarColor('$first$email');
+
     return ListTile(
       leading: CircleAvatar(
         radius: 24,
-        backgroundColor: colorList[index],
+        backgroundColor: color.withValues(alpha: 0.15),
         child: Text(
-          farmer['first_name'][0].toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          initial,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
       ),
       title: Text(
-        "${farmer['first_name']} ${farmer['last_name']}",
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        '$first $last'.trim().isEmpty ? 'Unnamed user' : '$first $last',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Text(farmer['email_address'])],
+      subtitle: email.isEmpty ? null : Text(email),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _openDetails(farmer),
+    );
+  }
+
+  Widget _buildBody() {
+    if (isLoading) return const ListSkeleton();
+    if (_error != null) {
+      return EmptyState(
+        icon: Icons.cloud_off,
+        title: 'Could not load users',
+        message: _error,
+        action: FilledButton.icon(
+          onPressed: listUsers,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Retry'),
+        ),
+      );
+    }
+    if (_filteredFarmers.isEmpty) {
+      return const EmptyState(
+        icon: Icons.people_outline,
+        title: 'No users found',
+        message: 'Registered farmer accounts will appear here.',
+      );
+    }
+    return ListView.separated(
+      itemCount: _filteredFarmers.length,
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        color: Theme.of(context).colorScheme.outlineVariant,
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.chevron_right, color: Colors.green),
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => UserDetailsPage(farmer: farmer),
-            ),
-          );
-          listUsers();
-        },
-      ),
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserDetailsPage(farmer: farmer),
-          ),
-        );
-        listUsers();
-      },
+      itemBuilder: (context, index) => _buildFarmerItem(_filteredFarmers[index]),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Farmers Accounts',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.green.shade600,
-      ),
+      appBar: AppBar(title: const Text('Farmer accounts')),
       body: Column(
         children: [
-          // Search Bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(AppTheme.space4),
             child: TextField(
               controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search by name or email',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                prefixIcon: const Icon(Icons.search, color: Colors.green),
+              decoration: const InputDecoration(
+                hintText: 'Search by name or email',
+                prefixIcon: Icon(Icons.search),
               ),
             ),
           ),
           Expanded(
-            child: RefreshIndicator(
+            child: RefreshIndicator.adaptive(
               onRefresh: listUsers,
-              child: isLoading
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text("Fetching users. Please wait..."),
-                        ],
-                      ),
-                    )
-                  : (_filteredFarmers.isEmpty
-                        ? const Center(child: Text('No farmers found'))
-                        : ListView.separated(
-                            itemCount: _filteredFarmers.length,
-                            separatorBuilder: (context, index) => const Divider(
-                              height: 1,
-                              color: Colors.grey,
-                              thickness: 0.5,
-                            ),
-                            itemBuilder: (context, index) {
-                              final farmer = _filteredFarmers[index];
-                              return _buildFarmerItem(farmer, index);
-                            },
-                          )),
+              child: _buildBody(),
             ),
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 40, right: 10),
-        child: FloatingActionButton.extended(
-          onPressed: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => AddAccount()),
-            );
-            await listUsers();
-          },
-          label: const Text('Add User'),
-          icon: const Icon(Icons.person_add_alt_1),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.green,
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          tooltip: 'Add a new user',
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.push(context, appRoute(const AddAccount()));
+          await listUsers();
+        },
+        label: const Text('Add user'),
+        icon: const Icon(Icons.person_add_alt_1),
+        tooltip: 'Add a new user',
       ),
-
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

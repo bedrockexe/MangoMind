@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+
 class AdminAssessmentsPage extends StatefulWidget {
   const AdminAssessmentsPage({super.key});
 
@@ -18,9 +22,6 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
   bool _onlyMyFarmers =
       false; // optional: toggle to show only current admin's assessments
 
-  // For UI
-  final DateFormat _df = DateFormat.yMMMd().add_jm();
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -30,13 +31,13 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
   Color _colorForClassification(String c) {
     switch (c.toLowerCase()) {
       case 'excellent':
-        return Colors.green.shade600;
+        return AppTheme.brandGreen;
       case 'good':
-        return Colors.orange.shade700;
+        return AppTheme.brandAmber;
       case 'low':
-        return Colors.red.shade600;
+        return const Color(0xFFEF4444);
       default:
-        return Colors.grey.shade600;
+        return const Color(0xFF64748B);
     }
   }
 
@@ -276,10 +277,14 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
               stream: assessmentsRef.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return EmptyState(
+                    icon: Icons.cloud_off,
+                    title: 'Could not load assessments',
+                    message: '${snapshot.error}',
+                  );
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const ListSkeleton();
                 }
 
                 // raw docs
@@ -296,7 +301,11 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                 });
 
                 if (filtered.isEmpty) {
-                  return const Center(child: Text('No assessments found.'));
+                  return const EmptyState(
+                    icon: Icons.assignment_outlined,
+                    title: 'No assessments found',
+                    message: 'Submitted assessments will appear here.',
+                  );
                 }
 
                 return RefreshIndicator(
@@ -385,195 +394,197 @@ class _AssessmentCardState extends State<_AssessmentCard> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final score = widget.score.clamp(0, 100);
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => setState(() => _expanded = !_expanded),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  // Score circle
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: widget.color.withValues(alpha: 0.12),
-                    child: Text(
-                      '$score',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: widget.color,
-                      ),
+    return AppCard(
+      padding: EdgeInsets.zero,
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Score circle
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: widget.color.withValues(alpha: 0.12),
+                  child: Text(
+                    '$score',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: widget.color,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.farmerName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _df.format(widget.timestamp),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Chip(
-                    label: Text(
-                      widget.classification,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor: widget.color,
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: Colors.grey.shade700,
-                  ),
-                ],
-              ),
-              // expanded details
-              AnimatedCrossFade(
-                firstChild: const SizedBox.shrink(),
-                secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Answers grid
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Answers',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
-                          ),
+                      Text(
+                        widget.farmerName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _answersTable(widget.answers),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Recommendations',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _df.format(widget.timestamp),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      ),
-                      ...widget.recommendations.map(
-                        (r) => ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.lightbulb_outline),
-                          title: Text(r),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              // show details modal
-                              showDialog(
-                                context: context,
-                                builder: (c) => AlertDialog(
-                                  title: Text(
-                                    'Assessment Details — ${widget.farmerName}',
-                                  ),
-                                  content: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Score: ${widget.score}'),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Classification: ${widget.classification}',
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Answers:',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        _answersTable(widget.answers),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Recommendations:',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        ...widget.recommendations.map(
-                                          (r) => Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 4.0,
-                                            ),
-                                            child: Text('• $r'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(c),
-                                      child: const Text('Close'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.visibility),
-                            label: const Text('View'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: widget.onDelete,
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                            ),
-                            label: const Text(
-                              'Delete',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
                 ),
-                crossFadeState: _expanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                duration: const Duration(milliseconds: 250),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
+                  child: Text(
+                    widget.classification,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+            // expanded details
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  children: [
+                    // Answers grid
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Answers',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _answersTable(widget.answers),
+                    const SizedBox(height: 8),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Recommendations',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...widget.recommendations.map(
+                      (r) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.lightbulb_outline),
+                        title: Text(r),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () {
+                            // show details modal
+                            showDialog(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: Text(
+                                  'Assessment Details — ${widget.farmerName}',
+                                ),
+                                content: SingleChildScrollView(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Score: ${widget.score}'),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Classification: ${widget.classification}',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Answers:',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _answersTable(widget.answers),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Recommendations:',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      ...widget.recommendations.map(
+                                        (r) => Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4.0,
+                                          ),
+                                          child: Text('• $r'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(c),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.visibility),
+                          label: const Text('View'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: widget.onDelete,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: scheme.error,
+                            side: BorderSide(
+                              color: scheme.error.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 250),
+            ),
+          ],
         ),
       ),
     );
@@ -581,6 +592,7 @@ class _AssessmentCardState extends State<_AssessmentCard> {
 
   Widget _answersTable(Map<String, dynamic> answers) {
     if (answers.isEmpty) return const Text('No answers saved.');
+    final scheme = Theme.of(context).colorScheme;
     // display each key-value in a two-column layout
     return Column(
       children: answers.entries.map((e) {
@@ -592,12 +604,18 @@ class _AssessmentCardState extends State<_AssessmentCard> {
             children: [
               Expanded(
                 flex: 4,
-                child: Text(k, style: const TextStyle(color: Colors.black87)),
+                child: Text(
+                  k,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 6,
-                child: Text(v, style: const TextStyle(color: Colors.grey)),
+                child: Text(
+                  v,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
               ),
             ],
           ),

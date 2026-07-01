@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:sweet_insights_admin/theme/app_theme.dart';
+import 'package:sweet_insights_admin/theme/components.dart';
+import 'package:sweet_insights_admin/theme/skeletons.dart';
+
 class IrrigationsPage extends StatefulWidget {
   const IrrigationsPage({super.key, required this.farmRef});
 
@@ -155,6 +159,7 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => Padding(
           padding: EdgeInsets.only(
@@ -194,7 +199,7 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
 
                 // Method
                 DropdownButtonFormField<String>(
-                  value: method,
+                  initialValue: method,
                   decoration: const InputDecoration(labelText: 'Method'),
                   items: const [
                     DropdownMenuItem(value: 'drip', child: Text('Drip')),
@@ -366,19 +371,22 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
             .snapshots(),
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
+            return EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load irrigations',
+              message: '${snap.error}',
+            );
           }
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ListSkeleton();
           }
 
           final docs = snap.data?.docs ?? [];
           if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [const Text('No irrigation logs yet.')],
-              ),
+            return const EmptyState(
+              icon: Icons.water_drop_outlined,
+              title: 'No irrigation logs yet',
+              message: 'Tap "Add irrigation" to record the first watering.',
             );
           }
 
@@ -402,14 +410,8 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    padding: const EdgeInsets.only(top: AppTheme.space3),
+                    child: SectionHeader(label),
                   ),
                   ...items.map((doc) {
                     final m = doc.data();
@@ -428,70 +430,99 @@ class _IrrigationsPageState extends State<IrrigationsPage> {
                             date.day,
                           ).toLocal().toString().split(' ').first;
 
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ExpansionTile(
-                        leading: const Icon(Icons.water_drop),
-                        title: Text(
-                          '$dateStr • ${method.toUpperCase()}'
-                          '${zone.isEmpty ? '' : ' • $zone'}',
-                        ),
-                        subtitle: Text(
-                          'Duration: ${duration}m • Water: ${liters} L',
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (val) async {
-                            if (val == 'edit') {
-                              await _showIrrigationSheet(editingDoc: doc);
-                            } else if (val == 'delete') {
-                              // Optional confirm
-                              final ok = await showDialog<bool>(
-                                context: context,
-                                builder: (c) => AlertDialog(
-                                  title: const Text('Delete irrigation'),
-                                  content: const Text(
-                                    'This action cannot be undone.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(c, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () => Navigator.pop(c, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (ok == true) {
-                                await _deleteIrrigation(doc);
-                              }
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
+                    final scheme = Theme.of(context).colorScheme;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                      child: AppCard(
+                        padding: EdgeInsets.zero,
+                        child: Theme(
+                          data: Theme.of(
+                            context,
+                          ).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(
+                                0xFF0EA5A4,
+                              ).withValues(alpha: 0.15),
+                              child: const Icon(
+                                Icons.water_drop,
+                                color: Color(0xFF0EA5A4),
+                              ),
                             ),
-                          ],
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                            child: notes.trim().isEmpty
-                                ? Text(
-                                    'No notes',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  )
-                                : Text(notes),
+                            title: Text(
+                              '$dateStr • ${method.toUpperCase()}'
+                              '${zone.isEmpty ? '' : ' • $zone'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Duration: ${duration}m • Water: $liters L',
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (val) async {
+                                if (val == 'edit') {
+                                  await _showIrrigationSheet(editingDoc: doc);
+                                } else if (val == 'delete') {
+                                  // Optional confirm
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: const Text('Delete irrigation'),
+                                      content: const Text(
+                                        'This action cannot be undone.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (ok == true) {
+                                    await _deleteIrrigation(doc);
+                                  }
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            ),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  12,
+                                ),
+                                child: notes.trim().isEmpty
+                                    ? Text(
+                                        'No notes',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      )
+                                    : Text(notes),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   }),
