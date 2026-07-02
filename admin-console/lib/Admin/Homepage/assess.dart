@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'assessment_detail.dart';
+import 'manage_questions.dart';
 import 'report_service.dart';
 import 'package:sweet_insights_admin/theme/app_theme.dart';
 import 'package:sweet_insights_admin/theme/components.dart';
@@ -253,6 +254,13 @@ class _AssessmentState extends State<Assessment> {
       appBar: AppBar(
         title: const Text('Assessments'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.quiz_outlined),
+            tooltip: 'Manage questions',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(appRoute(const ManageQuestionsPage())),
+          ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: 'Generate overall PDF report',

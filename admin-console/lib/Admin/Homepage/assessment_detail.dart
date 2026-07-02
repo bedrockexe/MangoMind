@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'report_service.dart';
+import 'manage_questions.dart';
 
 import 'package:sweet_insights_admin/theme/app_theme.dart';
 import 'package:sweet_insights_admin/theme/components.dart';
@@ -13,8 +14,7 @@ class AssessmentDetail extends StatefulWidget {
   final String docId;
   final Map<String, dynamic> data;
 
-  const AssessmentDetail({Key? key, required this.docId, required this.data})
-    : super(key: key);
+  const AssessmentDetail({super.key, required this.docId, required this.data});
 
   @override
   State<AssessmentDetail> createState() => _AssessmentDetailState();
@@ -22,99 +22,49 @@ class AssessmentDetail extends StatefulWidget {
 
 class _AssessmentDetailState extends State<AssessmentDetail>
     with SingleTickerProviderStateMixin {
-  late final Map<String, dynamic> answers;
-  late final Map<String, Map<String, String>> groupedQuestions;
+  final Map<String, dynamic> answers = {};
+  Map<String, Map<String, String>> groupedQuestions = {};
   late final AnimationController _controller;
 
-  static const Map<String, String> _questionBank = {
-    // Section A (example — copy exact prompts from your questionnaire PDF)
-    'A1': 'When do you start preparing your farm for the mango season?',
-    'A2': 'What type of fertilizer do you use before flowering?',
-    'A3':
-        'Do you check your soil condition or moisture before applying fertilizer?',
-    'A4': 'How do you know when your trees are ready for flowering?',
-    'A5': 'What is your biggest problem at the start of the season?',
-    'A6':
-        'How often do you face unexpected rain or drought during preparation?',
-    'A7': 'Do you record your fertilizer or chemical usage?',
-    'A8': 'How do you get updates about weather for farming?',
-    'A9': 'Do you think using an app to guide farm timing would help you?',
-    'A10': 'What do you need most before flowering?',
-
-    // Section B
-    'B1': 'When do your mango trees usually start flowering?',
-    'B2': 'Do you use a flower inducer or let them flower naturally?',
-    'B3': 'What weather problem affects flowering the most?',
-    'B4': 'Do you often have pest problems during flowering?',
-    'B5': 'How do you control pests during this stage?',
-    'B6': 'Do you experience many fruits falling before harvest?',
-    'B7': 'What do you think causes fruit drop?',
-    'B8': 'How often do you water or irrigate your trees during flowering?',
-    'B9': 'Do you record weather conditions during flowering?',
-    'B10': 'What help do you need most during this stage?',
-
-    // Section C
-    'C1': 'When do you usually start harvesting?',
-    'C2': 'Who helps you harvest?',
-    'C3': 'How do you decide when fruits are ready to harvest?',
-    'C4': 'What weather condition often affects your harvest?',
-    'C5': 'Do you record your total harvest (number or weight)?',
-    'C6': 'How do you keep your harvested fruits?',
-    'C7': 'Do you experience fruit damage or loss during harvest?',
-    'C8': 'What causes most harvest losses?',
-    'C9': 'Would it help if the app reminds you of ideal harvest dates?',
-    'C10': 'What support would make harvesting easier?',
-
-    // Section D
-    'D1': 'How do you store your mangoes after harvest?',
-    'D2': 'Do you lose fruits due to spoilage before selling?',
-    'D3': 'How do you bring mangoes to the buyer or market?',
-    'D4': 'Where do you usually sell your mangoes?',
-    'D5': 'How do you know the current market price?',
-    'D6': 'What is your biggest selling problem?',
-    'D7': 'Do you record your sales and income per harvest?',
-    'D8': 'Would you use an app that shows daily mango prices?',
-    'D9': 'How often do you face price changes during harvest time?',
-    'D10': 'What kind of app feature would help you sell better?',
-
-    // Section E
-    'E1': 'What is your biggest problem in mango farming right now?',
-    'E2': 'Which part of farming do you find hardest to manage?',
-    'E3': 'What do you think causes most of your farming losses?',
-    'E4': 'Where do you usually ask for help or advice when problems happen?',
-    'E5': 'What kind of help would improve your mango production the most?',
-    'E6':
-        'Have you received any support or training from government or organizations?',
-    'E7':
-        'Would you like more training about mango care and new farming methods?',
-    'E8':
-        'Do you think an app that gives alerts and guides could reduce your farming problems?',
-    'E9': 'What would make you trust a farming app like MangoMind more?',
-    'E10':
-        'If MangoMind helps you increase your income or reduce losses, would you continue using it every season?',
-  };
+  /// Effective question bank (admin-managed, with hardcoded defaults as a
+  /// fallback). Loaded from Firestore after the first frame.
+  Map<String, String> _questionBank = kDefaultQuestionBank;
 
   @override
   void initState() {
     super.initState();
-    answers = Map<String, dynamic>.from(widget.data['answers'] ?? {});
+    answers.addAll(Map<String, dynamic>.from(widget.data['answers'] ?? {}));
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 450),
     );
     _controller.forward();
 
-    // group answers by section and keep question text where available
-    groupedQuestions = {};
+    _rebuildGroups();
+    _loadBank();
+  }
+
+  Future<void> _loadBank() async {
+    final bank = await loadQuestionBank();
+    if (!mounted) return;
+    setState(() {
+      _questionBank = bank;
+      _rebuildGroups();
+    });
+  }
+
+  /// Group answered questions by section, using managed question text where
+  /// available and falling back to the answer key.
+  void _rebuildGroups() {
+    final groups = <String, Map<String, String>>{};
     for (final entry in answers.entries) {
       final key = entry.key.toString();
       if (key.isEmpty) continue;
       final section = key[0].toUpperCase();
-      groupedQuestions.putIfAbsent(section, () => {});
-      final qText =
-          _questionBank[key] ?? key; // fallback to key if question text missing
-      groupedQuestions[section]![key] = qText;
+      groups.putIfAbsent(section, () => {});
+      groups[section]![key] = _questionBank[key] ?? key;
     }
+    groupedQuestions = groups;
   }
 
   @override

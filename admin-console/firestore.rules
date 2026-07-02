@@ -46,6 +46,12 @@ service cloud.firestore {
         request.resource.data.farmer_id == request.auth.uid;
     }
 
+    // --- Assessment questionnaire: admin authors, any signed-in user reads ---
+    match /assessment_questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // --- Trainings: admin authors, any signed-in user reads ---
     match /trainings/{trainingId} {
       allow read: if isSignedIn();
